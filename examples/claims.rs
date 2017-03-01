@@ -1,9 +1,9 @@
 extern crate jwt;
 extern crate rustc_serialize;
 
-use jwt::{encode, decode, Header, Algorithm};
+use jwt::{encode, decode, Header};
+use jwt::jws::Algorithm;
 use jwt::errors::Error;
-
 
 #[derive(Debug, RustcEncodable, RustcDecodable)]
 struct Claims {
