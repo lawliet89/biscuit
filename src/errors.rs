@@ -1,3 +1,4 @@
+use ring;
 use std::{string, fmt, error};
 use rustc_serialize::{json, base64};
 
@@ -13,7 +14,8 @@ pub enum Error {
 
     InvalidToken,
     InvalidSignature,
-    WrongAlgorithmHeader
+    WrongAlgorithmHeader,
+    UnspecifiedCryptographicError,
 }
 
 macro_rules! impl_from_error {
@@ -29,6 +31,12 @@ impl_from_error!(base64::FromBase64Error, Error::DecodeBase64);
 impl_from_error!(json::DecoderError, Error::DecodeJSON);
 impl_from_error!(string::FromUtf8Error, Error::Utf8);
 
+impl From<ring::error::Unspecified> for Error {
+    fn from(_: ring::error::Unspecified) -> Self {
+        Error::UnspecifiedCryptographicError
+    }
+}
+
 impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
@@ -39,6 +47,7 @@ impl error::Error for Error {
             Error::InvalidToken => "Invalid Token",
             Error::InvalidSignature => "Invalid Signature",
             Error::WrongAlgorithmHeader => "Wrong Algorithm Header",
+            Error::UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
         }
     }
 
@@ -63,6 +72,7 @@ impl fmt::Display for Error {
             Error::InvalidToken => write!(f, "{}", error::Error::description(self)),
             Error::InvalidSignature => write!(f, "{}", error::Error::description(self)),
             Error::WrongAlgorithmHeader => write!(f, "{}", error::Error::description(self)),
+            Error::UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
