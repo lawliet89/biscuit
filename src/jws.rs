@@ -6,7 +6,7 @@ use rustc_serialize::base64::{self, ToBase64};
 use rustc_serialize::json::{ToJson, Json};
 use untrusted;
 
-use ::errors::Error;
+use errors::Error;
 
 #[derive(Debug, PartialEq, Copy, Clone, RustcDecodable, RustcEncodable)]
 /// The algorithms supported for signing/verifying
@@ -121,9 +121,9 @@ impl Algorithm {
 mod tests {
     use std::str;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
-    use super::{Algorithm};
+    use super::Algorithm;
 
- #[test]
+    #[test]
     fn sign_hs256() {
         let expected = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
         let result = not_err!(Algorithm::HS256.sign("hello world", b"secret"));
@@ -158,5 +158,18 @@ mod tests {
 
         let valid = Algorithm::RS256.verify(&*expected_signature, payload, private_key);
         assert!(valid);
+    }
+
+    #[test]
+    fn invalid_hs256() {
+        let invalid_signature = "broken";
+        assert!(!Algorithm::HS256.verify(invalid_signature, "hello world", b"secret"));
+    }
+
+    #[test]
+    fn invalid_rs256() {
+        let private_key = ::test::read_private_key();
+        let invalid_signature = "broken";
+        assert!(!Algorithm::RS256.verify(invalid_signature, "hello world", private_key));
     }
 }
