@@ -11,4 +11,4 @@ keywords = ["jwt", "web", "api", "token", "json"]
 
 [dependencies]
 rustc-serialize = "0.3"
-ring = "0.6"
+ring = { version = "0.7", features = ["rsa_signing"] }
