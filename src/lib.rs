@@ -106,8 +106,7 @@ impl Algorithm {
     }
 
     fn sign_rsa(data: &str, private_key: &[u8], algorithm: &Algorithm) -> Result<String, Error> {
-        let key_pair = std::sync::Arc::new(
-                        signature::RSAKeyPair::from_der(untrusted::Input::from(private_key))?);
+        let key_pair = std::sync::Arc::new(signature::RSAKeyPair::from_der(untrusted::Input::from(private_key))?);
         let mut signing_state = signature::RSASigningState::new(key_pair)?;
         let rng = rand::SystemRandom::new();
         let mut signature = vec![0; signing_state.key_pair().public_modulus_len()];
@@ -249,10 +248,7 @@ macro_rules! expect_two {
 
 /// Decode a token into a Claims struct
 /// If the token or its signature is invalid, it will return an error
-pub fn decode<T: Part>(token: &str,
-                       secret: &[u8],
-                       algorithm: Algorithm)
-                       -> Result<TokenData<T>, Error> {
+pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: Algorithm) -> Result<TokenData<T>, Error> {
     let (signature, payload) = expect_two!(token.rsplitn(2, '.'));
 
     let is_valid = verify(signature, payload, secret, algorithm);
@@ -296,12 +292,12 @@ mod tests {
     }
 
     fn read_private_key() -> &'static [u8] {
-       include_bytes!("../test/fixtures/private_key.der")
+        include_bytes!("../test/fixtures/private_key.der")
     }
 
-     fn read_signature_payload() -> &'static [u8] {
-         include_bytes!("../test/fixtures/signature_payload.txt")
-     }
+    fn read_signature_payload() -> &'static [u8] {
+        include_bytes!("../test/fixtures/signature_payload.txt")
+    }
 
     #[test]
     fn sign_hs256() {
@@ -394,7 +390,9 @@ mod tests {
             company: "ACME".to_string(),
         };
 
-        let token = not_err!(encode(Header::new(Algorithm::HS256), &expected_claims, "secret".as_bytes()));
+        let token = not_err!(encode(Header::new(Algorithm::HS256),
+                                    &expected_claims,
+                                    "secret".as_bytes()));
         assert_eq!(expected_token, token);
 
         let token_data = not_err!(decode::<Claims>(&token, "secret".as_bytes(), Algorithm::HS256));

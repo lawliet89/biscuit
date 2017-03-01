@@ -72,9 +72,7 @@ impl fmt::Display for Error {
             Error::InvalidToken => write!(f, "{}", error::Error::description(self)),
             Error::InvalidSignature => write!(f, "{}", error::Error::description(self)),
             Error::WrongAlgorithmHeader => write!(f, "{}", error::Error::description(self)),
-            Error::UnspecifiedCryptographicError => {
-                write!(f, "{}", error::Error::description(self))
-            }
+            Error::UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
