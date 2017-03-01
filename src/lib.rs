@@ -274,7 +274,6 @@ pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: Algorithm) -> Resu
 #[cfg(test)]
 mod tests {
     use std::str;
-    use ring::digest;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
     use super::{encode, decode, Algorithm, Header, verify};
 
@@ -301,15 +300,11 @@ mod tests {
 
     #[test]
     fn sign_hs256() {
-        let result = not_err!(Algorithm::HS256.sign("hello world", b"secret"));
         let expected = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
+        let result = not_err!(Algorithm::HS256.sign("hello world", b"secret"));
         assert_eq!(result, expected);
-    }
 
-    #[test]
-    fn verify_hs256() {
-        let sig = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
-        let valid = verify(sig, "hello world", b"secret", Algorithm::HS256);
+        let valid = verify(expected, "hello world", b"secret", Algorithm::HS256);
         assert!(valid);
     }
 
@@ -333,10 +328,8 @@ mod tests {
         let expected_signature = not_err!(str::from_base64(expected_signature));
         let expected_signature = expected_signature.to_base64(base64::URL_SAFE);
 
-        let actual_signature = Algorithm::RS256.sign(payload, private_key);
-        println!("{}", actual_signature.unwrap());
-        let m_hash = digest::digest(&digest::SHA256, payload.as_bytes());
-        println!("{}", m_hash.as_ref().to_base64(base64::STANDARD));
+        let actual_signature = not_err!(Algorithm::RS256.sign(payload, private_key));
+        assert_eq!(expected_signature, actual_signature);
 
         let valid = verify(&*expected_signature, payload, private_key, Algorithm::RS256);
         assert!(valid);
@@ -350,8 +343,8 @@ mod tests {
         };
         let mut header = Header::default();
         header.kid = Some("kid".to_string());
-        let token = encode(header, &expected_claims, "secret".as_ref()).unwrap();
-        let token_data = decode::<Claims>(&token, "secret".as_ref(), Algorithm::HS256).unwrap();
+        let token = not_err!(encode(header, &expected_claims, "secret".as_ref()));
+        let token_data = not_err!(decode::<Claims>(&token, "secret".as_ref(), Algorithm::HS256));
         assert_eq!(expected_claims, token_data.claims);
         assert_eq!("kid", token_data.header.kid.unwrap());
     }
@@ -414,6 +407,16 @@ mod tests {
         let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                      eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.wrong";
         let claims = decode::<Claims>(token, "secret".as_ref(), Algorithm::HS256);
+        claims.unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidSignature")]
+    fn decode_token_invalid_signature_rs256() {
+        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.wrong";
+        let private_key = read_private_key();
+        let claims = decode::<Claims>(token, private_key, Algorithm::RS256);
         claims.unwrap();
     }
 
