@@ -1,12 +1,12 @@
 [package]
-name = "jsonwebtoken"
-version = "1.1.6"
-authors = ["Vincent Prouillet <vincent@wearewizards.io>"]
+name = "jwt"
+version = "0.1.0"
+authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
 description = "Create and parse JWT in a strongly typed way."
-homepage = "https://github.com/Keats/rust-jwt"
-repository = "https://github.com/Keats/rust-jwt"
+homepage = "https://github.com/lawliet89/rust-jwt"
+repository = "https://github.com/lawliet89/rust-jwt"
 keywords = ["jwt", "web", "api", "token", "json"]
 
 [dependencies]

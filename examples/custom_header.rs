@@ -1,4 +1,4 @@
-extern crate jsonwebtoken as jwt;
+extern crate jwt;
 extern crate rustc_serialize;
 
 use jwt::{encode, decode, Header, Algorithm};

@@ -136,14 +136,14 @@ impl<T> Part for T
     type Encoded = String;
 
     fn to_base64(&self) -> Result<Self::Encoded, Error> {
-        let encoded = try!(json::encode(&self));
+        let encoded = json::encode(&self)?;
         Ok(encoded.as_bytes().to_base64(base64::URL_SAFE))
     }
 
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<T, Error> {
-        let decoded = try!(encoded.as_ref().from_base64());
-        let s = try!(String::from_utf8(decoded));
-        Ok(try!(json::decode(&s)))
+        let decoded = encoded.as_ref().from_base64()?;
+        let s = String::from_utf8(decoded)?;
+        Ok(json::decode(&s)?)
     }
 }
 
@@ -225,8 +225,8 @@ pub fn verify(signature: &str, data: &str, secret: &[u8], algorithm: Algorithm) 
 
 /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
 pub fn encode<T: Part>(header: Header, claims: &T, secret: &[u8]) -> Result<String, Error> {
-    let encoded_header = try!(header.to_base64());
-    let encoded_claims = try!(claims.to_base64());
+    let encoded_header = header.to_base64()?;
+    let encoded_claims = claims.to_base64()?;
     // seems to be a tiny bit faster than format!("{}.{}", x, y)
     let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
     let signature = header.alg.sign(&*payload, secret.as_ref())?;
@@ -259,11 +259,11 @@ pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: Algorithm) -> Resu
 
     let (claims, header) = expect_two!(payload.rsplitn(2, '.'));
 
-    let header = try!(Header::from_base64(header));
+    let header = Header::from_base64(header)?;
     if header.alg != algorithm {
         return Err(Error::WrongAlgorithmHeader);
     }
-    let decoded_claims = try!(T::from_base64(claims));
+    let decoded_claims = T::from_base64(claims)?;
 
     Ok(TokenData {
         header: header,
