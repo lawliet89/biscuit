@@ -348,7 +348,6 @@ mod tests {
 
     #[test]
     fn encode_with_custom_header() {
-        // TODO: test decode value
         let expected_claims = Claims {
             sub: "b@b.com".to_string(),
             company: "ACME".to_string(),
@@ -362,50 +361,45 @@ mod tests {
     }
 
     #[test]
-    fn round_trip_claim_rs256() {
+    fn round_trip_hs256() {
+        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+                              eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                              C35LD5nqS_Gx9KF19E2wwf_KFcQ7TNqZLThivXZMXKWen9XVjr6kIF_fjZoaA-\
+                              F9q1QjK4EAG6ZwFO2l3rL7MFsrOJwcCgfSkcnTLFOI_RewEFKSDDrfeZyXwQo4PlYd\
+                              q5i2Ue1hxQwbv4MuVcnW1rEPqb04WMo3pS2IpNkJxbiUyWIz_Ze4enPXby8YRbidHfC0eS0CK\
+                              7bvycE8RJC0Ynpdf0lnd_5jZmAQjC_imz9bjL_wLZq-ggl8Bbi-sA8VcIQWLTPbrpCuYPDrXkjdxL\
+                              VpJXoBNEEkfNryqD9asu2r2tFJXrSVLxZGV9AAtkks7uk1nkyEfHVQiOE6JrNODA";
         let expected_claims = Claims {
             sub: "b@b.com".to_string(),
             company: "ACME".to_string(),
         };
-
         let private_key = read_private_key();
+
         let token = not_err!(encode(Header::new(Algorithm::RS256), &expected_claims, private_key));
+        assert_eq!(expected_token, token);
+
         let token_data = not_err!(decode::<Claims>(&token, private_key, Algorithm::RS256));
         assert_eq!(expected_claims, token_data.claims);
         assert!(token_data.header.kid.is_none());
     }
 
+
     #[test]
-    fn decode_token_hs256() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                     I1BvFoHe94AFf09O6tDbcSB8-jp8w6xZqmyHIwPeSdY";
+    fn round_trip_rs256() {
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                              eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                              I1BvFoHe94AFf09O6tDbcSB8-jp8w6xZqmyHIwPeSdY";
         let expected_claims = Claims {
             sub: "b@b.com".to_string(),
             company: "ACME".to_string(),
         };
 
-        let token_data = not_err!(decode::<Claims>(token, "secret".as_ref(), Algorithm::HS256));
-        assert_eq!(expected_claims, token_data.claims);
-    }
+        let token = not_err!(encode(Header::new(Algorithm::HS256), &expected_claims, "secret".as_bytes()));
+        assert_eq!(expected_token, token);
 
-    #[test]
-    fn decode_token_rs256() {
-        let token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                     C35LD5nqS_Gx9KF19E2wwf_KFcQ7TNqZLThivXZMXKWen9XVjr6kIF_fjZoaA-\
-                     F9q1QjK4EAG6ZwFO2l3rL7MFsrOJwcCgfSkcnTLFOI_RewEFKSDDrfeZyXwQo4PlYd\
-                     q5i2Ue1hxQwbv4MuVcnW1rEPqb04WMo3pS2IpNkJxbiUyWIz_Ze4enPXby8YRbidHfC0eS0CK\
-                     7bvycE8RJC0Ynpdf0lnd_5jZmAQjC_imz9bjL_wLZq-ggl8Bbi-sA8VcIQWLTPbrpCuYPDrXkjdxL\
-                     VpJXoBNEEkfNryqD9asu2r2tFJXrSVLxZGV9AAtkks7uk1nkyEfHVQiOE6JrNODA";
-                let expected_claims = Claims {
-            sub: "b@b.com".to_string(),
-            company: "ACME".to_string(),
-        };
-
-        let private_key = read_private_key();
-        let token_data = not_err!(decode::<Claims>(token, private_key, Algorithm::RS256));
+        let token_data = not_err!(decode::<Claims>(&token, "secret".as_bytes(), Algorithm::HS256));
         assert_eq!(expected_claims, token_data.claims);
+        assert!(token_data.header.kid.is_none());
     }
 
     #[test]
