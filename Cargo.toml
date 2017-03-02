@@ -14,5 +14,5 @@ ring = { version = "0.7", features = ["rsa_signing"] }
 rustc-serialize = "0.3"
 serde = "0.9"
 serde_derive = "0.9"
-serde_json = "0.9"
+serde_json = { version = "0.9", features = ["preserve_order"] }
 untrusted = "0.3"

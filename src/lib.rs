@@ -122,11 +122,6 @@ impl Deserialize for SingleOrMultipleStrings {
     }
 }
 
-pub struct ClaimsSet<T: Serialize + Deserialize> {
-    registered: RegisteredClaims,
-    private: T,
-}
-
 #[derive(Debug, Eq, PartialEq, Deserialize)]
 pub struct RegisteredClaims {
     // Issuer
@@ -183,6 +178,46 @@ impl Serialize for RegisteredClaims {
         optional!(jti);
 
         struc.end()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct ClaimsSet<T: Serialize + Deserialize> {
+    registered: RegisteredClaims,
+    private: T,
+}
+
+/// Serializer for ClaimsSet. Claims with the same
+impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        use serde::ser::Error;
+        use serde_json::value;
+
+        // A "hack" to combine two structs into one serialized JSON
+        // First, we serialize each of them into JSON Value enum
+        let registered = value::to_value(&self.registered).map_err(|e| S::Error::custom(e))?;
+        let private = value::to_value(&self.private).map_err(|e| S::Error::custom(e))?;
+
+        // Extract the Maps out
+        let mut registered = match registered {
+            value::Value::Object(map) => map,
+            _ => unreachable!("RegisteredClaims needs to be a Struct")
+        };
+        let private = match private {
+            value::Value::Object(map) => map,
+            _ => Err(S::Error::custom("Private Claims type is not a struct"))?
+        };
+
+        // Merge the Maps
+        for (key, value) in private.into_iter() {
+            if let Some(_) = registered.insert(key.clone(), value) {
+                Err(S::Error::custom(format!("Private claims has registered claim {}", key)))?
+            }
+        }
+
+        registered.serialize(serializer)
     }
 }
 
@@ -246,7 +281,7 @@ mod tests {
     use std::str;
     use serde_json;
 
-    use super::{encode, decode, SingleOrMultipleStrings, RegisteredClaims};
+    use super::{encode, decode, SingleOrMultipleStrings, RegisteredClaims, ClaimsSet};
     use jws::{Algorithm, Header};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -323,6 +358,32 @@ mod tests {
         assert_eq!(expected_json, serialized);
 
         let deserialized: RegisteredClaims = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, claim);
+    }
+
+    #[test]
+    fn claims_set_serialization_round_trip() {
+        let claim = ClaimsSet::<Claims> {
+                registered: RegisteredClaims {
+                iss: Some("https://www.acme.com".to_string()),
+                sub: None,
+                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                exp: None,
+                nbf: Some(1234),
+                iat: None,
+                jti: None,
+            },
+            private: Claims {
+                sub: "b@b.com".to_string(),
+                company: "ACME".to_string(),
+            }
+        };
+        let expected_json = r#""#;
+
+        let serialized = not_err!(serde_json::to_string(&claim));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: ClaimsSet<Claims> = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, claim);
     }
 
