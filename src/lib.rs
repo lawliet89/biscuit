@@ -50,7 +50,7 @@ impl<T> Part for T
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<T, Error> {
         let decoded = encoded.as_ref().from_base64()?;
         let s = String::from_utf8(decoded)?;
-        Ok(json::decode(&s)?)
+        Ok(serde_json::from_str(&s)?)
     }
 }
 
