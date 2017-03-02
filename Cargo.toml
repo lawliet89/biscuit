@@ -10,6 +10,7 @@ repository = "https://github.com/lawliet89/rust-jwt"
 keywords = ["jwt", "web", "api", "token", "json"]
 
 [dependencies]
+chrono = { version = "0.3", features = ["rustc-serialize", "serde"] }
 ring = { version = "0.7", features = ["rsa_signing"] }
 rustc-serialize = "0.3"
 serde = "0.9"
