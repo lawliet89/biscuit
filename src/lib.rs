@@ -4,7 +4,6 @@
 // #![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-extern crate chrono;
 extern crate rustc_serialize;
 extern crate ring;
 extern crate serde;
@@ -15,7 +14,6 @@ extern crate untrusted;
 
 use std::fmt;
 
-use chrono::{DateTime, UTC};
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::{SerializeSeq, SerializeStruct};
@@ -130,7 +128,6 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize)]
-// TODO: TEST!
 pub struct RegisteredClaims {
     // Issuer
     pub iss: Option<String>,
@@ -138,12 +135,12 @@ pub struct RegisteredClaims {
     pub sub: Option<String>,
     /// Audience
     pub aud: Option<SingleOrMultipleStrings>,
-    /// Expiration time
-    pub exp: Option<DateTime<UTC>>,
-    /// Not before time
-    pub nbf: Option<DateTime<UTC>>,
-    /// Issued at Time
-    pub iat: Option<DateTime<UTC>>,
+    /// Expiration time in seconds since Unix Epoch
+    pub exp: Option<u64>,
+    /// Not before time in seconds since Unix Epoch
+    pub nbf: Option<u64>,
+    /// Issued at Time in seconds since Unix Epoch
+    pub iat: Option<u64>,
     /// JWT ID
     pub jti: Option<String>,
 }
@@ -249,7 +246,7 @@ mod tests {
     use std::str;
     use serde_json;
 
-    use super::{encode, decode, SingleOrMultipleStrings};
+    use super::{encode, decode, SingleOrMultipleStrings, RegisteredClaims};
     use jws::{Algorithm, Header};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -287,6 +284,46 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringsTest = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn empty_registered_claims_serialization_round_trip() {
+        let claim = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: None,
+            nbf: None,
+            iat: None,
+            jti: None,
+        };
+        let expected_json = "{}";
+
+        let serialized = not_err!(serde_json::to_string(&claim));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: RegisteredClaims = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, claim);
+    }
+
+    #[test]
+    fn registered_claims_serialization_round_trip() {
+        let claim = RegisteredClaims {
+            iss: Some("https://www.acme.com".to_string()),
+            sub: None,
+            aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            exp: None,
+            nbf: Some(1234),
+            iat: None,
+            jti: None,
+        };
+        let expected_json = r#"{"iss":"https://www.acme.com","aud":"htts://acme-customer.com","nbf":1234}"#;
+
+        let serialized = not_err!(serde_json::to_string(&claim));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: RegisteredClaims = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, claim);
     }
 
     #[test]

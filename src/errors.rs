@@ -1,7 +1,7 @@
 use ring;
 use std::{string, fmt, error};
 use serde_json;
-use rustc_serialize::{json, base64};
+use rustc_serialize::base64;
 
 #[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
