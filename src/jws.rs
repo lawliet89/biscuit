@@ -1,25 +1,24 @@
 use std::sync::Arc;
-use std::collections::BTreeMap;
 
+use serde::{Serialize, Serializer};
+use serde::ser::SerializeStruct;
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
-use rustc_serialize;
-use rustc_serialize::Encodable;
 use rustc_serialize::base64::{self, ToBase64};
-use rustc_serialize::json::{ToJson, Json};
 
 use untrusted;
 
 use errors::Error;
 
-#[derive(Debug, PartialEq, RustcDecodable)]
+#[derive(Debug, PartialEq, Deserialize)]
 /// A basic JWT header part, the alg defaults to HS256 and typ is automatically
 /// set to `JWT`. All the other fields are optional
 // TODO: Implement verification for registered headers and support custom headers
 // https://tools.ietf.org/html/rfc7515#section-4.1
 pub struct Header {
-    typ: String,
     pub alg: Algorithm,
+    /// Type of the JWT. Usually "JWT".
+    pub typ: Option<String>,
     pub jku: Option<String>,
     pub kid: Option<String>,
     pub x5u: Option<String>,
@@ -29,13 +28,51 @@ pub struct Header {
 impl Header {
     pub fn new(algorithm: Algorithm) -> Header {
         Header {
-            typ: "JWT".to_string(),
             alg: algorithm,
+            typ: Some("JWT".to_string()),
             jku: None,
             kid: None,
             x5u: None,
             x5t: None,
         }
+    }
+
+    fn count_fields(&self) -> usize {
+        macro_rules! count {
+            ($field_name:ident) => (
+                match self.$field_name {
+                    Some(_) => 1,
+                    None => 0
+                }
+            )
+        }
+
+        1 + count!(typ) + count!(jku) + count!(kid) + count!(x5u) + count!(x5t)
+    }
+}
+
+impl Serialize for Header {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let mut struc = serializer.serialize_struct("Header", self.count_fields())?;
+        struc.serialize_field("alg", &self.alg)?;
+
+        macro_rules! optional {
+            ($field_name:ident) => (
+                if let Some(ref value) = self.$field_name {
+                    struc.serialize_field(stringify!($field_name), value)?;
+                }
+            )
+        }
+
+        optional!(typ);
+        optional!(jku);
+        optional!(kid);
+        optional!(x5u);
+        optional!(x5t);
+
+        struc.end()
     }
 }
 
@@ -45,37 +82,9 @@ impl Default for Header {
     }
 }
 
-impl Encodable for Header {
-    fn encode<S: rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        self.to_json().encode(s)
-    }
-}
-
-/// The default serializer will serialize `None` values as `null`. We don't want that.
-impl ToJson for Header {
-    fn to_json(&self) -> Json {
-        let mut d = BTreeMap::new();
-        d.insert("typ".to_string(), self.typ.to_json());
-        d.insert("alg".to_string(), self.alg.to_json());
-
-        // Define a macro to reduce boilerplate.
-        macro_rules! optional {
-            ($field_name:ident) => (
-                if let Some(ref value) = self.$field_name {
-                    d.insert(stringify!($field_name).to_string(), value.to_json());
-                }
-            )
-        }
-        optional!(jku);
-        optional!(kid);
-        optional!(x5u);
-        optional!(x5t);
-        Json::Object(d)
-    }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone, RustcDecodable, RustcEncodable)]
+#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 /// The algorithms supported for signing/verifying
+// TODO: Add support for `none`
 pub enum Algorithm {
     HS256,
     HS384,
@@ -83,21 +92,6 @@ pub enum Algorithm {
     RS256,
     RS384,
     RS512,
-}
-
-impl ToJson for Algorithm {
-    fn to_json(&self) -> Json {
-        use self::Algorithm::*;
-
-        match *self {
-            HS256 => Json::String("HS256".to_string()),
-            HS384 => Json::String("HS384".to_string()),
-            HS512 => Json::String("HS512".to_string()),
-            RS256 => Json::String("RS256".to_string()),
-            RS384 => Json::String("RS384".to_string()),
-            RS512 => Json::String("RS512".to_string()),
-        }
-    }
 }
 
 impl Algorithm {
@@ -186,8 +180,35 @@ impl Algorithm {
 #[cfg(test)]
 mod tests {
     use std::str;
+    use serde_json;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
-    use super::Algorithm;
+    use super::{Algorithm, Header};
+
+    #[test]
+    fn header_serialization_round_trip_no_optional() {
+        let expected = Header::default();
+        let expected_json = r#"{"alg":"HS256","typ":"JWT"}"#;
+
+        let encoded = not_err!(serde_json::to_string(&expected));
+        assert_eq!(expected_json, encoded);
+
+        let decoded: Header = not_err!(serde_json::from_str(&encoded));
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn header_serialization_round_trip_with_optional() {
+        let mut expected = Header::default();
+        expected.kid = Some("kid".to_string());
+
+        let expected_json = r#"{"alg":"HS256","typ":"JWT","kid":"kid"}"#;
+
+        let encoded = not_err!(serde_json::to_string(&expected));
+        assert_eq!(expected_json, encoded);
+
+        let decoded: Header = not_err!(serde_json::from_str(&encoded));
+        assert_eq!(decoded, expected);
+    }
 
     #[test]
     fn sign_hs256() {
