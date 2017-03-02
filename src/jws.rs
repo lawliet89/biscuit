@@ -212,51 +212,48 @@ mod tests {
 
     #[test]
     fn sign_hs256() {
-        let expected = "c0zGLzKEFWj0VxWuufTXiRMk5tlI5MbGDAYhzaxIYjo";
-        let result = not_err!(Algorithm::HS256.sign("hello world", b"secret"));
-        assert_eq!(result, expected);
+        let expected = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
+        let actual = not_err!(Algorithm::HS256.sign("payload", b"secret"));
+        assert_eq!(expected, actual);
 
-        let valid = Algorithm::HS256.verify(expected, "hello world", b"secret");
+        let valid = Algorithm::HS256.verify(expected, "payload", b"secret");
         assert!(valid);
     }
 
     /// To generate hash, use
     ///
     /// ```sh
-    /// openssl dgst -sha256 -sign test/fixtures/private_key.pem  test/fixtures/signature_payload.txt | base64
+    /// echo -n "payload" | openssl dgst -sha256 -sign test/fixtures/private_key.pem | base64
     /// ```
     ///
     /// The base64 encoding will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_rs256() {
         let private_key = ::test::read_private_key();
-        let payload = not_err!(str::from_utf8(::test::read_signature_payload()));
         // Convert STANDARD base64 to URL_SAFE
-        let expected_signature = "rg1MvJA9sH9x5xf8hZ3lFyAeUkz1wShrgB5G5rOlRI6oTZsUGwp7UBkxiopW80iBP/wvIbHEdI86\
-                                  Q0jHaG4n1X7ij0NSSbN3LRawFOEodPDvXsk8kaoyUaLsLyFUf4Gdg3z7YSc0ZT8Ry0pKLls7c0ga\
-                                  cpdYb7+Vw35+FNwA70tSt6vV5YKiFDDoiTvubM/3gizsDGCPMLVeRKGpSvBPaHtclgbM+kxML4fR\
-                                  qqHsNdnbrI/ic+A5E1KFm9oeUAbbwb1dxhz6d6N3jwg8j7ttyskIa4gK9yxBUASYoFaakMDhBfeg\
-                                  QAyE/zz7nWs3j9B4cy9a9tVV/3E7N3U5J0xRzQ==";
+        let expected_signature = "JIHqiBfUknrFPDLT0gxyoufD06S43ZqWN_PzQqHZqQ-met7kZmkSTYB_rUyotLMxlKkuXdnvKmWm\
+                                  dwGAHWEwDvb5392pCmAAtmUIl6LormxJptWYb2PoF5jmtX_lwV8y4RYIh54Ai51162VARQCKAsxL\
+                                  uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
+                                  j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
+                                  5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
         let expected_signature = not_err!(str::from_base64(expected_signature));
         let expected_signature = expected_signature.to_base64(base64::URL_SAFE);
 
-        let actual_signature = not_err!(Algorithm::RS256.sign(payload, private_key));
+        let actual_signature = not_err!(Algorithm::RS256.sign("payload", private_key));
         assert_eq!(expected_signature, actual_signature);
 
-        let valid = Algorithm::RS256.verify(&*expected_signature, payload, private_key);
+        let valid = Algorithm::RS256.verify(&*expected_signature, "payload", private_key);
         assert!(valid);
     }
 
     #[test]
     fn invalid_hs256() {
-        let invalid_signature = "broken";
-        assert!(!Algorithm::HS256.verify(invalid_signature, "hello world", b"secret"));
+        assert!(!Algorithm::HS256.verify("invalid signature", "payload", b"secret"));
     }
 
     #[test]
     fn invalid_rs256() {
         let private_key = ::test::read_private_key();
-        let invalid_signature = "broken";
-        assert!(!Algorithm::RS256.verify(invalid_signature, "hello world", private_key));
+        assert!(!Algorithm::RS256.verify("invalid signature", "payload", private_key));
     }
 }
