@@ -1,11 +1,12 @@
 extern crate jwt;
-extern crate rustc_serialize;
+#[macro_use]
+extern crate serde_derive;
 
 use jwt::{encode, decode};
 use jwt::jws::{Algorithm, Header};
 use jwt::errors::Error;
 
-#[derive(Debug, RustcEncodable, RustcDecodable)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,
     company: String,

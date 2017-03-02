@@ -12,4 +12,7 @@ keywords = ["jwt", "web", "api", "token", "json"]
 [dependencies]
 ring = { version = "0.7", features = ["rsa_signing"] }
 rustc-serialize = "0.3"
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
 untrusted = "0.3"
