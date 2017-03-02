@@ -6,10 +6,18 @@
 
 extern crate rustc_serialize;
 extern crate ring;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 extern crate untrusted;
 
-use rustc_serialize::{json, Encodable, Decodable};
+use std::fmt;
+
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::de::{self, Visitor};
 
 #[cfg(test)]
 #[macro_use]
@@ -29,12 +37,13 @@ pub trait Part {
 }
 
 impl<T> Part for T
-    where T: Encodable + Decodable
+    where T: Serialize + Deserialize
 {
     type Encoded = String;
 
     fn to_base64(&self) -> Result<Self::Encoded, Error> {
-        let encoded = json::encode(&self)?;
+        let encoded = serde_json::to_string(&self)?;
+        println!("{}", encoded);
         Ok(encoded.as_bytes().to_base64(base64::URL_SAFE))
     }
 
@@ -103,10 +112,12 @@ pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: jws::Algorithm) ->
 #[cfg(test)]
 mod tests {
     use std::str;
+    use serde_json;
+
     use super::{encode, decode};
     use jws::{Algorithm, Header};
 
-    #[derive(Debug, PartialEq, Clone, RustcEncodable, RustcDecodable)]
+    #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct Claims {
         sub: String,
         company: String,
@@ -127,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn round_trip_hs256() {
+    fn round_trip_rs256() {
         let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
                               eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                               C35LD5nqS_Gx9KF19E2wwf_KFcQ7TNqZLThivXZMXKWen9XVjr6kIF_fjZoaA-\
@@ -151,7 +162,7 @@ mod tests {
 
 
     #[test]
-    fn round_trip_rs256() {
+    fn round_trip_hs256() {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                               eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                               I1BvFoHe94AFf09O6tDbcSB8-jp8w6xZqmyHIwPeSdY";
