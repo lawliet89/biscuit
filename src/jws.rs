@@ -1,12 +1,78 @@
 use std::sync::Arc;
+use std::collections::BTreeMap;
 
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
+use rustc_serialize;
+use rustc_serialize::{Encodable};
 use rustc_serialize::base64::{self, ToBase64};
 use rustc_serialize::json::{ToJson, Json};
+
 use untrusted;
 
 use errors::Error;
+
+#[derive(Debug, PartialEq, RustcDecodable)]
+/// A basic JWT header part, the alg defaults to HS256 and typ is automatically
+/// set to `JWT`. All the other fields are optional
+// TODO: Implement verification for registered headers and support custom headers
+// https://tools.ietf.org/html/rfc7515#section-4.1
+pub struct Header {
+    typ: String,
+    pub alg: Algorithm,
+    pub jku: Option<String>,
+    pub kid: Option<String>,
+    pub x5u: Option<String>,
+    pub x5t: Option<String>,
+}
+
+impl Header {
+    pub fn new(algorithm: Algorithm) -> Header {
+        Header {
+            typ: "JWT".to_string(),
+            alg: algorithm,
+            jku: None,
+            kid: None,
+            x5u: None,
+            x5t: None,
+        }
+    }
+}
+
+impl Default for Header {
+    fn default() -> Header {
+        Header::new(Algorithm::HS256)
+    }
+}
+
+impl Encodable for Header {
+    fn encode<S: rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        self.to_json().encode(s)
+    }
+}
+
+/// The default serializer will serialize `None` values as `null`. We don't want that.
+impl ToJson for Header {
+    fn to_json(&self) -> Json {
+        let mut d = BTreeMap::new();
+        d.insert("typ".to_string(), self.typ.to_json());
+        d.insert("alg".to_string(), self.alg.to_json());
+
+        // Define a macro to reduce boilerplate.
+        macro_rules! optional {
+            ($field_name:ident) => (
+                if let Some(ref value) = self.$field_name {
+                    d.insert(stringify!($field_name).to_string(), value.to_json());
+                }
+            )
+        }
+        optional!(jku);
+        optional!(kid);
+        optional!(x5u);
+        optional!(x5t);
+        Json::Object(d)
+    }
+}
 
 #[derive(Debug, PartialEq, Copy, Clone, RustcDecodable, RustcEncodable)]
 /// The algorithms supported for signing/verifying

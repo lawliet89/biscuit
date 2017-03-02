@@ -10,7 +10,6 @@ extern crate untrusted;
 
 use rustc_serialize::{json, Encodable, Decodable};
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
-use rustc_serialize::json::{ToJson, Json};
 
 #[cfg(test)]
 #[macro_use]
@@ -19,7 +18,6 @@ pub mod errors;
 pub mod jws;
 
 use errors::Error;
-use std::collections::BTreeMap;
 
 /// A part of the JWT: header and claims specifically
 /// Allows converting from/to struct with base64
@@ -47,74 +45,15 @@ impl<T> Part for T
     }
 }
 
-#[derive(Debug, PartialEq, RustcDecodable)]
-/// A basic JWT header part, the alg defaults to HS256 and typ is automatically
-/// set to `JWT`. All the other fields are optional
-pub struct Header {
-    typ: String,
-    pub alg: jws::Algorithm,
-    pub jku: Option<String>,
-    pub kid: Option<String>,
-    pub x5u: Option<String>,
-    pub x5t: Option<String>,
-}
-
-impl Header {
-    pub fn new(algorithm: jws::Algorithm) -> Header {
-        Header {
-            typ: "JWT".to_string(),
-            alg: algorithm,
-            jku: None,
-            kid: None,
-            x5u: None,
-            x5t: None,
-        }
-    }
-}
-
-impl Default for Header {
-    fn default() -> Header {
-        Header::new(jws::Algorithm::HS256)
-    }
-}
-
-impl Encodable for Header {
-    fn encode<S: rustc_serialize::Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
-        self.to_json().encode(s)
-    }
-}
-
-impl ToJson for Header {
-    fn to_json(&self) -> Json {
-        let mut d = BTreeMap::new();
-        d.insert("typ".to_string(), self.typ.to_json());
-        d.insert("alg".to_string(), self.alg.to_json());
-
-        // Define a macro to reduce boilerplate.
-        macro_rules! optional {
-            ($field_name:ident) => (
-                if let Some(ref value) = self.$field_name {
-                    d.insert(stringify!($field_name).to_string(), value.to_json());
-                }
-            )
-        }
-        optional!(jku);
-        optional!(kid);
-        optional!(x5u);
-        optional!(x5t);
-        Json::Object(d)
-    }
-}
-
 #[derive(Debug)]
 /// The return type of a successful call to decode(...)
 pub struct TokenData<T: Part> {
-    pub header: Header,
+    pub header: jws::Header,
     pub claims: T,
 }
 
 /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
-pub fn encode<T: Part>(header: Header, claims: &T, secret: &[u8]) -> Result<String, Error> {
+pub fn encode<T: Part>(header: jws::Header, claims: &T, secret: &[u8]) -> Result<String, Error> {
     let encoded_header = header.to_base64()?;
     let encoded_claims = claims.to_base64()?;
     // seems to be a tiny bit faster than format!("{}.{}", x, y)
@@ -149,7 +88,7 @@ pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: jws::Algorithm) ->
 
     let (claims, header) = expect_two!(payload.rsplitn(2, '.'));
 
-    let header = Header::from_base64(header)?;
+    let header = jws::Header::from_base64(header)?;
     if header.alg != algorithm {
         return Err(Error::WrongAlgorithmHeader);
     }
@@ -164,8 +103,8 @@ pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: jws::Algorithm) ->
 #[cfg(test)]
 mod tests {
     use std::str;
-    use super::{encode, decode, Header};
-    use jws::Algorithm;
+    use super::{encode, decode};
+    use jws::{Algorithm, Header};
 
     #[derive(Debug, PartialEq, Clone, RustcEncodable, RustcDecodable)]
     struct Claims {
