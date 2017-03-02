@@ -43,7 +43,6 @@ impl<T> Part for T
 
     fn to_base64(&self) -> Result<Self::Encoded, Error> {
         let encoded = serde_json::to_string(&self)?;
-        println!("{}", encoded);
         Ok(encoded.as_bytes().to_base64(base64::URL_SAFE))
     }
 

@@ -56,14 +56,7 @@ impl Serialize for Header {
         where S: Serializer
     {
         let mut struc = serializer.serialize_struct("Header", self.count_fields())?;
-
-        macro_rules! serialize {
-            ($field_name:ident) => (
-                struc.serialize_field(stringify!($field_name), &self.$field_name)?;
-            )
-        }
-
-        serialize!(alg);
+        struc.serialize_field("alg", &self.alg)?;
 
         macro_rules! optional {
             ($field_name:ident) => (
