@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use serde::{Serialize, Serializer};
-use serde::ser::SerializeStruct;
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use rustc_serialize::base64::{self, ToBase64};
@@ -10,7 +8,7 @@ use untrusted;
 
 use errors::Error;
 
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 /// A basic JWT header part, the alg defaults to HS256 and typ is automatically
 /// set to `JWT`. All the other fields are optional
 // TODO: Implement verification for registered headers and support custom headers
@@ -18,10 +16,15 @@ use errors::Error;
 pub struct Header {
     pub alg: Algorithm,
     /// Type of the JWT. Usually "JWT".
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub typ: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub jku: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub kid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub x5u: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub x5t: Option<String>,
 }
 
@@ -35,44 +38,6 @@ impl Header {
             x5u: None,
             x5t: None,
         }
-    }
-
-    fn count_fields(&self) -> usize {
-        macro_rules! count {
-            ($field_name:ident) => (
-                match self.$field_name {
-                    Some(_) => 1,
-                    None => 0
-                }
-            )
-        }
-
-        1 + count!(typ) + count!(jku) + count!(kid) + count!(x5u) + count!(x5t)
-    }
-}
-
-impl Serialize for Header {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        let mut struc = serializer.serialize_struct("Header", self.count_fields())?;
-        struc.serialize_field("alg", &self.alg)?;
-
-        macro_rules! optional {
-            ($field_name:ident) => (
-                if let Some(ref value) = self.$field_name {
-                    struc.serialize_field(stringify!($field_name), value)?;
-                }
-            )
-        }
-
-        optional!(typ);
-        optional!(jku);
-        optional!(kid);
-        optional!(x5u);
-        optional!(x5t);
-
-        struc.end()
     }
 }
 

@@ -16,7 +16,7 @@ use std::fmt;
 
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::ser::{SerializeSeq};
 use serde::de::{self, Visitor};
 
 #[cfg(test)]
@@ -124,63 +124,29 @@ impl Deserialize for SingleOrMultipleStrings {
 
 pub static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
 
-#[derive(Debug, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RegisteredClaims {
     // Issuer
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iss: Option<String>,
     /// Subject
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sub: Option<String>,
     /// Audience
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub aud: Option<SingleOrMultipleStrings>,
     /// Expiration time in seconds since Unix Epoch
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exp: Option<u64>,
     /// Not before time in seconds since Unix Epoch
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub nbf: Option<u64>,
     /// Issued at Time in seconds since Unix Epoch
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iat: Option<u64>,
     /// JWT ID
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub jti: Option<String>,
-}
-
-impl RegisteredClaims {
-    fn count_fields(&self) -> usize {
-        macro_rules! count {
-            ($field_name:ident) => (
-                match self.$field_name {
-                    Some(_) => 1,
-                    None => 0
-                }
-            )
-        }
-
-        count!(iss) + count!(sub) + count!(aud) + count!(exp) + count!(nbf) + count!(iat) + count!(jti)
-    }
-}
-
-impl Serialize for RegisteredClaims {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        let mut struc = serializer.serialize_struct("RegisteredClaims", self.count_fields())?;
-
-        macro_rules! optional {
-            ($field_name:ident) => (
-                if let Some(ref value) = self.$field_name {
-                    struc.serialize_field(stringify!($field_name), value)?;
-                }
-            )
-        }
-
-        optional!(iss);
-        optional!(sub);
-        optional!(aud);
-        optional!(exp);
-        optional!(nbf);
-        optional!(iat);
-        optional!(jti);
-
-        struc.end()
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
