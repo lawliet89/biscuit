@@ -16,7 +16,3 @@ pub fn read_private_key() -> signature::RSAKeyPair {
 pub fn read_public_key() -> Vec<u8> {
     include_bytes!("../test/fixtures/public_key.der").iter().map(|b| b.clone()).collect()
 }
-
-pub fn read_signature_payload() -> &'static [u8] {
-    include_bytes!("../test/fixtures/signature_payload.txt")
-}
