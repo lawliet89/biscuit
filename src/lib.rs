@@ -118,7 +118,7 @@ impl Deserialize for SingleOrMultipleStrings {
             }
         }
 
-        deserializer.deserialize_map(SingleOrMultipleStringsVisitor {})
+        deserializer.deserialize(SingleOrMultipleStringsVisitor {})
     }
 }
 
