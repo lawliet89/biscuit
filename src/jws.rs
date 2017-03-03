@@ -63,7 +63,7 @@ pub enum Secret {
     ///             -RSAPublicKey_out \
     ///             -outform DER \
     ///             -out public_key.der
-    ///```
+    /// ```
     ///
     /// To convert a PEM formatted public key
     ///
