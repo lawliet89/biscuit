@@ -17,7 +17,25 @@ pub enum Secret {
     /// let secret = Secret::Bytes("secret".to_string().into_bytes());
     /// ```
     Bytes(Vec<u8>),
-    /// An RSA Key pair constructed from a DER formatted private key
+    /// An RSA Key pair constructed from a DER-encoded private key
+    ///
+    /// To generate a private key, use
+    ///
+    /// ```sh
+    /// openssl genpkey -algorithm RSA \
+    ///                 -pkeyopt rsa_keygen_bits:2048 \
+    ///                 -outform der \
+    ///                 -out private_key.der
+    /// ```
+    ///
+    /// Often, keys generated for use in OpenSSL-based software are
+    /// encoded in PEM format, which is not supported by *ring*. PEM-encoded
+    /// keys that are in `RSAPrivateKey` format can be decoded into the using
+    /// an OpenSSL command like this:
+    ///
+    /// ```sh
+    /// openssl rsa -in private_key.pem -outform DER -out private_key.der
+    /// ```
     ///
     /// # Examples
     /// ```
@@ -36,6 +54,28 @@ pub enum Secret {
     /// ```
     RSAKeyPair(signature::RSAKeyPair),
     /// Bytes of a DER encoded RSA Public Key
+    ///
+    /// To generate the public key from your DER-encoded private key
+    ///
+    /// ```sh
+    /// openssl rsa -in private_key.der \
+    ///             -inform DER
+    ///             -RSAPublicKey_out \
+    ///             -outform DER \
+    ///             -out public_key.der
+    ///```
+    ///
+    /// To convert a PEM formatted public key
+    ///
+    /// ```sh
+    /// openssl rsa -RSAPublicKey_in \
+    ///             -in public_key.pem \
+    ///             -inform PEM \
+    ///             -outform DER \
+    ///             -RSAPublicKey_out \
+    ///             -out public_key.der
+    /// ```
+    ///
     /// # Examples
     /// ```
     /// use jwt::jws::Secret;
@@ -98,40 +138,6 @@ pub enum Algorithm {
 
 impl Algorithm {
     /// Take the payload of a JWT and sign it using the algorithm given.
-    /// Returns the base64 url safe encoded of the result
-    /// # Secret
-    /// This is dependent on the algorithm. For HMAC algorithm, this is some secret string.
-    ///
-    /// For RSA algorithm, this should be a private key in DER-encoded ASN.1 `RSAPrivateKey` form
-    /// (see [RFC 3447 Appendix A.1.2]).
-    ///
-    /// Only two-prime keys (version 0) keys are supported. The public modulus
-    /// (n) must be at least 2048 bits. Currently, the public modulus must be
-    /// no larger than 4096 bits.
-    ///
-    /// Here's one way to generate a key in the required format using OpenSSL:
-    ///
-    /// ```sh
-    /// openssl genpkey -algorithm RSA \
-    ///                 -pkeyopt rsa_keygen_bits:2048 \
-    ///                 -outform der \
-    ///                 -out private_key.der
-    /// ```
-    ///
-    /// Often, keys generated for use in OpenSSL-based software are
-    /// encoded in PEM format, which is not supported by `ring`, the cryptographic library used.
-    /// PEM-encoded keys that are in `RSAPrivateKey` format can be decoded into the using
-    /// an OpenSSL command like this:
-    ///
-    /// ```sh
-    /// openssl rsa -in private_key.pem -outform DER -out private_key.der
-    /// ```
-    ///
-    /// If these commands don't work, it is likely that the private key is in a
-    /// different format like PKCS#8, which isn't supported yet.
-    ///
-    /// [RFC 3447 Appendix A.1.2]:
-    ///     https://tools.ietf.org/html/rfc3447#appendix-A.1.2
     pub fn sign(&self, data: &[u8], secret: Secret) -> Result<Vec<u8>, Error> {
         use self::Algorithm::*;
 
@@ -141,8 +147,7 @@ impl Algorithm {
         }
     }
 
-    /// Compares the signature given with a re-computed signature
-    /// Signatures should be provided in Base64 URL_SAFE strings
+    /// CVerify signature
     pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: Secret) -> Result<bool, Error> {
         use self::Algorithm::*;
 
@@ -222,7 +227,10 @@ impl Algorithm {
                                 message,
                                 expected_signature) {
             Ok(()) => Ok(true),
-            _ => Ok(false),
+            Err(e) => {
+                println!("{}", e);
+                Ok(false)
+            }
         }
     }
 }
