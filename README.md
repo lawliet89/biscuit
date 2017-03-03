@@ -1,4 +1,4 @@
-# jsonwebtoken
+# jwt
 
 [![Build Status](https://travis-ci.org/lawliet89/rust-jwt.svg)](https://travis-ci.org/lawliet89/rust-jwt)
 

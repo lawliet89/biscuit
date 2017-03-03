@@ -16,8 +16,9 @@ use std::fmt;
 
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::ser::{SerializeSeq};
+use serde::ser::SerializeSeq;
 use serde::de::{self, Visitor};
+use serde_json::value;
 
 #[cfg(test)]
 #[macro_use]
@@ -155,13 +156,26 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
     private: T,
 }
 
+impl<T: Serialize + Deserialize> ClaimsSet<T> {
+    /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
+    /// The secret is dependent on the
+    pub fn encode(&self, header: jws::Header, secret: jws::Secret) -> Result<String, Error> {
+        let encoded_header = header.to_base64()?;
+        let encoded_claims = self.to_base64()?;
+        // seems to be a tiny bit faster than format!("{}.{}", x, y)
+        let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
+        let signature = header.alg.sign(payload.as_bytes(), secret)?.as_slice().to_base64(base64::URL_SAFE);
+
+        Ok([payload, signature].join("."))
+    }
+}
+
 /// Serializer for ClaimsSet. Claims with the same
 impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
         use serde::ser::Error;
-        use serde_json::value;
 
         // A "hack" to combine two structs into one serialized JSON
         // First, we serialize each of them into JSON Value enum
@@ -181,10 +195,10 @@ impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
         // Merge the Maps
         for (key, value) in private.into_iter() {
             if REGISTERED_CLAIMS.iter().any(|claim| *claim == key) {
-                 Err(S::Error::custom(format!("Private claims has registered claim `{}`", key)))?
+                Err(S::Error::custom(format!("Private claims has registered claim `{}`", key)))?
             }
             if let Some(_) = registered.insert(key.clone(), value) {
-               unreachable!("Should have been caught above!");
+                unreachable!("Should have been caught above!");
             }
         }
 
@@ -221,8 +235,6 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
             }
         }
 
-        println!("{:?}", map);
-
         // Deserialize the two parts separately
         let registered: RegisteredClaims =
             from_value(Value::Object(registered))
@@ -237,67 +249,67 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
     }
 }
 
-#[derive(Debug)]
-/// The return type of a successful call to decode(...)
-pub struct TokenData<T: Part> {
-    pub header: jws::Header,
-    pub claims: T,
-}
+// #[derive(Debug)]
+// /// The return type of a successful call to decode(...)
+// pub struct TokenData<T: Part> {
+//     pub header: jws::Header,
+//     pub claims: T,
+// }
 
-/// Encode the claims passed and sign the payload using the algorithm from the header and the secret
-pub fn encode<T: Part>(header: jws::Header, claims: &T, secret: &[u8]) -> Result<String, Error> {
-    let encoded_header = header.to_base64()?;
-    let encoded_claims = claims.to_base64()?;
-    // seems to be a tiny bit faster than format!("{}.{}", x, y)
-    let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-    let signature = header.alg.sign(&*payload, secret.as_ref())?;
+// /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
+// pub fn encode<T: Part>(header: jws::Header, claims: &T, secret: &[u8]) -> Result<String, Error> {
+//     let encoded_header = header.to_base64()?;
+//     let encoded_claims = claims.to_base64()?;
+//     // seems to be a tiny bit faster than format!("{}.{}", x, y)
+//     let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
+//     let signature = header.alg.sign(&*payload, secret.as_ref())?;
 
-    Ok([payload, signature].join("."))
-}
+//     Ok([payload, signature].join("."))
+// }
 
-/// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
-/// Errors if we don't
-macro_rules! expect_two {
-    ($iter:expr) => {{
-        let mut i = $iter; // evaluate the expr
-        match (i.next(), i.next(), i.next()) {
-            (Some(first), Some(second), None) => (first, second),
-            _ => return Err(Error::InvalidToken)
-        }
-    }}
-}
+// /// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
+// /// Errors if we don't
+// macro_rules! expect_two {
+//     ($iter:expr) => {{
+//         let mut i = $iter; // evaluate the expr
+//         match (i.next(), i.next(), i.next()) {
+//             (Some(first), Some(second), None) => (first, second),
+//             _ => return Err(Error::InvalidToken)
+//         }
+//     }}
+// }
 
-/// Decode a token into a Claims struct
-/// If the token or its signature is invalid, it will return an error
-pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: jws::Algorithm) -> Result<TokenData<T>, Error> {
-    let (signature, payload) = expect_two!(token.rsplitn(2, '.'));
+// /// Decode a token into a Claims struct
+// /// If the token or its signature is invalid, it will return an error
+// pub fn decode<T: Part>(token: &str, secret: &[u8], algorithm: jws::Algorithm) -> Result<TokenData<T>, Error> {
+//     let (signature, payload) = expect_two!(token.rsplitn(2, '.'));
 
-    let is_valid = algorithm.verify(signature, payload, secret);
+//     let is_valid = algorithm.verify(signature, payload, secret);
 
-    if !is_valid {
-        return Err(Error::InvalidSignature);
-    }
+//     if !is_valid {
+//         return Err(Error::InvalidSignature);
+//     }
 
-    let (claims, header) = expect_two!(payload.rsplitn(2, '.'));
+//     let (claims, header) = expect_two!(payload.rsplitn(2, '.'));
 
-    let header = jws::Header::from_base64(header)?;
-    if header.alg != algorithm {
-        return Err(Error::WrongAlgorithmHeader);
-    }
-    let decoded_claims = T::from_base64(claims)?;
+//     let header = jws::Header::from_base64(header)?;
+//     if header.alg != algorithm {
+//         return Err(Error::WrongAlgorithmHeader);
+//     }
+//     let decoded_claims = T::from_base64(claims)?;
 
-    Ok(TokenData {
-        header: header,
-        claims: decoded_claims,
-    })
-}
+//     Ok(TokenData {
+//         header: header,
+//         claims: decoded_claims,
+//     })
+// }
 
 #[cfg(test)]
 mod tests {
     use std::str;
     use serde_json;
 
-    use super::{encode, decode, SingleOrMultipleStrings, RegisteredClaims, ClaimsSet};
+    use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet};
     use jws::{Algorithm, Header};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
