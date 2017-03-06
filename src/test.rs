@@ -1,3 +1,6 @@
+use ring::signature;
+use untrusted;
+
 macro_rules! not_err {
     ($e:expr) => (match $e {
         Ok(e) => e,
@@ -5,6 +8,11 @@ macro_rules! not_err {
     })
 }
 
-pub fn read_private_key() -> &'static [u8] {
-    include_bytes!("../test/fixtures/private_key.der")
+pub fn read_private_key() -> signature::RSAKeyPair {
+    not_err!(signature::RSAKeyPair::from_der(untrusted::Input::from(include_bytes!("../test/fixtures/private_key.\
+                                                                                    der"))))
+}
+
+pub fn read_public_key() -> Vec<u8> {
+    include_bytes!("../test/fixtures/public_key.der").iter().map(|b| b.clone()).collect()
 }
