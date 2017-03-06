@@ -51,8 +51,8 @@ fn main() {
     println!("{:?}", token);
 
     let (headers, claims) = match ClaimsSet::<PrivateClaims>::decode(&token,
-                                                              Secret::Bytes(key.to_string().into_bytes()),
-                                                              Algorithm::HS256) {
+                                                                     Secret::Bytes(key.to_string().into_bytes()),
+                                                                     Algorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {
