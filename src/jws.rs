@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
-use rustc_serialize::base64::{self, ToBase64};
 use untrusted;
 
 use errors::Error;
@@ -147,7 +146,7 @@ impl Algorithm {
         }
     }
 
-    /// CVerify signature
+    /// Verify signature
     pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: Secret) -> Result<bool, Error> {
         use self::Algorithm::*;
 
