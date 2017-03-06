@@ -9,14 +9,19 @@ use rustc_serialize::base64;
 /// to verify is invalid
 pub enum Error {
     GenericError(String),
+    ValidationError(ValidationError),
     JsonError(serde_json::error::Error),
     DecodeBase64(base64::FromBase64Error),
     Utf8(string::FromUtf8Error),
 
+    UnspecifiedCryptographicError,
+}
+
+#[derive(Debug)]
+pub enum ValidationError {
     InvalidToken,
     InvalidSignature,
     WrongAlgorithmHeader,
-    UnspecifiedCryptographicError,
 }
 
 macro_rules! impl_from_error {
@@ -31,6 +36,7 @@ impl_from_error!(String, Error::GenericError);
 impl_from_error!(serde_json::error::Error, Error::JsonError);
 impl_from_error!(base64::FromBase64Error, Error::DecodeBase64);
 impl_from_error!(string::FromUtf8Error, Error::Utf8);
+impl_from_error!(ValidationError, Error::ValidationError);
 
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
@@ -45,9 +51,7 @@ impl error::Error for Error {
             Error::JsonError(ref err) => err.description(),
             Error::DecodeBase64(ref err) => err.description(),
             Error::Utf8(ref err) => err.description(),
-            Error::InvalidToken => "Invalid Token",
-            Error::InvalidSignature => "Invalid Signature",
-            Error::WrongAlgorithmHeader => "Wrong Algorithm Header",
+            Error::ValidationError(ref err) => err.description(),
             Error::UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
         }
     }
@@ -57,6 +61,7 @@ impl error::Error for Error {
             Error::JsonError(ref err) => err as &error::Error,
             Error::DecodeBase64(ref err) => err as &error::Error,
             Error::Utf8(ref err) => err as &error::Error,
+            Error::ValidationError(ref err) => err as &error::Error,
             ref e => e as &error::Error,
         })
     }
@@ -69,10 +74,28 @@ impl fmt::Display for Error {
             Error::JsonError(ref err) => fmt::Display::fmt(err, f),
             Error::DecodeBase64(ref err) => fmt::Display::fmt(err, f),
             Error::Utf8(ref err) => fmt::Display::fmt(err, f),
-            Error::InvalidToken => write!(f, "{}", error::Error::description(self)),
-            Error::InvalidSignature => write!(f, "{}", error::Error::description(self)),
-            Error::WrongAlgorithmHeader => write!(f, "{}", error::Error::description(self)),
+            Error::ValidationError(ref err) => fmt::Display::fmt(err, f),
             Error::UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
         }
+    }
+}
+
+impl error::Error for ValidationError {
+    fn description(&self) -> &str {
+        match *self {
+           ValidationError::InvalidToken => "Invalid Token",
+           ValidationError::InvalidSignature => "Invalid Signature",
+           ValidationError::WrongAlgorithmHeader => "Wrong Algorithm Header",
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        Some(self as &error::Error)
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", error::Error::description(self))
     }
 }

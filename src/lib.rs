@@ -26,7 +26,7 @@ mod test;
 pub mod errors;
 pub mod jws;
 
-use errors::Error;
+use errors::{Error, ValidationError};
 
 /// A part of the JWT: header and claims specifically
 /// Allows converting from/to struct with base64
@@ -165,7 +165,7 @@ macro_rules! expect_two {
         let mut i = $iter; // evaluate the expr
         match (i.next(), i.next(), i.next()) {
             (Some(first), Some(second), None) => Ok((first, second)),
-            _ => Err(Error::InvalidToken)
+            _ => Err(Error::ValidationError(ValidationError::InvalidToken))
         }
     }}
 }
@@ -194,14 +194,14 @@ impl<T: Serialize + Deserialize> ClaimsSet<T> {
         let signature: Vec<u8> = signature.from_base64()?;
 
         if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
-            return Err(Error::InvalidSignature);
+            Err(ValidationError::InvalidSignature)?;
         }
 
         let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
 
         let header = jws::Header::from_base64(header)?;
         if header.alg != algorithm {
-            return Err(Error::WrongAlgorithmHeader);
+            Err(ValidationError::WrongAlgorithmHeader)?;
         }
         let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
 

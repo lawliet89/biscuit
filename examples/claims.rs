@@ -4,7 +4,7 @@ extern crate serde_derive;
 
 use jwt::{ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
 use jwt::jws::{Algorithm, Header, Secret};
-use jwt::errors::Error;
+use jwt::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PrivateClaims {
@@ -56,7 +56,8 @@ fn main() {
         Ok(c) => c,
         Err(err) => {
             match err {
-                Error::InvalidToken => panic!(), // Example on how to handle a specific error
+                // Example on how to handle a specific error
+                Error::ValidationError(ValidationError::InvalidToken) => panic!(),
                 _ => panic!(),
             }
         }
