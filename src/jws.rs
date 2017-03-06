@@ -170,7 +170,7 @@ impl Algorithm {
             _ => unreachable!("Should not happen"),
         };
         let key = hmac::SigningKey::new(digest, &secret);
-        Ok(hmac::sign(&key, data).as_ref().iter().map(|b| b.clone()).collect())
+        Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
     fn sign_rsa(data: &[u8], secret: Secret, algorithm: &Algorithm) -> Result<Vec<u8>, Error> {

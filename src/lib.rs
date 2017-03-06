@@ -218,8 +218,8 @@ impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
 
         // A "hack" to combine two structs into one serialized JSON
         // First, we serialize each of them into JSON Value enum
-        let registered = value::to_value(&self.registered).map_err(|e| S::Error::custom(e))?;
-        let private = value::to_value(&self.private).map_err(|e| S::Error::custom(e))?;
+        let registered = value::to_value(&self.registered).map_err(S::Error::custom)?;
+        let private = value::to_value(&self.private).map_err(S::Error::custom)?;
 
         // Extract the Maps out
         let mut registered = match registered {
@@ -232,11 +232,11 @@ impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
         };
 
         // Merge the Maps
-        for (key, value) in private.into_iter() {
+        for (key, value) in private {
             if REGISTERED_CLAIMS.iter().any(|claim| *claim == key) {
                 Err(S::Error::custom(format!("Private claims has registered claim `{}`", key)))?
             }
-            if let Some(_) = registered.insert(key.clone(), value) {
+            if registered.insert(key.clone(), value).is_some() {
                 unreachable!("Should have been caught above!");
             }
         }
@@ -258,7 +258,7 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
         // ... which should be of the Object variant containing a Map
         let mut map = match value {
             Value::Object(map) => map,
-            others @ _ => Err(D::Error::custom(format!("Expected a struct, got {:?}", others)))?,
+            others => Err(D::Error::custom(format!("Expected a struct, got {:?}", others)))?,
         };
 
         // Let's extract the registered claims from the object
