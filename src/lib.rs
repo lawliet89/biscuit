@@ -178,7 +178,7 @@ impl<T: Serialize + Deserialize> ClaimsSet<T> {
         let encoded_claims = self.to_base64()?;
         // seems to be a tiny bit faster than format!("{}.{}", x, y)
         let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-        let signature = header.alg.sign(payload.as_bytes(), secret)?.as_slice().to_base64(base64::URL_SAFE);
+        let signature = header.algorithm.sign(payload.as_bytes(), secret)?.as_slice().to_base64(base64::URL_SAFE);
 
         Ok([payload, signature].join("."))
     }
@@ -200,7 +200,7 @@ impl<T: Serialize + Deserialize> ClaimsSet<T> {
         let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
 
         let header = jws::Header::from_base64(header)?;
-        if header.alg != algorithm {
+        if header.algorithm != algorithm {
             Err(ValidationError::WrongAlgorithmHeader)?;
         }
         let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
@@ -450,14 +450,14 @@ mod tests {
         };
 
         let mut header = Header::default();
-        header.kid = Some("kid".to_string());
+        header.key_id = Some("kid".to_string());
         let token = not_err!(expected_claims.encode(header, Secret::Bytes("secret".to_string().into_bytes())));
         let (actual_headers, actual_claims) =
             not_err!(ClaimsSet::<PrivateClaims>::decode(&token,
                                                         Secret::Bytes("secret".to_string().into_bytes()),
                                                         Algorithm::HS256));
         assert_eq!(expected_claims, actual_claims);
-        assert_eq!("kid", actual_headers.kid.unwrap());
+        assert_eq!("kid", actual_headers.key_id.unwrap());
     }
 
     #[test]

@@ -90,29 +90,53 @@ pub enum Secret {
 // TODO: Implement verification for registered headers and support custom headers
 // https://tools.ietf.org/html/rfc7515#section-4.1
 pub struct Header {
-    pub alg: Algorithm,
+    #[serde(rename = "alg")]
+    pub algorithm: Algorithm,
+
     /// Type of the JWT. Usually "JWT".
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub typ: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub jku: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kid: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub x5u: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub x5t: Option<String>,
+    #[serde(rename = "typ", skip_serializing_if = "Option::is_none")]
+    pub media_type: Option<String>,
+
+    /// Content Type
+    #[serde(rename = "cty", skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+
+    #[serde(rename = "jku", skip_serializing_if = "Option::is_none")]
+    pub web_key_url: Option<String>,
+
+    #[serde(rename = "jwk", skip_serializing_if = "Option::is_none")]
+    pub web_key: Option<String>,
+
+    #[serde(rename = "kid", skip_serializing_if = "Option::is_none")]
+    pub key_id: Option<String>,
+
+    #[serde(rename="x5u", skip_serializing_if = "Option::is_none")]
+    pub x509_url: Option<String>,
+
+    #[serde(rename="x5c", skip_serializing_if = "Option::is_none")]
+    pub x509_chain: Option<Vec<String>>,
+
+    #[serde(rename="x5t", skip_serializing_if = "Option::is_none")]
+    // XXX: what about x5t#256
+    pub x509_fingerprint: Option<String>,
+
+    #[serde(rename="crit", skip_serializing_if = "Option::is_none")]
+    pub critical: Option<Vec<String>>,
 }
 
 impl Header {
     pub fn new(algorithm: Algorithm) -> Header {
         Header {
-            alg: algorithm,
-            typ: Some("JWT".to_string()),
-            jku: None,
-            kid: None,
-            x5u: None,
-            x5t: None,
+            algorithm: algorithm,
+            media_type: Some("JWT".to_string()),
+            content_type: None,
+            web_key_url: None,
+            web_key: None,
+            key_id: None,
+            x509_url: None,
+            x509_chain: None,
+            x509_fingerprint: None,
+            critical: None,
         }
     }
 }
@@ -256,7 +280,7 @@ mod tests {
     #[test]
     fn header_serialization_round_trip_with_optional() {
         let mut expected = Header::default();
-        expected.kid = Some("kid".to_string());
+        expected.key_id = Some("kid".to_string());
 
         let expected_json = r#"{"alg":"HS256","typ":"JWT","kid":"kid"}"#;
 
