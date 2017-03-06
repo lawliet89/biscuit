@@ -32,8 +32,8 @@ fn main() {
     let key = "secret";
 
     let mut header = Header::default();
-    header.kid = Some("signing_key".to_string());
-    header.alg = Algorithm::HS512;
+    header.key_id = Some("signing_key".to_string());
+    header.algorithm = Algorithm::HS512;
 
     let token = match my_claims.encode(header,
                                        Secret::Bytes(key.to_string().into_bytes())) {
