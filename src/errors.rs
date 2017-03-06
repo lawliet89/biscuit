@@ -22,6 +22,8 @@ pub enum ValidationError {
     InvalidToken,
     InvalidSignature,
     WrongAlgorithmHeader,
+    MissingRequired(String),
+    TemporalError(String)
 }
 
 macro_rules! impl_from_error {
@@ -46,22 +48,26 @@ impl From<ring::error::Unspecified> for Error {
 
 impl error::Error for Error {
     fn description(&self) -> &str {
+        use Error::*;
+
         match *self {
-            Error::GenericError(ref err) => err,
-            Error::JsonError(ref err) => err.description(),
-            Error::DecodeBase64(ref err) => err.description(),
-            Error::Utf8(ref err) => err.description(),
-            Error::ValidationError(ref err) => err.description(),
-            Error::UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
+            GenericError(ref err) => err,
+            JsonError(ref err) => err.description(),
+            DecodeBase64(ref err) => err.description(),
+            Utf8(ref err) => err.description(),
+            ValidationError(ref err) => err.description(),
+            UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
+        use Error::*;
+
         Some(match *self {
-            Error::JsonError(ref err) => err as &error::Error,
-            Error::DecodeBase64(ref err) => err as &error::Error,
-            Error::Utf8(ref err) => err as &error::Error,
-            Error::ValidationError(ref err) => err as &error::Error,
+            JsonError(ref err) => err as &error::Error,
+            DecodeBase64(ref err) => err as &error::Error,
+            Utf8(ref err) => err as &error::Error,
+            ValidationError(ref err) => err as &error::Error,
             ref e => e as &error::Error,
         })
     }
@@ -69,23 +75,29 @@ impl error::Error for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+
         match *self {
-            Error::GenericError(ref err) => fmt::Display::fmt(err, f),
-            Error::JsonError(ref err) => fmt::Display::fmt(err, f),
-            Error::DecodeBase64(ref err) => fmt::Display::fmt(err, f),
-            Error::Utf8(ref err) => fmt::Display::fmt(err, f),
-            Error::ValidationError(ref err) => fmt::Display::fmt(err, f),
-            Error::UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
+            GenericError(ref err) => fmt::Display::fmt(err, f),
+            JsonError(ref err) => fmt::Display::fmt(err, f),
+            DecodeBase64(ref err) => fmt::Display::fmt(err, f),
+            Utf8(ref err) => fmt::Display::fmt(err, f),
+            ValidationError(ref err) => fmt::Display::fmt(err, f),
+            UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
 
 impl error::Error for ValidationError {
     fn description(&self) -> &str {
+        use ValidationError::*;
+
         match *self {
-           ValidationError::InvalidToken => "Invalid Token",
-           ValidationError::InvalidSignature => "Invalid Signature",
-           ValidationError::WrongAlgorithmHeader => "Wrong Algorithm Header",
+           InvalidToken => "Invalid Token",
+           InvalidSignature => "Invalid Signature",
+           WrongAlgorithmHeader => "Wrong Algorithm Header",
+           MissingRequired(_) => "Missing required field",
+           TemporalError(_) => "Temporal validation failed",
         }
     }
 
@@ -96,6 +108,14 @@ impl error::Error for ValidationError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", error::Error::description(self))
+        use ValidationError::*;
+        use std::error::Error;
+
+        match *self {
+            MissingRequired(ref field) => write!(f, "{} is required but is missing", field),
+            TemporalError(ref err) => write!(f, "{}: {}", self.description(), err),
+            _ => write!(f, "{}", error::Error::description(self))
+        }
+
     }
 }
