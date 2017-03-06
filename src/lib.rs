@@ -432,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn encode_with_custom_header() {
+    fn encode_with_additional_header_fields() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 iss: Some("https://www.acme.com".to_string()),
