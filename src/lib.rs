@@ -100,7 +100,7 @@ impl Deserialize for SingleOrMultipleStrings {
             fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                Ok(SingleOrMultipleStrings::Single(s.to_string()))
+                Ok(SingleOrMultipleStrings::Single(s))
             }
 
             fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>

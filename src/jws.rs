@@ -197,7 +197,7 @@ impl Algorithm {
                    secret: Secret,
                    algorithm: &Algorithm)
                    -> Result<bool, Error> {
-        let actual_signature = algorithm.sign(data, secret)?;
+        let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
         Ok(verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref()).is_ok())
     }
 
@@ -289,7 +289,7 @@ mod tests {
     /// echo -n "payload" | openssl dgst -sha256 -sign test/fixtures/private_key.pem | base64
     /// ```
     ///
-    /// The base64 encoding will be in `STANDARD` form and not URL_SAFE.
+    /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_rs256() {
         let private_key = Secret::RSAKeyPair(::test::read_private_key());
