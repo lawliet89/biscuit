@@ -209,7 +209,7 @@ impl<T: Serialize + Deserialize> ClaimsSet<T> {
     }
 }
 
-/// Serializer for ClaimsSet.
+/// Serializer for `ClaimsSet`.
 impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
@@ -406,6 +406,29 @@ mod tests {
 
         let deserialized: ClaimsSet<PrivateClaims> = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, claim);
+    }
+
+
+    #[test]
+    #[should_panic(expected = "Private claims has registered claim `sub`")]
+    fn invalid_private_claims_will_fail_to_serialize() {
+        let claim = ClaimsSet::<InvalidPrivateClaim> {
+            registered: RegisteredClaims {
+                iss: Some("https://www.acme.com".to_string()),
+                sub: Some("John Doe".to_string()),
+                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                exp: None,
+                nbf: Some(1234),
+                iat: None,
+                jti: None,
+            },
+            private: InvalidPrivateClaim {
+                sub: "John Doe".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        serde_json::to_string(&claim).unwrap();
     }
 
     #[test]
