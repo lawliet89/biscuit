@@ -15,6 +15,7 @@ pub enum Error {
     Utf8(string::FromUtf8Error),
 
     UnspecifiedCryptographicError,
+    UnsupportedOperation,
 }
 
 #[derive(Debug)]
@@ -23,7 +24,7 @@ pub enum ValidationError {
     InvalidSignature,
     WrongAlgorithmHeader,
     MissingRequired(String),
-    TemporalError(String)
+    TemporalError(String),
 }
 
 macro_rules! impl_from_error {
@@ -57,6 +58,7 @@ impl error::Error for Error {
             Utf8(ref err) => err.description(),
             ValidationError(ref err) => err.description(),
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
+            UnsupportedOperation => "This operation is not supported"
         }
     }
 
@@ -84,6 +86,7 @@ impl fmt::Display for Error {
             Utf8(ref err) => fmt::Display::fmt(err, f),
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
+            UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
@@ -93,11 +96,11 @@ impl error::Error for ValidationError {
         use ValidationError::*;
 
         match *self {
-           InvalidToken => "Invalid Token",
-           InvalidSignature => "Invalid Signature",
-           WrongAlgorithmHeader => "Wrong Algorithm Header",
-           MissingRequired(_) => "Missing required field",
-           TemporalError(_) => "Temporal validation failed",
+            InvalidToken => "Invalid Token",
+            InvalidSignature => "Invalid Signature",
+            WrongAlgorithmHeader => "Wrong Algorithm Header",
+            MissingRequired(_) => "Missing required field",
+            TemporalError(_) => "Temporal validation failed",
         }
     }
 
@@ -114,7 +117,7 @@ impl fmt::Display for ValidationError {
         match *self {
             MissingRequired(ref field) => write!(f, "{} is required but is missing", field),
             TemporalError(ref err) => write!(f, "{}: {}", self.description(), err),
-            _ => write!(f, "{}", error::Error::description(self))
+            _ => write!(f, "{}", error::Error::description(self)),
         }
 
     }

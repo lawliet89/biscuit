@@ -519,12 +519,12 @@ mod tests {
                 company: "ACME".to_string(),
             },
         };
-        let private_key = Secret::RSAKeyPair(::test::read_private_key());
+        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
 
         let token = not_err!(expected_claims.encode(Header::new(Algorithm::RS256), private_key));
         assert_eq!(expected_token, token);
 
-        let public_key = Secret::PublicKey(::test::read_public_key());
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
         let (_headers, claims) = not_err!(ClaimsSet::<PrivateClaims>::decode(&token, public_key, Algorithm::RS256));
         assert_eq!(expected_claims, claims);
     }
@@ -557,7 +557,7 @@ mod tests {
         let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                      eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                      WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___";
-        let public_key = Secret::PublicKey(::test::read_public_key());
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
         let claims = ClaimsSet::<PrivateClaims>::decode(token, public_key, Algorithm::RS256);
         claims.unwrap();
     }

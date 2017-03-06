@@ -46,7 +46,7 @@ pub enum Secret {
     /// use ring::signature;
     ///
     /// # fn main() {
-    /// let der = include_bytes!("test/fixtures/private_key.der");
+    /// let der = include_bytes!("test/fixtures/rsa_private_key.der");
     /// let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der)).unwrap();
     /// let secret = Secret::RSAKeyPair(key_pair);
     /// # }
@@ -79,9 +79,10 @@ pub enum Secret {
     /// ```
     /// use jwt::jws::Secret;
     ///
-    /// let der = include_bytes!("test/fixtures/public_key.der");
+    /// let der = include_bytes!("test/fixtures/rsa_public_key.der");
     /// let secret = Secret::PublicKey(der.iter().map(|b| b.clone()).collect());
     PublicKey(Vec<u8>),
+    ECDSAPublicKey(Vec<u8>),
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -117,7 +118,6 @@ pub struct Header {
     pub x509_chain: Option<Vec<String>>,
 
     #[serde(rename="x5t", skip_serializing_if = "Option::is_none")]
-    // XXX: what about x5t#256
     pub x509_fingerprint: Option<String>,
 
     #[serde(rename="crit", skip_serializing_if = "Option::is_none")]
@@ -157,6 +157,10 @@ pub enum Algorithm {
     RS256,
     RS384,
     RS512,
+    ES256,
+    ES384,
+    /// This variant is [unsupported](https://github.com/briansmith/ring/issues/268) and will probably never be
+    ES512,
 }
 
 impl Algorithm {
@@ -167,6 +171,7 @@ impl Algorithm {
         match *self {
             HS256 | HS384 | HS512 => Self::sign_hmac(data, secret, self),
             RS256 | RS384 | RS512 => Self::sign_rsa(data, secret, self),
+            ES256 | ES384 | ES512 => Self::sign_ecdsa(data, secret, self),
         }
     }
 
@@ -177,6 +182,7 @@ impl Algorithm {
         match *self {
             HS256 | HS384 | HS512 => Self::verify_hmac(expected_signature, data, secret, self),
             RS256 | RS384 | RS512 => Self::verify_rsa(expected_signature, data, secret, self),
+            ES256 | ES384 | ES512 => Self::verify_ecdsa(expected_signature, data, secret, self),
         }
 
     }
@@ -216,6 +222,15 @@ impl Algorithm {
         Ok(signature)
     }
 
+    fn sign_ecdsa(_data: &[u8], _secret: Secret, _algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
+        // Not supported at the moment by ring
+        // Tracking issues:
+        //  - P-256: https://github.com/briansmith/ring/issues/207
+        //  - P-384: https://github.com/briansmith/ring/issues/209
+        //  - P-512: Probably never: https://github.com/briansmith/ring/issues/268
+        Err(Error::UnsupportedOperation)
+    }
+
     fn verify_hmac(expected_signature: &[u8],
                    data: &[u8],
                    secret: Secret,
@@ -226,10 +241,10 @@ impl Algorithm {
     }
 
     fn verify_rsa(expected_signature: &[u8],
-                  data: &[u8],
-                  secret: Secret,
-                  algorithm: &Algorithm)
-                  -> Result<bool, Error> {
+                        data: &[u8],
+                        secret: Secret,
+                        algorithm: &Algorithm)
+                        -> Result<bool, Error> {
         let public_key = match secret {
             Secret::PublicKey(public_key) => public_key,
             _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
@@ -240,6 +255,38 @@ impl Algorithm {
             Algorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
             Algorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
             Algorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+            _ => unreachable!("Should not happen"),
+        };
+
+        let message = untrusted::Input::from(data);
+        let expected_signature = untrusted::Input::from(expected_signature);
+        match signature::verify(verification_algorithm,
+                                public_key_der,
+                                message,
+                                expected_signature) {
+            Ok(()) => Ok(true),
+            Err(e) => {
+                println!("{}", e);
+                Ok(false)
+            }
+        }
+    }
+
+    fn verify_ecdsa(expected_signature: &[u8],
+                        data: &[u8],
+                        secret: Secret,
+                        algorithm: &Algorithm)
+                        -> Result<bool, Error> {
+        let public_key = match secret {
+            Secret::PublicKey(public_key) => public_key,
+            _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
+        };
+        let public_key_der = untrusted::Input::from(public_key.as_slice());
+
+        let verification_algorithm = match *algorithm {
+            Algorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
+            Algorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
+            Algorithm::ES512 => Err(Error::UnsupportedOperation)?,
             _ => unreachable!("Should not happen"),
         };
 
@@ -316,7 +363,7 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_rs256() {
-        let private_key = Secret::RSAKeyPair(::test::read_private_key());
+        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
         // This is standard base64
@@ -331,11 +378,21 @@ mod tests {
         assert_eq!(expected_signature,
                    actual_signature.as_slice().to_base64(base64::URL_SAFE));
 
-        let public_key = Secret::PublicKey(::test::read_public_key());
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
         let valid = not_err!(Algorithm::RS256.verify(expected_signature_bytes.as_slice(),
                                                      payload_bytes,
                                                      public_key));
         assert!(valid);
+    }
+
+    #[test]
+    #[should_panic(expected = "UnsupportedOperation")]
+    fn sign_ecdsa() {
+        let private_key = Secret::Bytes("secret".to_string().into_bytes()); // irrelevant
+        let payload = "payload".to_string();
+        let payload_bytes = payload.as_bytes();
+
+        Algorithm::ES256.sign(payload_bytes, private_key).unwrap();
     }
 
     #[test]
@@ -350,7 +407,7 @@ mod tests {
 
     #[test]
     fn invalid_rs256() {
-        let public_key = Secret::PublicKey(::test::read_public_key());
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(Algorithm::RS256.verify(signature_bytes,
