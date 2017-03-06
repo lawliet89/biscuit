@@ -152,8 +152,10 @@ pub struct RegisteredClaims {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClaimsSet<T: Serialize + Deserialize> {
-    registered: RegisteredClaims,
-    private: T,
+    /// Registered claims defined by the RFC
+    pub registered: RegisteredClaims,
+    /// Application specific claims
+    pub private: T,
 }
 
 /// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
@@ -471,7 +473,13 @@ mod tests {
 
     #[test]
     fn round_trip_rs256() {
-        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUtY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznHchJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGPXNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYgjchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
+        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
+        tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+        jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
+        chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
+        XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
+        jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
