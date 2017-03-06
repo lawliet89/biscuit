@@ -209,7 +209,7 @@ impl<T: Serialize + Deserialize> ClaimsSet<T> {
     }
 }
 
-/// Serializer for ClaimsSet. Claims with the same
+/// Serializer for ClaimsSet.
 impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
