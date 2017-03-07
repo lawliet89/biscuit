@@ -166,7 +166,7 @@ pub struct TemporalValidationOptions {
     pub not_before_required: bool,
     /// Whether the `exp` or `Expiry` field is required
     pub expiry_required: bool,
-    /// Allow for some clock drifts, limited to `epsilon` during temporal validation
+    /// Allow for some clock drifts, limited to this duration during temporal validation
     pub epsilon: Option<std::time::Duration>,
     /// Specify a time to use in temporal validation instead of `Now`.
     pub now: Option<DateTime<UTC>>,
@@ -190,23 +190,60 @@ impl RegisteredClaims {
         }
 
         let now = match options.now {
-            None => UTC::now().timestamp(),
-            Some(now) => now.timestamp(),
+            None => UTC::now(),
+            Some(now) => now,
         };
 
-        if self.iat.is_some() && self.iat.unwrap() > now {
-            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
-        }
+        let e = match options.epsilon {
+            None => std::time::Duration::from_secs(0),
+            Some(e) => e,
+        };
 
-        if self.exp.is_some() && self.exp.unwrap() < now {
+        if self.exp.is_some() && !Self::is_after(Self::timestamp_to_datetime(self.exp.unwrap()), now, e)? {
             Err(ValidationError::TemporalError("Token expired".to_string()))?;
         }
 
-        if self.nbf.is_some() && self.nbf.unwrap() > now {
+        if self.iat.is_some() && !Self::is_before(Self::timestamp_to_datetime(self.iat.unwrap()), now, e)? {
+            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
+        }
+
+        if self.nbf.is_some() && !Self::is_before(Self::timestamp_to_datetime(self.nbf.unwrap()), now, e)? {
             Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
         }
 
         Ok(())
+    }
+
+    fn timestamp_to_datetime(timestamp: i64) -> DateTime<UTC> {
+        DateTime::<UTC>::from_utc(chrono::NaiveDateTime::from_timestamp(timestamp, 0), UTC)
+    }
+
+    /// Check `a` is after `b` within a tolerated duration of `e`, where `e` is unsigned: a - b >= -e
+    fn is_after<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
+        where Tz: chrono::offset::TimeZone,
+              Tz2: chrono::offset::TimeZone
+    {
+        // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
+        // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
+        // So I am just going to `map_err`.
+        use std::error::Error;
+
+        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        Ok(a.signed_duration_since(b) >= -e)
+    }
+
+    /// Check that `a` is before `b` within a tolerated duration of `e`, where `e` is unsigned: a - b <= e
+    fn is_before<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
+        where Tz: chrono::offset::TimeZone,
+              Tz2: chrono::offset::TimeZone
+    {
+        // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
+        // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
+        // So I am just going to `map_err`.
+        use std::error::Error;
+
+        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        Ok(a.signed_duration_since(b) <= e)
     }
 }
 
@@ -352,6 +389,7 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
 mod tests {
     use chrono::{UTC, TimeZone};
     use std::str;
+    use std::time::Duration;
     use serde_json;
 
     use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions};
@@ -636,6 +674,35 @@ mod tests {
     }
 
     #[test]
+    fn is_after() {
+        // Zero epsilon
+        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(2, 0),
+                                                    UTC.timestamp(0, 0),
+                                                    Duration::from_secs(0))));
+        assert!(!not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
+                                                     UTC.timestamp(3, 0),
+                                                     Duration::from_secs(0))));
+
+        // Valid only with epsilon
+        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
+                                                    UTC.timestamp(3, 0),
+                                                    Duration::from_secs(5))));
+
+        // Exceeds epsilon
+        assert!(!not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
+                                                     UTC.timestamp(3, 0),
+                                                     Duration::from_secs(1))));
+
+        // Should be valid regardless of epsilon
+        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(7, 0),
+                                                    UTC.timestamp(3, 0),
+                                                    Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(10, 0),
+                                                    UTC.timestamp(3, 0),
+                                                    Duration::from_secs(5))));
+    }
+
+    #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_iat() {
         let options = TemporalValidationOptions { issued_at_required: true, ..Default::default() };
@@ -697,7 +764,7 @@ mod tests {
             aud: None,
             exp: None,
             nbf: None,
-            iat: Some(1),
+            iat: Some(10),
             jti: None,
         };
         registered_claims.validate_times(Some(options)).unwrap();
@@ -752,7 +819,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_times_valid_token_with_all_options() {
+    fn validate_times_valid_token_with_all_required() {
         let options = TemporalValidationOptions {
             now: Some(UTC.timestamp(100, 0)),
             issued_at_required: true,
@@ -768,6 +835,26 @@ mod tests {
             exp: Some(999),
             nbf: Some(1),
             iat: Some(95),
+            jti: None,
+        };
+        not_err!(registered_claims.validate_times(Some(options)));
+    }
+
+    #[test]
+    fn validate_times_valid_token_with_epsilon() {
+        let options = TemporalValidationOptions {
+            now: Some(UTC.timestamp(100, 0)),
+            epsilon: Some(Duration::from_secs(10)),
+            ..Default::default()
+        };
+
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(99),
+            nbf: Some(96),
+            iat: Some(96),
             jti: None,
         };
         not_err!(registered_claims.validate_times(Some(options)));
