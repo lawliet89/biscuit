@@ -4,8 +4,6 @@
 // #![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-#[macro_use]
-extern crate bitflags;
 extern crate chrono;
 extern crate rustc_serialize;
 extern crate ring;
@@ -154,42 +152,44 @@ pub struct RegisteredClaims {
     pub jti: Option<String>,
 }
 
-bitflags! {
-    pub flags TemporalValidationOptions : u8 {
-        const DEFAULT = 0x0,
-        const ISSUED_AT_REQUIRED = 0x1,
-        const NOT_BEFORE_REQUIRED = 0x2,
-        const EXPIRY_REQUIRED = 0x4,
-        const ALL_TIMES_REQUIRED = ISSUED_AT_REQUIRED.bits
-                                 | NOT_BEFORE_REQUIRED.bits
-                                 | EXPIRY_REQUIRED.bits
-    }
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
+/// Options for claims time validation
+/// By default, no temporal claims (namely `iat, `exp`, `nvf`)
+/// are required, and they will pass validation if they are missing.
+/// Should any temporal claims be needed, set the appropriate fields.
+/// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
+/// `std::time::Duration` to allow time comparisons to fall within the margin.
+pub struct TemporalValidationOptions {
+    /// Whether the `iat` or `Issued At` field is required
+    pub issued_at_required: bool,
+    /// Whether the `nbf` or `Not Before` field is required
+    pub not_before_required: bool,
+    /// Whether the `exp` or `Expiry` field is required
+    pub expiry_required: bool,
+    /// Allow for some clock drifts, limited to `epsilon` during temporal validation
+    pub epsilon: Option<std::time::Duration>,
+    /// Specify a time to use in temporal validation instead of `Now`.
+    pub now: Option<DateTime<UTC>>,
 }
 
 impl RegisteredClaims {
-    pub fn validate_times(&self,
-                          options: Option<TemporalValidationOptions>,
-                          now: Option<DateTime<UTC>>)
-                          -> Result<(), ValidationError> {
+    /// Validate the temporal claims in the token
+    pub fn validate_times(&self, options: Option<TemporalValidationOptions>) -> Result<(), ValidationError> {
+        let options = options.unwrap_or_default();
 
-        let options = match options {
-            None => DEFAULT,
-            Some(options) => options,
-        };
-
-        if options.intersects(ISSUED_AT_REQUIRED) && self.iat.is_none() {
+        if options.issued_at_required && self.iat.is_none() {
             Err(ValidationError::MissingRequired("iat".to_string()))?;
         }
 
-        if options.intersects(EXPIRY_REQUIRED) && self.exp.is_none() {
+        if options.expiry_required && self.exp.is_none() {
             Err(ValidationError::MissingRequired("exp".to_string()))?;
         }
 
-        if options.intersects(NOT_BEFORE_REQUIRED) && self.nbf.is_none() {
+        if options.not_before_required && self.nbf.is_none() {
             Err(ValidationError::MissingRequired("nbf".to_string()))?;
         }
 
-        let now = match now {
+        let now = match options.now {
             None => UTC::now().timestamp(),
             Some(now) => now.timestamp(),
         };
@@ -354,7 +354,7 @@ mod tests {
     use std::str;
     use serde_json;
 
-    use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet};
+    use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions};
     use jws::{Algorithm, Header, Secret};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -638,6 +638,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_iat() {
+        let options = TemporalValidationOptions { issued_at_required: true, ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -647,12 +649,14 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), None).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_exp() {
+        let options = TemporalValidationOptions { expiry_required: true, ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -662,12 +666,14 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), None).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_nbf() {
+        let options = TemporalValidationOptions { not_before_required: true, ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -677,12 +683,14 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), None).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_future_token() {
+        let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -692,12 +700,14 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_expired_token() {
+        let options = TemporalValidationOptions { now: Some(UTC.timestamp(2, 0)), ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -707,12 +717,14 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), Some(UTC.timestamp(2, 0))).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_early_token() {
+        let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -722,7 +734,7 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
+        registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
@@ -736,11 +748,19 @@ mod tests {
             iat: None,
             jti: None,
         };
-        not_err!(registered_claims.validate_times(None, None));
+        not_err!(registered_claims.validate_times(None));
     }
 
     #[test]
     fn validate_times_valid_token_with_all_options() {
+        let options = TemporalValidationOptions {
+            now: Some(UTC.timestamp(100, 0)),
+            issued_at_required: true,
+            not_before_required: true,
+            expiry_required: true,
+            ..Default::default()
+        };
+
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -750,6 +770,6 @@ mod tests {
             iat: Some(95),
             jti: None,
         };
-        not_err!(registered_claims.validate_times(Some(::ALL_TIMES_REQUIRED), Some(UTC.timestamp(100, 0))));
+        not_err!(registered_claims.validate_times(Some(options)));
     }
 }

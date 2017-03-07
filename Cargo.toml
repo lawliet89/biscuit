@@ -17,7 +17,6 @@ doctest = true
 doc = true
 
 [dependencies]
-bitflags = "0.7"
 chrono = "0.3"
 ring = { version = "0.7", features = ["rsa_signing"] }
 rustc-serialize = "0.3"
