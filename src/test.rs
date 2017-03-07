@@ -16,7 +16,3 @@ pub fn read_rsa_private_key() -> signature::RSAKeyPair {
 pub fn read_rsa_public_key() -> Vec<u8> {
     include_bytes!("../test/fixtures/rsa_public_key.der").to_vec()
 }
-
-pub fn read_ecdsa_public_key() -> Vec<u8> {
-    include_bytes!("../test/fixtures/ecdsa_public_key.der").to_vec()
-}

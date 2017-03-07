@@ -367,23 +367,49 @@ mod tests {
         Algorithm::ES256.sign(payload_bytes, private_key).unwrap();
     }
 
+    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L248
     #[test]
-    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L246
-    fn verify_ecdsa() {
+    fn verify_es256() {
         use rustc_serialize::hex::FromHex;
 
         let payload = "sample".to_string();
         let payload_bytes = payload.as_bytes();
-        let public_key = "0460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8B\
-                          C99A41AE9E95628BC64F2F1B20C2D7E9F5177A3C294D4462299";
+        let public_key = "0460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8BC99A41AE9E9562\
+                          8BC64F2F1B20C2D7E9F5177A3C294D4462299";
         let public_key = Secret::PublicKey(not_err!(public_key.from_hex()));
-        let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7\
-                         CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
+        let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C\
+                         41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
         let signature_bytes: Vec<u8> = not_err!(signature.from_hex());
-        let valid = not_err!(Algorithm::ES256.verify(signature_bytes.as_slice(),
-                                                     payload_bytes,
-                                                     public_key));
+        let valid = not_err!(Algorithm::ES256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
+    }
+
+    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L283
+    #[test]
+    fn verify_es384() {
+        use rustc_serialize::hex::FromHex;
+
+        let payload = "sample".to_string();
+        let payload_bytes = payload.as_bytes();
+        let public_key = "04EC3A4E415B4E19A4568618029F427FA5DA9A8BC4AE92E02E06AAE5286B300C64DEF8F0EA9055866064A25451548\
+                          0BC138015D9B72D7D57244EA8EF9AC0C621896708A59367F9DFB9F54CA84B3F1C9DB1288B231C3AE0D4FE7344FD25\
+                          33264720";
+        let public_key = Secret::PublicKey(not_err!(public_key.from_hex()));
+        let signature = "306602310094EDBB92A5ECB8AAD4736E56C691916B3F88140666CE9FA73D64C4EA95AD133C81A648152E44ACF96E36\
+                         DD1E80FABE4602310099EF4AEB15F178CEA1FE40DB2603138F130E740A19624526203B6351D0A3A94FA329C145786E\
+                         679E7B82C71A38628AC8";
+        let signature_bytes: Vec<u8> = not_err!(signature.from_hex());
+        let valid = not_err!(Algorithm::ES384.verify(signature_bytes.as_slice(), payload_bytes, public_key));
+        assert!(valid);
+    }
+
+    #[test]
+    #[should_panic(expected = "UnsupportedOperation")]
+    fn verify_es512() {
+        let payload: Vec<u8> = vec![];
+        let signature: Vec<u8> = vec![];
+        let public_key = Secret::PublicKey(vec![]);
+        Algorithm::ES512.verify(signature.as_slice(), payload.as_slice(), public_key).unwrap();
     }
 
     #[test]
