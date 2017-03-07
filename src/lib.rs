@@ -731,7 +731,6 @@ mod tests {
                                                      Duration::from_secs(5))));
     }
 
-
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_iat() {
