@@ -125,36 +125,44 @@ impl Deserialize for SingleOrMultipleStrings {
     }
 }
 
+/// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 pub static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RegisteredClaims {
-    // Issuer
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub iss: Option<String>,
-    /// Subject
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub: Option<String>,
-    /// Audience
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub aud: Option<SingleOrMultipleStrings>,
-    /// Expiration time in seconds since Unix Epoch
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub exp: Option<i64>,
-    /// Not before time in seconds since Unix Epoch
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub nbf: Option<i64>,
-    /// Issued at Time in seconds since Unix Epoch
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub iat: Option<i64>,
-    /// JWT ID
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub jti: Option<String>,
+    // Token issuer. Serialized to `iss`.
+    #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
+    pub issuer: Option<String>,
+
+    /// Subject where the JWT is referring to. Serialized to `sub`
+    #[serde(rename="sub", skip_serializing_if = "Option::is_none")]
+    pub subject: Option<String>,
+
+    /// Audience intended for the JWT. Serialized to `aud`
+    #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
+    pub audience: Option<SingleOrMultipleStrings>,
+
+    /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
+    #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<i64>,
+
+    /// Not before time in seconds since Unix Epoch. Serialized to `nbf`
+    #[serde(rename = "nbf", skip_serializing_if = "Option::is_none")]
+    pub not_before: Option<i64>,
+
+    /// Issued at Time in seconds since Unix Epoch. Serialized to `iat`
+    #[serde(rename="iat", skip_serializing_if = "Option::is_none")]
+    pub issued_at: Option<i64>,
+
+    /// Application specific JWT ID. Serialized to `jti`
+    #[serde(rename = "jti", skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
 /// Options for claims time validation
-/// By default, no temporal claims (namely `iat, `exp`, `nvf`)
+/// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
 /// are required, and they will pass validation if they are missing.
 /// Should any temporal claims be needed, set the appropriate fields.
 /// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
@@ -177,15 +185,15 @@ impl RegisteredClaims {
     pub fn validate_times(&self, options: Option<TemporalValidationOptions>) -> Result<(), ValidationError> {
         let options = options.unwrap_or_default();
 
-        if options.issued_at_required && self.iat.is_none() {
+        if options.issued_at_required && self.issued_at.is_none() {
             Err(ValidationError::MissingRequired("iat".to_string()))?;
         }
 
-        if options.expiry_required && self.exp.is_none() {
+        if options.expiry_required && self.expiry.is_none() {
             Err(ValidationError::MissingRequired("exp".to_string()))?;
         }
 
-        if options.not_before_required && self.nbf.is_none() {
+        if options.not_before_required && self.not_before.is_none() {
             Err(ValidationError::MissingRequired("nbf".to_string()))?;
         }
 
@@ -199,15 +207,18 @@ impl RegisteredClaims {
             Some(e) => e,
         };
 
-        if self.exp.is_some() && !Self::is_after(Self::timestamp_to_datetime(self.exp.unwrap()), now, e)? {
+        if self.expiry.is_some() && !Self::is_after(Self::timestamp_to_datetime(self.expiry.unwrap()), now, e)? {
             Err(ValidationError::TemporalError("Token expired".to_string()))?;
         }
 
-        if self.iat.is_some() && !Self::is_before(Self::timestamp_to_datetime(self.iat.unwrap()), now, e)? {
+        if self.issued_at.is_some() && !Self::is_before(Self::timestamp_to_datetime(self.issued_at.unwrap()), now, e)? {
             Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
         }
 
-        if self.nbf.is_some() && !Self::is_before(Self::timestamp_to_datetime(self.nbf.unwrap()), now, e)? {
+        if self.not_before.is_some() &&
+           !Self::is_before(Self::timestamp_to_datetime(self.not_before.unwrap()),
+                            now,
+                            e)? {
             Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
         }
 
@@ -387,9 +398,11 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{UTC, TimeZone};
+    use std::default::Default;
     use std::str;
     use std::time::Duration;
+
+    use chrono::{UTC, TimeZone};
     use serde_json;
 
     use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions};
@@ -440,15 +453,7 @@ mod tests {
 
     #[test]
     fn empty_registered_claims_serialization_round_trip() {
-        let claim = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: None,
-            nbf: None,
-            iat: None,
-            jti: None,
-        };
+        let claim = RegisteredClaims::default();
         let expected_json = "{}";
 
         let serialized = not_err!(serde_json::to_string(&claim));
@@ -461,13 +466,10 @@ mod tests {
     #[test]
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
-            iss: Some("https://www.acme.com".to_string()),
-            sub: None,
-            aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-            exp: None,
-            nbf: Some(1234),
-            iat: None,
-            jti: None,
+            issuer: Some("https://www.acme.com".to_string()),
+            audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            not_before: Some(1234),
+            ..Default::default()
         };
         let expected_json = r#"{"iss":"https://www.acme.com","aud":"htts://acme-customer.com","nbf":1234}"#;
 
@@ -482,13 +484,11 @@ mod tests {
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                iss: Some("https://www.acme.com".to_string()),
-                sub: Some("John Doe".to_string()),
-                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                exp: None,
-                nbf: Some(1234),
-                iat: None,
-                jti: None,
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
             },
             private: PrivateClaims {
                 department: "Toilet Cleaning".to_string(),
@@ -513,13 +513,11 @@ mod tests {
     fn invalid_private_claims_will_fail_to_serialize() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                iss: Some("https://www.acme.com".to_string()),
-                sub: Some("John Doe".to_string()),
-                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                exp: None,
-                nbf: Some(1234),
-                iat: None,
-                jti: None,
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
             },
             private: InvalidPrivateClaim {
                 sub: "John Doe".to_string(),
@@ -534,13 +532,11 @@ mod tests {
     fn encode_with_additional_header_fields() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                iss: Some("https://www.acme.com".to_string()),
-                sub: Some("John Doe".to_string()),
-                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                exp: None,
-                nbf: Some(1234),
-                iat: None,
-                jti: None,
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
             },
             private: PrivateClaims {
                 department: "Toilet Cleaning".to_string(),
@@ -568,13 +564,11 @@ mod tests {
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                iss: Some("https://www.acme.com".to_string()),
-                sub: Some("John Doe".to_string()),
-                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                exp: None,
-                nbf: Some(1234),
-                iat: None,
-                jti: None,
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
             },
             private: PrivateClaims {
                 department: "Toilet Cleaning".to_string(),
@@ -582,7 +576,7 @@ mod tests {
             },
         };
 
-        let token = not_err!(expected_claims.encode(Header::new(Algorithm::HS256),
+        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::HS256, ..Default::default() },
                                                     Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, token);
 
@@ -605,13 +599,11 @@ mod tests {
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                iss: Some("https://www.acme.com".to_string()),
-                sub: Some("John Doe".to_string()),
-                aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                exp: None,
-                nbf: Some(1234),
-                iat: None,
-                jti: None,
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
             },
             private: PrivateClaims {
                 department: "Toilet Cleaning".to_string(),
@@ -620,7 +612,8 @@ mod tests {
         };
         let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
 
-        let token = not_err!(expected_claims.encode(Header::new(Algorithm::RS256), private_key));
+        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::RS256, ..Default::default() },
+                                                    private_key));
         assert_eq!(expected_token, token);
 
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
@@ -737,13 +730,9 @@ mod tests {
         let options = TemporalValidationOptions { issued_at_required: true, ..Default::default() };
 
         let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: Some(1),
-            nbf: Some(1),
-            iat: None,
-            jti: None,
+            expiry: Some(1),
+            not_before: Some(1),
+            ..Default::default()
         };
         registered_claims.validate_times(Some(options)).unwrap();
     }
@@ -754,13 +743,9 @@ mod tests {
         let options = TemporalValidationOptions { expiry_required: true, ..Default::default() };
 
         let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: None,
-            nbf: Some(1),
-            iat: Some(1),
-            jti: None,
+            not_before: Some(1),
+            issued_at: Some(1),
+            ..Default::default()
         };
         registered_claims.validate_times(Some(options)).unwrap();
     }
@@ -771,13 +756,9 @@ mod tests {
         let options = TemporalValidationOptions { not_before_required: true, ..Default::default() };
 
         let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: Some(1),
-            nbf: None,
-            iat: Some(1),
-            jti: None,
+            expiry: Some(1),
+            issued_at: Some(1),
+            ..Default::default()
         };
         registered_claims.validate_times(Some(options)).unwrap();
     }
@@ -787,15 +768,7 @@ mod tests {
     fn validate_times_catch_future_token() {
         let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
 
-        let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: None,
-            nbf: None,
-            iat: Some(10),
-            jti: None,
-        };
+        let registered_claims = RegisteredClaims { issued_at: Some(10), ..Default::default() };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
@@ -804,15 +777,7 @@ mod tests {
     fn validate_times_catch_expired_token() {
         let options = TemporalValidationOptions { now: Some(UTC.timestamp(2, 0)), ..Default::default() };
 
-        let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: Some(1),
-            nbf: None,
-            iat: None,
-            jti: None,
-        };
+        let registered_claims = RegisteredClaims { expiry: Some(1), ..Default::default() };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
@@ -821,29 +786,13 @@ mod tests {
     fn validate_times_catch_early_token() {
         let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
 
-        let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: None,
-            nbf: Some(1),
-            iat: None,
-            jti: None,
-        };
+        let registered_claims = RegisteredClaims { not_before: Some(1), ..Default::default() };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     fn validate_times_valid_token_with_default_options() {
-        let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: None,
-            nbf: Some(1),
-            iat: None,
-            jti: None,
-        };
+        let registered_claims = RegisteredClaims { not_before: Some(1), ..Default::default() };
         not_err!(registered_claims.validate_times(None));
     }
 
@@ -858,13 +807,10 @@ mod tests {
         };
 
         let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: Some(999),
-            nbf: Some(1),
-            iat: Some(95),
-            jti: None,
+            expiry: Some(999),
+            not_before: Some(1),
+            issued_at: Some(95),
+            ..Default::default()
         };
         not_err!(registered_claims.validate_times(Some(options)));
     }
@@ -878,13 +824,10 @@ mod tests {
         };
 
         let registered_claims = RegisteredClaims {
-            iss: None,
-            sub: None,
-            aud: None,
-            exp: Some(99),
-            nbf: Some(96),
-            iat: Some(96),
-            jti: None,
+            expiry: Some(99),
+            not_before: Some(96),
+            issued_at: Some(96),
+            ..Default::default()
         };
         not_err!(registered_claims.validate_times(Some(options)));
     }

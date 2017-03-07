@@ -1,3 +1,4 @@
+use std::default::Default;
 use std::sync::Arc;
 
 use ring::{digest, hmac, rand, signature};
@@ -7,6 +8,8 @@ use untrusted;
 use errors::Error;
 
 pub enum Secret {
+    /// Used with the `None` algorithm variant.
+    None,
     /// Bytes used for HMAC secret. Can be constructed from a string literal
     ///
     /// # Examples
@@ -85,49 +88,83 @@ pub enum Secret {
     ECDSAPublicKey(Vec<u8>),
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// A basic JWT header part, the alg defaults to HS256 and typ is automatically
-/// set to `JWT`. All the other fields are optional
+/// set to `JWT`. All the other fields are optional.
+/// The fields are defined by [RFC7519#5](https://tools.ietf.org/html/rfc7519#section-5) and additionally in
+/// [RFC7515#4.1](https://tools.ietf.org/html/rfc7515#section-4.1).
 // TODO: Implement verification for registered headers and support custom headers
-// https://tools.ietf.org/html/rfc7515#section-4.1
 pub struct Header {
+    /// Algorithms, as defined in [RFC 7518](https://tools.ietf.org/html/rfc7518), used to sign or encrypt the JWT
+    /// Serialized to `alg`.
+    /// Defined in [RFC7515#4.1.1](https://tools.ietf.org/html/rfc7515#section-4.1.1).
     #[serde(rename = "alg")]
     pub algorithm: Algorithm,
 
-    /// Type of the JWT. Usually "JWT".
+    /// Media type of the JWT. Serialized to `typ`.
+    /// Defined in [RFC7519#5.1](https://tools.ietf.org/html/rfc7519#section-5.1) and additionally
+    /// [RFC7515#4.1.9](https://tools.ietf.org/html/rfc7515#section-4.1.9).
     #[serde(rename = "typ", skip_serializing_if = "Option::is_none")]
     pub media_type: Option<String>,
 
-    /// Content Type
+    /// Content Type. Typically used to indicate the presence of a nested JWT which is signed or encrypted.
+    /// Serialized to `cty`.
+    /// Defined in [RFC7519#5.2](https://tools.ietf.org/html/rfc7519#section-5.2) and additionally
+    /// [RFC7515#4.1.10](https://tools.ietf.org/html/rfc7515#section-4.1.10).
     #[serde(rename = "cty", skip_serializing_if = "Option::is_none")]
     pub content_type: Option<String>,
 
+    /// The JSON Web Key Set URL. This is currently not implemented (correctly).
+    /// Serialized to `jku`.
+    /// Defined in [RFC7515#4.1.2](https://tools.ietf.org/html/rfc7515#section-4.1.2).
     #[serde(rename = "jku", skip_serializing_if = "Option::is_none")]
     pub web_key_url: Option<String>,
 
+    /// The JSON Web Key. This is currently not implemented (correctly).
+    /// Serialized to `jwk`.
+    /// Defined in [RFC7515#4.1.3](https://tools.ietf.org/html/rfc7515#section-4.1.3).
     #[serde(rename = "jwk", skip_serializing_if = "Option::is_none")]
     pub web_key: Option<String>,
 
+    /// The Key ID. This is currently not implemented (correctly).
+    /// Serialized to `kid`.
+    /// Defined in [RFC7515#4.1.3](https://tools.ietf.org/html/rfc7515#section-4.1.3).
     #[serde(rename = "kid", skip_serializing_if = "Option::is_none")]
     pub key_id: Option<String>,
 
+    /// X.509 Public key cerfificate URL. This is currently not implemented (correctly).
+    /// Serialized to `x5u`.
+    /// Defined in [RFC7515#4.1.5](https://tools.ietf.org/html/rfc7515#section-4.1.5).
     #[serde(rename="x5u", skip_serializing_if = "Option::is_none")]
     pub x509_url: Option<String>,
 
+    /// X.509 public key certificate chain. This is currently not implemented (correctly).
+    /// Serialized to `x5c`.
+    /// Defined in [RFC7515#4.1.6](https://tools.ietf.org/html/rfc7515#section-4.1.6).
     #[serde(rename="x5c", skip_serializing_if = "Option::is_none")]
     pub x509_chain: Option<Vec<String>>,
 
+    /// X.509 Certificate thumbprint. This is currently not implemented (correctly).
+    /// Also not implemented, is the SHA-256 thumbprint variant of this header.
+    /// Serialized to `x5t`.
+    /// Defined in [RFC7515#4.1.7](https://tools.ietf.org/html/rfc7515#section-4.1.7).
+    // TODO: How to make sure the headers are mutually exclusive?
     #[serde(rename="x5t", skip_serializing_if = "Option::is_none")]
     pub x509_fingerprint: Option<String>,
 
+    /// List of critical extended headers.
+    /// This is currently not implemented (correctly).
+    /// Also, private headers are not supported at the moment.
+    /// Serialized to `crit`.
+    /// Defined in [RFC7515#4.1.11](https://tools.ietf.org/html/rfc7515#section-4.1.11).
     #[serde(rename="crit", skip_serializing_if = "Option::is_none")]
     pub critical: Option<Vec<String>>,
 }
 
-impl Header {
-    pub fn new(algorithm: Algorithm) -> Header {
+impl Default for Header {
+    fn default() -> Header {
         Header {
-            algorithm: algorithm,
+            algorithm: Algorithm::default(),
             media_type: Some("JWT".to_string()),
             content_type: None,
             web_key_url: None,
@@ -141,16 +178,15 @@ impl Header {
     }
 }
 
-impl Default for Header {
-    fn default() -> Header {
-        Header::new(Algorithm::HS256)
-    }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
-/// The algorithms supported for signing/verifying. See [RFC 7518#3](https://tools.ietf.org/html/rfc7518#section-3)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+/// The algorithms supported for signatures and encryption, defined by [RFC 7518](https://tools.ietf.org/html/rfc7518).
+/// Currently, only signing is supported.
 // TODO: Add support for `none`
 pub enum Algorithm {
+    /// No encryption/signature is included for the JWT.
+    /// During verification, the signature _MUST BE_ empty or verification  will fail.
+    #[serde(rename = "none")]
+    None,
     /// HMAC using SHA-256
     HS256,
     /// HMAC using SHA-384
@@ -181,12 +217,19 @@ pub enum Algorithm {
     PS512,
 }
 
+impl Default for Algorithm {
+    fn default() -> Self {
+        Algorithm::HS256
+    }
+}
+
 impl Algorithm {
     /// Take some bytes and sign it according to the algorithm and secret provided.
     pub fn sign(&self, data: &[u8], secret: Secret) -> Result<Vec<u8>, Error> {
         use self::Algorithm::*;
 
         match *self {
+            None => Self::sign_none(secret),
             HS256 | HS384 | HS512 => Self::sign_hmac(data, secret, self),
             RS256 | RS384 | RS512 | PS256 | PS384 | PS512 => Self::sign_rsa(data, secret, self),
             ES256 | ES384 | ES512 => Self::sign_ecdsa(data, secret, self),
@@ -198,12 +241,21 @@ impl Algorithm {
         use self::Algorithm::*;
 
         match *self {
+            None => Self::verify_none(expected_signature, secret),
             HS256 | HS384 | HS512 => Self::verify_hmac(expected_signature, data, secret, self),
             RS256 | RS384 | RS512 | PS256 | PS384 | PS512 | ES256 | ES384 | ES512 => {
                 Self::verify_public_key(expected_signature, data, secret, self)
             }
         }
 
+    }
+
+    pub fn sign_none(secret: Secret) -> Result<Vec<u8>, Error> {
+        match secret {
+            Secret::None => {}
+            _ => Err("Invalid secret type. `None` should be provided".to_string())?,
+        };
+        Ok(vec![])
     }
 
     fn sign_hmac(data: &[u8], secret: Secret, algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
@@ -251,6 +303,14 @@ impl Algorithm {
         //  - P-384: https://github.com/briansmith/ring/issues/209
         //  - P-521: Probably never: https://github.com/briansmith/ring/issues/268
         Err(Error::UnsupportedOperation)
+    }
+
+    fn verify_none(expected_signature: &[u8], secret: Secret) -> Result<bool, Error> {
+        match secret {
+            Secret::None => {}
+            _ => Err("Invalid secret type. `None` should be provided".to_string())?,
+        };
+        Ok(expected_signature.is_empty())
     }
 
     fn verify_hmac(expected_signature: &[u8],
