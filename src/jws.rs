@@ -228,7 +228,7 @@ impl Algorithm {
         // Tracking issues:
         //  - P-256: https://github.com/briansmith/ring/issues/207
         //  - P-384: https://github.com/briansmith/ring/issues/209
-        //  - P-512: Probably never: https://github.com/briansmith/ring/issues/268
+        //  - P-521: Probably never: https://github.com/briansmith/ring/issues/268
         Err(Error::UnsupportedOperation)
     }
 
