@@ -15,6 +15,7 @@ pub enum Error {
     Utf8(string::FromUtf8Error),
 
     UnspecifiedCryptographicError,
+    UnsupportedOperation,
 }
 
 #[derive(Debug)]
@@ -57,6 +58,7 @@ impl error::Error for Error {
             Utf8(ref err) => err.description(),
             ValidationError(ref err) => err.description(),
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
+            UnsupportedOperation => "This operation is not supported",
         }
     }
 
@@ -84,6 +86,7 @@ impl fmt::Display for Error {
             Utf8(ref err) => fmt::Display::fmt(err, f),
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
+            UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }
     }
 }
