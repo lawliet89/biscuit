@@ -148,7 +148,7 @@ impl Default for Header {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
-/// The algorithms supported for signing/verifying.
+/// The algorithms supported for signing/verifying. See [RFC 7518#3](https://tools.ietf.org/html/rfc7518#section-3)
 // TODO: Add support for `none`
 pub enum Algorithm {
     /// HMAC using SHA-256
@@ -182,7 +182,7 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
-    /// Take the payload of a JWT and sign it using the algorithm given.
+    /// Take some bytes and sign it according to the algorithm and secret provided.
     pub fn sign(&self, data: &[u8], secret: Secret) -> Result<Vec<u8>, Error> {
         use self::Algorithm::*;
 
@@ -193,7 +193,7 @@ impl Algorithm {
         }
     }
 
-    /// Verify signature
+    /// Verify signature based on the algorithm and secret provided.
     pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: Secret) -> Result<bool, Error> {
         use self::Algorithm::*;
 
