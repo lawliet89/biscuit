@@ -703,6 +703,36 @@ mod tests {
     }
 
     #[test]
+    fn is_before() {
+        // Zero epsilon
+        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(-10, 0),
+                                                     UTC.timestamp(0, 0),
+                                                     Duration::from_secs(0))));
+        assert!(!not_err!(RegisteredClaims::is_before(UTC.timestamp(10, 0),
+                                                      UTC.timestamp(3, 0),
+                                                      Duration::from_secs(0))));
+
+        // Valid only with epsilon
+        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(5, 0),
+                                                     UTC.timestamp(3, 0),
+                                                     Duration::from_secs(5))));
+
+        // Exceeds epsilon
+        assert!(!not_err!(RegisteredClaims::is_before(UTC.timestamp(10, 0),
+                                                      UTC.timestamp(3, 0),
+                                                      Duration::from_secs(1))));
+
+        // Should be valid regardless of epsilon
+        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(0, 0),
+                                                     UTC.timestamp(3, 0),
+                                                     Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(-10, 0),
+                                                     UTC.timestamp(3, 0),
+                                                     Duration::from_secs(5))));
+    }
+
+
+    #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_iat() {
         let options = TemporalValidationOptions { issued_at_required: true, ..Default::default() };
