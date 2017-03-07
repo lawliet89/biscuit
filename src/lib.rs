@@ -4,6 +4,9 @@
 // #![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
+#[macro_use]
+extern crate bitflags;
+extern crate chrono;
 extern crate rustc_serialize;
 extern crate ring;
 extern crate serde;
@@ -14,6 +17,7 @@ extern crate untrusted;
 
 use std::fmt;
 
+use chrono::{DateTime, UTC};
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeSeq;
@@ -138,16 +142,72 @@ pub struct RegisteredClaims {
     pub aud: Option<SingleOrMultipleStrings>,
     /// Expiration time in seconds since Unix Epoch
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exp: Option<u64>,
+    pub exp: Option<i64>,
     /// Not before time in seconds since Unix Epoch
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub nbf: Option<u64>,
+    pub nbf: Option<i64>,
     /// Issued at Time in seconds since Unix Epoch
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub iat: Option<u64>,
+    pub iat: Option<i64>,
     /// JWT ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jti: Option<String>,
+}
+
+bitflags! {
+    pub flags TemporalValidationOptions : u8 {
+        const DEFAULT = 0x0,
+        const ISSUED_AT_REQUIRED = 0x1,
+        const NOT_BEFORE_REQUIRED = 0x2,
+        const EXPIRY_REQUIRED = 0x4,
+        const ALL_TIMES_REQUIRED = ISSUED_AT_REQUIRED.bits
+                                 | NOT_BEFORE_REQUIRED.bits
+                                 | EXPIRY_REQUIRED.bits
+    }
+}
+
+impl RegisteredClaims {
+    pub fn validate_times(&self,
+                          options: Option<TemporalValidationOptions>,
+                          now: Option<DateTime<UTC>>)
+                          -> Result<(), ValidationError> {
+
+        let options = match options {
+            None => DEFAULT,
+            Some(options) => options,
+        };
+
+        if options.intersects(ISSUED_AT_REQUIRED) && self.iat.is_none() {
+            Err(ValidationError::MissingRequired("iat".to_string()))?;
+        }
+
+        if options.intersects(EXPIRY_REQUIRED) && self.exp.is_none() {
+            Err(ValidationError::MissingRequired("exp".to_string()))?;
+        }
+
+        if options.intersects(NOT_BEFORE_REQUIRED) && self.nbf.is_none() {
+            Err(ValidationError::MissingRequired("nbf".to_string()))?;
+        }
+
+        let now = match now {
+            None => UTC::now().timestamp(),
+            Some(now) => now.timestamp(),
+        };
+
+        if self.iat.is_some() && self.iat.unwrap() > now {
+            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
+        }
+
+        if self.exp.is_some() && self.exp.unwrap() < now {
+            Err(ValidationError::TemporalError("Token expired".to_string()))?;
+        }
+
+        if self.nbf.is_some() && self.nbf.unwrap() > now {
+            Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -290,6 +350,7 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{UTC, TimeZone};
     use std::str;
     use serde_json;
 
@@ -572,5 +633,123 @@ mod tests {
                                                         Secret::Bytes("secret".to_string().into_bytes()),
                                                         Algorithm::HS256);
         claims.unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequired")]
+    fn validate_times_missing_iat() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(1),
+            nbf: Some(1),
+            iat: None,
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), None).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequired")]
+    fn validate_times_missing_exp() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: None,
+            nbf: Some(1),
+            iat: Some(1),
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), None).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequired")]
+    fn validate_times_missing_nbf() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(1),
+            nbf: None,
+            iat: Some(1),
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), None).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "TemporalError")]
+    fn validate_times_catch_future_token() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: None,
+            nbf: None,
+            iat: Some(1),
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "TemporalError")]
+    fn validate_times_catch_expired_token() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(1),
+            nbf: None,
+            iat: None,
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), Some(UTC.timestamp(2, 0))).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "TemporalError")]
+    fn validate_times_catch_early_token() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: None,
+            nbf: Some(1),
+            iat: None,
+            jti: None,
+        };
+        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
+    }
+
+    #[test]
+    fn validate_times_valid_token_with_default_options() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: None,
+            nbf: Some(1),
+            iat: None,
+            jti: None,
+        };
+        not_err!(registered_claims.validate_times(None, None));
+    }
+
+    #[test]
+    fn validate_times_valid_token_with_all_options() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(999),
+            nbf: Some(1),
+            iat: Some(95),
+            jti: None,
+        };
+        not_err!(registered_claims.validate_times(Some(::ALL_TIMES_REQUIRED), Some(UTC.timestamp(100, 0))));
     }
 }
