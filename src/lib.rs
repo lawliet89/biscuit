@@ -556,6 +556,34 @@ mod tests {
     }
 
     #[test]
+    fn round_trip_none() {
+        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
+        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
+        Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.";
+
+        let expected_claims = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::None, ..Default::default() },
+                                                    Secret::None));
+        assert_eq!(expected_token, token);
+
+        let (_headers, claims) = not_err!(ClaimsSet::<PrivateClaims>::decode(&token, Secret::None, Algorithm::None));
+        assert_eq!(expected_claims, claims);
+    }
+
+    #[test]
     fn round_trip_hs256() {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\

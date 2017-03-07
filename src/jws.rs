@@ -395,6 +395,18 @@ mod tests {
     }
 
     #[test]
+    fn sign_and_verify_none() {
+        let expected_signature: Vec<u8> = vec![];
+        let actual_signature = not_err!(Algorithm::None.sign("payload".to_string().as_bytes(), Secret::None));
+        assert_eq!(expected_signature, actual_signature);
+
+        let valid = not_err!(Algorithm::None.verify(vec![].as_slice(),
+                                                    "payload".to_string().as_bytes(),
+                                                    Secret::None));
+        assert!(valid);
+    }
+
+    #[test]
     fn sign_and_verify_hs256() {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(expected_base64.from_base64());
@@ -534,6 +546,16 @@ mod tests {
     }
 
     #[test]
+    fn invalid_none() {
+        let invalid_signature = "broken".to_string();
+        let signature_bytes = invalid_signature.as_bytes();
+        let valid = not_err!(Algorithm::None.verify(signature_bytes,
+                                                    "payload".to_string().as_bytes(),
+                                                    Secret::None));
+        assert!(!valid);
+    }
+
+    #[test]
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
@@ -549,6 +571,28 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(Algorithm::RS256.verify(signature_bytes,
+                                                     "payload".to_string().as_bytes(),
+                                                     public_key));
+        assert!(!valid);
+    }
+
+    #[test]
+    fn invalid_ps256() {
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let invalid_signature = "broken".to_string();
+        let signature_bytes = invalid_signature.as_bytes();
+        let valid = not_err!(Algorithm::PS256.verify(signature_bytes,
+                                                     "payload".to_string().as_bytes(),
+                                                     public_key));
+        assert!(!valid);
+    }
+
+    #[test]
+    fn invalid_es256() {
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let invalid_signature = "broken".to_string();
+        let signature_bytes = invalid_signature.as_bytes();
+        let valid = not_err!(Algorithm::ES256.verify(signature_bytes,
                                                      "payload".to_string().as_bytes(),
                                                      public_key));
         assert!(!valid);
