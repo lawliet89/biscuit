@@ -161,6 +161,9 @@ pub enum Algorithm {
     ES384,
     /// This variant is [unsupported](https://github.com/briansmith/ring/issues/268) and will probably never be
     ES512,
+    PS256,
+    PS384,
+    PS512,
 }
 
 impl Algorithm {
@@ -170,7 +173,7 @@ impl Algorithm {
 
         match *self {
             HS256 | HS384 | HS512 => Self::sign_hmac(data, secret, self),
-            RS256 | RS384 | RS512 => Self::sign_rsa(data, secret, self),
+            RS256 | RS384 | RS512 | PS256 | PS384 | PS512 => Self::sign_rsa(data, secret, self),
             ES256 | ES384 | ES512 => Self::sign_ecdsa(data, secret, self),
         }
     }
@@ -181,7 +184,7 @@ impl Algorithm {
 
         match *self {
             HS256 | HS384 | HS512 => Self::verify_hmac(expected_signature, data, secret, self),
-            RS256 | RS384 | RS512 | ES256 | ES384 | ES512 => {
+            RS256 | RS384 | RS512 | PS256 | PS384 | PS512 | ES256 | ES384 | ES512 => {
                 Self::verify_public_key(expected_signature, data, secret, self)
             }
         }
@@ -213,10 +216,13 @@ impl Algorithm {
         let mut signing_state = signature::RSASigningState::new(key_pair)?;
         let rng = rand::SystemRandom::new();
         let mut signature = vec![0; signing_state.key_pair().public_modulus_len()];
-        let padding_algorithm = match *algorithm {
+        let padding_algorithm: &signature::RSAEncoding = match *algorithm {
             Algorithm::RS256 => &signature::RSA_PKCS1_SHA256,
             Algorithm::RS384 => &signature::RSA_PKCS1_SHA384,
             Algorithm::RS512 => &signature::RSA_PKCS1_SHA512,
+            Algorithm::PS256 => &signature::RSA_PSS_SHA256,
+            Algorithm::PS384 => &signature::RSA_PSS_SHA384,
+            Algorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
         signing_state.sign(padding_algorithm, &rng, data, &mut signature)?;
@@ -256,6 +262,9 @@ impl Algorithm {
             Algorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
             Algorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
             Algorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+            Algorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
+            Algorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
+            Algorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
             Algorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
             Algorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
             Algorithm::ES512 => Err(Error::UnsupportedOperation)?,
@@ -311,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn sign_hs256() {
+    fn sign_and_verify_hs256() {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(expected_base64.from_base64());
 
@@ -326,15 +335,15 @@ mod tests {
         assert!(valid);
     }
 
-    /// To generate hash, use
+    /// To generate the signature, use
     ///
     /// ```sh
-    /// echo -n "payload" | openssl dgst -sha256 -sign test/fixtures/private_key.pem | base64
+    /// echo -n "payload" | openssl dgst -sha256 -sign test/fixtures/rsa_private_key.pem | base64
     /// ```
     ///
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
-    fn sign_rs256() {
+    fn sign_and_verify_rs256() {
         let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
@@ -355,6 +364,46 @@ mod tests {
                                                      payload_bytes,
                                                      public_key));
         assert!(valid);
+    }
+
+    /// This signature is not deterministic.
+    #[test]
+    fn sign_and_verify_ps256_roundtrip() {
+        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
+        let payload = "payload".to_string();
+        let payload_bytes = payload.as_bytes();
+
+        let actual_signature = not_err!(Algorithm::PS256.sign(payload_bytes, private_key));
+
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let valid = not_err!(Algorithm::PS256.verify(actual_signature.as_slice(),
+                                                     payload_bytes,
+                                                     public_key));
+        assert!(valid);
+    }
+
+    /// To generate a (non-deterministic) signature:
+    ///
+    /// ```sh
+    /// echo -n "payload" | openssl dgst -sha256 -sigopt rsa_padding_mode:pss \
+    ///    -sign test/fixtures/rsa_private_key.pem | base64
+    /// ```
+    ///
+    /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
+    #[test]
+    fn verify_ps256() {
+        let payload = "payload".to_string();
+        let payload_bytes = payload.as_bytes();
+        let signature = "oLINGDTlSOS5egdokGxLhgVO9OSVadk9o4Gi0UejJI7odeIRBYjL9J6jL7TsaQOkbCFciHMOLjOd\
+                         bACO5pKczRCJNKD+N1PzTom8X1AnsUTtoeqfJVrIPJXtJQ3XR/8P38eMqmh/je8UhKKjYUsMCSqm\
+                         wiQfdft2WkBP4URCAoHNooqq2ZckDrWD8Jba2Cc6UV4em4XRI/c8vG2lwCTpzH5FChjT9EjItm7V\
+                         kYNZZat9yabHT5FBD0Og10MOzpfjZpJJy4OD/HgNDJYn9qYkpSsoTe7SjubFF+A6jmQatqJEfEuj\
+                         Th6lKZ4kKx4MJBvC9vgD5uwa5PI5PgnYrd2fag==";
+        let signature_bytes: Vec<u8> = not_err!(signature.from_base64());
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(),
+                                                     payload_bytes,
+                                                     public_key));
     }
 
     #[test]
