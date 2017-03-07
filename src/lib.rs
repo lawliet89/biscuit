@@ -155,7 +155,8 @@ pub struct RegisteredClaims {
 }
 
 bitflags! {
-    flags TemporalValidationOptions : u8 {
+    pub flags TemporalValidationOptions : u8 {
+        const DEFAULT = 0x0,
         const ISSUED_AT_REQUIRED = 0x1,
         const NOT_BEFORE_REQUIRED = 0x2,
         const EXPIRY_REQUIRED = 0x4,
@@ -166,10 +167,15 @@ bitflags! {
 }
 
 impl RegisteredClaims {
-    fn validate_times(&self,
-                      now: Option<DateTime<UTC>>,
-                      options: TemporalValidationOptions)
-                      -> Result<bool, ValidationError> {
+    pub fn validate_times(&self,
+                          options: Option<TemporalValidationOptions>,
+                          now: Option<DateTime<UTC>>)
+                          -> Result<(), ValidationError> {
+
+        let options = match options {
+            None => DEFAULT,
+            Some(options) => options,
+        };
 
         if options.intersects(ISSUED_AT_REQUIRED) && self.iat.is_none() {
             Err(ValidationError::MissingRequired("iat".to_string()))?;
@@ -200,7 +206,7 @@ impl RegisteredClaims {
             Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
         }
 
-        Ok(true)
+        Ok(())
     }
 }
 
@@ -641,7 +647,7 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(None, ::ISSUED_AT_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), None).unwrap();
     }
 
     #[test]
@@ -656,7 +662,7 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(None, ::EXPIRY_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), None).unwrap();
     }
 
     #[test]
@@ -671,7 +677,7 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(None, ::NOT_BEFORE_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), None).unwrap();
     }
 
     #[test]
@@ -686,7 +692,7 @@ mod tests {
             iat: Some(1),
             jti: None,
         };
-        registered_claims.validate_times(Some(UTC.timestamp(0, 0)), ::ISSUED_AT_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::ISSUED_AT_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
     }
 
     #[test]
@@ -701,7 +707,7 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(Some(UTC.timestamp(2, 0)), ::EXPIRY_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::EXPIRY_REQUIRED), Some(UTC.timestamp(2, 0))).unwrap();
     }
 
     #[test]
@@ -716,11 +722,11 @@ mod tests {
             iat: None,
             jti: None,
         };
-        registered_claims.validate_times(Some(UTC.timestamp(0, 0)), ::NOT_BEFORE_REQUIRED).unwrap();
+        registered_claims.validate_times(Some(::NOT_BEFORE_REQUIRED), Some(UTC.timestamp(0, 0))).unwrap();
     }
 
     #[test]
-    fn validate_times_valid_token() {
+    fn validate_times_valid_token_with_default_options() {
         let registered_claims = RegisteredClaims {
             iss: None,
             sub: None,
@@ -730,7 +736,20 @@ mod tests {
             iat: None,
             jti: None,
         };
-        assert_eq!(true,
-                   registered_claims.validate_times(None, ::NOT_BEFORE_REQUIRED).unwrap());
+        not_err!(registered_claims.validate_times(None, None));
+    }
+
+    #[test]
+    fn validate_times_valid_token_with_all_options() {
+        let registered_claims = RegisteredClaims {
+            iss: None,
+            sub: None,
+            aud: None,
+            exp: Some(999),
+            nbf: Some(1),
+            iat: Some(95),
+            jti: None,
+        };
+        not_err!(registered_claims.validate_times(Some(::ALL_TIMES_REQUIRED), Some(UTC.timestamp(100, 0))));
     }
 }
