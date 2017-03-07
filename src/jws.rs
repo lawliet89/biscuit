@@ -366,9 +366,9 @@ mod tests {
         assert!(valid);
     }
 
-    /// This signature is not deterministic.
+    /// This signature is non-deterministic.
     #[test]
-    fn sign_and_verify_ps256_roundtrip() {
+    fn sign_and_verify_ps256_round_trip() {
         let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
