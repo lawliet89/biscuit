@@ -391,9 +391,7 @@ mod tests {
         let actual_signature = not_err!(Algorithm::PS256.sign(payload_bytes, private_key));
 
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let valid = not_err!(Algorithm::PS256.verify(actual_signature.as_slice(),
-                                                     payload_bytes,
-                                                     public_key));
+        let valid = not_err!(Algorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
@@ -416,9 +414,7 @@ mod tests {
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(signature.from_base64());
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(),
-                                                     payload_bytes,
-                                                     public_key));
+        let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
