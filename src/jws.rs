@@ -181,8 +181,9 @@ impl Algorithm {
 
         match *self {
             HS256 | HS384 | HS512 => Self::verify_hmac(expected_signature, data, secret, self),
-            RS256 | RS384 | RS512 => Self::verify_rsa(expected_signature, data, secret, self),
-            ES256 | ES384 | ES512 => Self::verify_ecdsa(expected_signature, data, secret, self),
+            RS256 | RS384 | RS512 | ES256 | ES384 | ES512 => {
+                Self::verify_public_key(expected_signature, data, secret, self)
+            }
         }
 
     }
@@ -240,50 +241,21 @@ impl Algorithm {
         Ok(verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref()).is_ok())
     }
 
-    fn verify_rsa(expected_signature: &[u8],
-                        data: &[u8],
-                        secret: Secret,
-                        algorithm: &Algorithm)
-                        -> Result<bool, Error> {
+    fn verify_public_key(expected_signature: &[u8],
+                         data: &[u8],
+                         secret: Secret,
+                         algorithm: &Algorithm)
+                         -> Result<bool, Error> {
         let public_key = match secret {
             Secret::PublicKey(public_key) => public_key,
             _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
         };
         let public_key_der = untrusted::Input::from(public_key.as_slice());
 
-        let verification_algorithm = match *algorithm {
+        let verification_algorithm: &signature::VerificationAlgorithm = match *algorithm {
             Algorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
             Algorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
             Algorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
-            _ => unreachable!("Should not happen"),
-        };
-
-        let message = untrusted::Input::from(data);
-        let expected_signature = untrusted::Input::from(expected_signature);
-        match signature::verify(verification_algorithm,
-                                public_key_der,
-                                message,
-                                expected_signature) {
-            Ok(()) => Ok(true),
-            Err(e) => {
-                println!("{}", e);
-                Ok(false)
-            }
-        }
-    }
-
-    fn verify_ecdsa(expected_signature: &[u8],
-                        data: &[u8],
-                        secret: Secret,
-                        algorithm: &Algorithm)
-                        -> Result<bool, Error> {
-        let public_key = match secret {
-            Secret::PublicKey(public_key) => public_key,
-            _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
-        };
-        let public_key_der = untrusted::Input::from(public_key.as_slice());
-
-        let verification_algorithm = match *algorithm {
             Algorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
             Algorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
             Algorithm::ES512 => Err(Error::UnsupportedOperation)?,
@@ -393,6 +365,25 @@ mod tests {
         let payload_bytes = payload.as_bytes();
 
         Algorithm::ES256.sign(payload_bytes, private_key).unwrap();
+    }
+
+    #[test]
+    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L246
+    fn verify_ecdsa() {
+        use rustc_serialize::hex::FromHex;
+
+        let payload = "sample".to_string();
+        let payload_bytes = payload.as_bytes();
+        let public_key = "0460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8B\
+                          C99A41AE9E95628BC64F2F1B20C2D7E9F5177A3C294D4462299";
+        let public_key = Secret::PublicKey(not_err!(public_key.from_hex()));
+        let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7\
+                         CB1C942D657C41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
+        let signature_bytes: Vec<u8> = not_err!(signature.from_hex());
+        let valid = not_err!(Algorithm::ES256.verify(signature_bytes.as_slice(),
+                                                     payload_bytes,
+                                                     public_key));
+        assert!(valid);
     }
 
     #[test]

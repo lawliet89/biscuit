@@ -58,7 +58,7 @@ impl error::Error for Error {
             Utf8(ref err) => err.description(),
             ValidationError(ref err) => err.description(),
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
-            UnsupportedOperation => "This operation is not supported"
+            UnsupportedOperation => "This operation is not supported",
         }
     }
 
