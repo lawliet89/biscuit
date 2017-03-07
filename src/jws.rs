@@ -385,7 +385,7 @@ mod tests {
     /// To generate a (non-deterministic) signature:
     ///
     /// ```sh
-    /// echo -n "payload" | openssl dgst -sha256 -sigopt rsa_padding_mode:pss \
+    /// echo -n "payload" | openssl dgst -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_pss_saltlen:-1 \
     ///    -sign test/fixtures/rsa_private_key.pem | base64
     /// ```
     ///
@@ -394,16 +394,17 @@ mod tests {
     fn verify_ps256() {
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
-        let signature = "oLINGDTlSOS5egdokGxLhgVO9OSVadk9o4Gi0UejJI7odeIRBYjL9J6jL7TsaQOkbCFciHMOLjOd\
-                         bACO5pKczRCJNKD+N1PzTom8X1AnsUTtoeqfJVrIPJXtJQ3XR/8P38eMqmh/je8UhKKjYUsMCSqm\
-                         wiQfdft2WkBP4URCAoHNooqq2ZckDrWD8Jba2Cc6UV4em4XRI/c8vG2lwCTpzH5FChjT9EjItm7V\
-                         kYNZZat9yabHT5FBD0Og10MOzpfjZpJJy4OD/HgNDJYn9qYkpSsoTe7SjubFF+A6jmQatqJEfEuj\
-                         Th6lKZ4kKx4MJBvC9vgD5uwa5PI5PgnYrd2fag==";
+        let signature = "TiMXtt3Wmv/a/tbLWuJPDlFYMfuKsD7U5lbBUn2mBu8DLMLj1EplEZNmkB8w65BgUijnu9hxmhwv\
+                         ET2k7RrsYamEst6BHZf20hIK1yE/YWaktbVmAZwUDdIpXYaZn8ukTsMT06CDrVk6RXF0EPMaSL33\
+                         tFNPZpz4/3pYQdxco/n6DpaR5206wsur/8H0FwoyiFKanhqLb1SgZqyc+SXRPepjKc28wzBnfWl4\
+                         mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
+                         9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(signature.from_base64());
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
         let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(),
                                                      payload_bytes,
                                                      public_key));
+        assert!(valid);
     }
 
     #[test]
