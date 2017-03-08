@@ -2,6 +2,8 @@ extern crate jwt;
 #[macro_use]
 extern crate serde_derive;
 
+use std::default::Default;
+
 use jwt::{ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
 use jwt::jws::{Algorithm, Header, Secret};
 use jwt::errors::{Error, ValidationError};
@@ -16,13 +18,11 @@ struct PrivateClaims {
 fn main() {
     let my_claims = ClaimsSet::<PrivateClaims> {
         registered: RegisteredClaims {
-            iss: Some("https://www.acme.com".to_string()),
-            sub: Some("John Doe".to_string()),
-            aud: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-            exp: None,
-            nbf: Some(1234),
-            iat: None,
-            jti: None,
+            issuer: Some("https://www.acme.com".to_string()),
+            subject: Some("John Doe".to_string()),
+            audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            not_before: Some(1234),
+            ..Default::default()
         },
         private: PrivateClaims {
             department: "Toilet Cleaning".to_string(),
