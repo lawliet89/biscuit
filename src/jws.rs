@@ -45,16 +45,17 @@ pub enum Secret {
     /// extern crate ring;
     /// extern crate untrusted;
     ///
+    /// use std::sync::Arc;
     /// use jwt::jws::Secret;
     /// use ring::signature;
     ///
     /// # fn main() {
     /// let der = include_bytes!("test/fixtures/rsa_private_key.der");
     /// let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der)).unwrap();
-    /// let secret = Secret::RSAKeyPair(key_pair);
+    /// let secret = Secret::RSAKeyPair(Arc::new(key_pair));
     /// # }
     /// ```
-    RSAKeyPair(signature::RSAKeyPair),
+    RSAKeyPair(Arc<signature::RSAKeyPair>),
     /// Bytes of a DER encoded RSA Public Key
     ///
     /// To generate the public key from your DER-encoded private key
@@ -275,11 +276,10 @@ impl Algorithm {
     }
 
     fn sign_rsa(data: &[u8], secret: Secret, algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
-        let private_key = match secret {
+        let key_pair = match secret {
             Secret::RSAKeyPair(key_pair) => key_pair,
             _ => Err("Invalid secret type. A RSAKeyPair is required".to_string())?,
         };
-        let key_pair = Arc::new(private_key);
         let mut signing_state = signature::RSASigningState::new(key_pair)?;
         let rng = rand::SystemRandom::new();
         let mut signature = vec![0; signing_state.key_pair().public_modulus_len()];
@@ -364,6 +364,8 @@ impl Algorithm {
 #[cfg(test)]
 mod tests {
     use std::str;
+    use std::sync::Arc;
+
     use serde_json;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
     use super::{Secret, Algorithm, Header};
@@ -431,7 +433,7 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_and_verify_rs256() {
-        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
+        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
         // This is standard base64
@@ -456,7 +458,7 @@ mod tests {
     /// This signature is non-deterministic.
     #[test]
     fn sign_and_verify_ps256_round_trip() {
-        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
+        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 

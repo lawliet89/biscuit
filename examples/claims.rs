@@ -26,7 +26,6 @@ impl PrivateClaims {
     }
 }
 
-#[allow(match_wild_err_arm)]
 fn main() {
     let my_claims = ClaimsSet::<PrivateClaims> {
         registered: RegisteredClaims {
