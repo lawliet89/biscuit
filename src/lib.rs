@@ -136,7 +136,7 @@ pub struct RegisteredClaims {
     pub issuer: Option<String>,
 
     /// Subject where the JWT is referring to. Serialized to `sub`
-    #[serde(rename="sub", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
 
     /// Audience intended for the JWT. Serialized to `aud`
@@ -152,7 +152,7 @@ pub struct RegisteredClaims {
     pub not_before: Option<i64>,
 
     /// Issued at Time in seconds since Unix Epoch. Serialized to `iat`
-    #[serde(rename="iat", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "iat", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<i64>,
 
     /// Application specific JWT ID. Serialized to `jti`

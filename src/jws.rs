@@ -135,13 +135,13 @@ pub struct Header {
     /// X.509 Public key cerfificate URL. This is currently not implemented (correctly).
     /// Serialized to `x5u`.
     /// Defined in [RFC7515#4.1.5](https://tools.ietf.org/html/rfc7515#section-4.1.5).
-    #[serde(rename="x5u", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "x5u", skip_serializing_if = "Option::is_none")]
     pub x509_url: Option<String>,
 
     /// X.509 public key certificate chain. This is currently not implemented (correctly).
     /// Serialized to `x5c`.
     /// Defined in [RFC7515#4.1.6](https://tools.ietf.org/html/rfc7515#section-4.1.6).
-    #[serde(rename="x5c", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "x5c", skip_serializing_if = "Option::is_none")]
     pub x509_chain: Option<Vec<String>>,
 
     /// X.509 Certificate thumbprint. This is currently not implemented (correctly).
@@ -149,7 +149,7 @@ pub struct Header {
     /// Serialized to `x5t`.
     /// Defined in [RFC7515#4.1.7](https://tools.ietf.org/html/rfc7515#section-4.1.7).
     // TODO: How to make sure the headers are mutually exclusive?
-    #[serde(rename="x5t", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "x5t", skip_serializing_if = "Option::is_none")]
     pub x509_fingerprint: Option<String>,
 
     /// List of critical extended headers.
@@ -157,7 +157,7 @@ pub struct Header {
     /// Also, private headers are not supported at the moment.
     /// Serialized to `crit`.
     /// Defined in [RFC7515#4.1.11](https://tools.ietf.org/html/rfc7515#section-4.1.11).
-    #[serde(rename="crit", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "crit", skip_serializing_if = "Option::is_none")]
     pub critical: Option<Vec<String>>,
 }
 
