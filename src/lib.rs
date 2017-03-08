@@ -126,7 +126,7 @@ impl Deserialize for SingleOrMultipleStrings {
 }
 
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
-pub static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
+static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
 
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -400,6 +400,7 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
 mod tests {
     use std::default::Default;
     use std::str;
+    use std::sync::Arc;
     use std::time::Duration;
 
     use chrono::{UTC, TimeZone};
@@ -638,7 +639,7 @@ mod tests {
                 company: "ACME".to_string(),
             },
         };
-        let private_key = Secret::RSAKeyPair(::test::read_rsa_private_key());
+        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
 
         let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::RS256, ..Default::default() },
                                                     private_key));
