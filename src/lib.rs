@@ -56,73 +56,11 @@ impl<T> Part for T
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum SingleOrMultipleStrings {
     Single(String),
     Multiple(Vec<String>),
-}
-
-impl Serialize for SingleOrMultipleStrings {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        use SingleOrMultipleStrings::*;
-        match *self {
-            Single(ref value) => serializer.serialize_str(value),
-            Multiple(ref values) => {
-                let mut seq = serializer.serialize_seq(Some(values.len()))?;
-                for element in values {
-                    seq.serialize_element(element)?;
-                }
-                seq.end()
-            }
-        }
-    }
-}
-
-impl Deserialize for SingleOrMultipleStrings {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
-    {
-        struct SingleOrMultipleStringsVisitor;
-
-        impl Visitor for SingleOrMultipleStringsVisitor {
-            type Value = SingleOrMultipleStrings;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(formatter, "a string or an array of strings")
-            }
-
-            fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-                where E: de::Error
-            {
-                Ok(SingleOrMultipleStrings::Single(s.to_string()))
-            }
-
-            fn visit_string<E>(self, s: String) -> Result<Self::Value, E>
-                where E: de::Error
-            {
-                Ok(SingleOrMultipleStrings::Single(s))
-            }
-
-            fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
-                where V: de::SeqVisitor
-            {
-                let capacity_hint = match visitor.size_hint() {
-                    (lower, None) => lower,
-                    (_, Some(upper)) => upper,
-                };
-
-                let mut strings: Vec<String> = Vec::with_capacity(capacity_hint);
-                while let Ok(Some(string)) = visitor.visit::<String>() {
-                    strings.push(string);
-                }
-                Ok(SingleOrMultipleStrings::Multiple(strings))
-            }
-        }
-
-        deserializer.deserialize(SingleOrMultipleStringsVisitor {})
-    }
 }
 
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
