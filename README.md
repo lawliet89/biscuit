@@ -12,5 +12,4 @@ Add the following to Cargo.toml:
 
 ```toml
 jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
-rustc-serialize = "0.3"
 ```

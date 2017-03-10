@@ -1,7 +1,12 @@
-//! Create and parses JWT (JSON Web Tokens)
+//! Create, parse, and verify JWT (JSON Web Tokens)
 //!
-
-// #![warn(missing_docs)]
+//! # Usage
+//! ```toml
+//! [dependencies]
+//! jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
+//! ```
+//!
+#![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -236,6 +241,8 @@ impl RegisteredClaims {
     }
 }
 
+/// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
+/// private claims.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClaimsSet<T: Serialize + Deserialize> {
     /// Registered claims defined by the RFC
