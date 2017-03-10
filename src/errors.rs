@@ -66,12 +66,12 @@ impl error::Error for Error {
         use Error::*;
 
         Some(match *self {
-            JsonError(ref err) => err as &error::Error,
-            DecodeBase64(ref err) => err as &error::Error,
-            Utf8(ref err) => err as &error::Error,
-            ValidationError(ref err) => err as &error::Error,
-            ref e => e as &error::Error,
-        })
+                 JsonError(ref err) => err as &error::Error,
+                 DecodeBase64(ref err) => err as &error::Error,
+                 Utf8(ref err) => err as &error::Error,
+                 ValidationError(ref err) => err as &error::Error,
+                 ref e => e as &error::Error,
+             })
     }
 }
 

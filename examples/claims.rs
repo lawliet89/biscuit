@@ -1,9 +1,11 @@
+extern crate chrono;
 extern crate jwt;
 #[macro_use]
 extern crate serde_derive;
 
 use std::default::Default;
 
+use chrono::UTC;
 use jwt::{ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
 use jwt::jws::{Algorithm, Header, Secret};
 use jwt::errors::{Error, ValidationError};
@@ -32,7 +34,7 @@ fn main() {
             issuer: Some("https://www.acme.com".to_string()),
             subject: Some("John Doe".to_string()),
             audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-            not_before: Some(1234),
+            not_before: Some(UTC::now().into()),
             ..Default::default()
         },
         private: PrivateClaims {
@@ -42,7 +44,7 @@ fn main() {
     };
     let key = "secret";
     let token = match my_claims.encode(Header::default(),
-                                       Secret::Bytes(key.to_string().into_bytes())) {
+                           Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
     };
@@ -50,8 +52,8 @@ fn main() {
     println!("{:?}", token);
 
     let (headers, claims) = match ClaimsSet::<PrivateClaims>::decode(&token,
-                                                                     Secret::Bytes(key.to_string().into_bytes()),
-                                                                     Algorithm::HS256) {
+                                             Secret::Bytes(key.to_string().into_bytes()),
+                                             Algorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {
