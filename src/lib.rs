@@ -313,7 +313,7 @@ impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
         // Extract the Maps out
         let mut registered = match registered {
             value::Value::Object(map) => map,
-            _ => unreachable!("RegisteredClaims needs to be a Struct"),
+            _ => unreachable!("RegisteredClaims needs to be a struct"),
         };
         let private = match private {
             value::Value::Object(map) => map,
@@ -347,7 +347,7 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
         // ... which should be of the Object variant containing a Map
         let mut map = match value {
             Value::Object(map) => map,
-            others => Err(D::Error::custom(format!("Expected a struct, got {:?}", others)))?,
+            others => Err(D::Error::custom(format!("Expected a map, got {:?}", others)))?,
         };
 
         // Let's extract the registered claims from the object
@@ -379,6 +379,8 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
 
 #[cfg(test)]
 mod tests {
+    extern crate serde_test;
+
     use std::default::Default;
     use std::str;
     use std::sync::Arc;
@@ -386,6 +388,7 @@ mod tests {
 
     use chrono::{UTC, TimeZone};
     use serde_json;
+    use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
     use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
     use jws::{Algorithm, Header, Secret};
@@ -479,6 +482,71 @@ mod tests {
     }
 
     #[test]
+    fn claims_set_serialization_tokens_round_trip() {
+        let claim = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some((-1234).into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        assert_tokens(&claim,
+                      &[Token::MapStart(Some(6)),
+                        Token::MapSep,
+                        Token::Str("iss"),
+                        Token::Str("https://www.acme.com"),
+
+                        Token::MapSep,
+                        Token::Str("sub"),
+                        Token::Str("John Doe"),
+
+                        Token::MapSep,
+                        Token::Str("aud"),
+                        Token::Str("htts://acme-customer.com"),
+
+                        Token::MapSep,
+                        Token::Str("nbf"),
+                        Token::I64(-1234),
+
+                        Token::MapSep,
+                        Token::Str("company"),
+                        Token::Str("ACME"),
+
+                        Token::MapSep,
+                        Token::Str("department"),
+                        Token::Str("Toilet Cleaning"),
+                        Token::MapEnd]);
+    }
+
+    #[test]
+    fn claims_set_serialization_tokens_error() {
+        let claim = ClaimsSet::<InvalidPrivateClaim> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: InvalidPrivateClaim {
+                sub: "John Doe".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        assert_ser_tokens_error(&claim,
+                                &[],
+                                serde_test::Error::Message("Private claims has registered claim `sub`".to_string()));
+    }
+
+    #[test]
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
@@ -504,7 +572,6 @@ mod tests {
         let deserialized: ClaimsSet<PrivateClaims> = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, claim);
     }
-
 
     #[test]
     #[should_panic(expected = "Private claims has registered claim `sub`")]

@@ -24,3 +24,6 @@ serde = "0.9"
 serde_derive = "0.9"
 serde_json = { version = "0.9", features = ["preserve_order"] }
 untrusted = "0.3"
+
+[dev-dependencies]
+serde_test = "0.9"
