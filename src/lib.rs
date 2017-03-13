@@ -1,7 +1,12 @@
-//! Create and parses JWT (JSON Web Tokens)
+//! Create, parse, and verify JWT (JSON Web Tokens)
 //!
-
-// #![warn(missing_docs)]
+//! # Usage
+//! ```toml
+//! [dependencies]
+//! jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
+//! ```
+//!
+#![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -31,7 +36,7 @@ use errors::{Error, ValidationError};
 
 /// A part of the JWT: header and claims specifically
 /// Allows converting from/to struct with base64
-pub trait Part {
+trait Part {
     type Encoded: AsRef<str>;
 
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> where Self: Sized;
@@ -236,6 +241,8 @@ impl RegisteredClaims {
     }
 }
 
+/// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
+/// private claims.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ClaimsSet<T: Serialize + Deserialize> {
     /// Registered claims defined by the RFC
@@ -244,61 +251,6 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
     pub private: T,
 }
 
-/// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
-/// Errors if we don't
-macro_rules! expect_two {
-    ($iter:expr) => {{
-        let mut i = $iter; // evaluate the expr
-        match (i.next(), i.next(), i.next()) {
-            (Some(first), Some(second), None) => Ok((first, second)),
-            _ => Err(Error::ValidationError(ValidationError::InvalidToken))
-        }
-    }}
-}
-
-impl<T: Serialize + Deserialize> ClaimsSet<T> {
-    /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
-    /// The secret is dependent on the signing algorithm
-    pub fn encode(&self, header: jws::Header, secret: jws::Secret) -> Result<String, Error> {
-        let encoded_header = header.to_base64()?;
-        let encoded_claims = self.to_base64()?;
-        // seems to be a tiny bit faster than format!("{}.{}", x, y)
-        let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-        let signature = header.algorithm
-            .sign(payload.as_bytes(), secret)?
-            .as_slice()
-            .to_base64(base64::URL_SAFE);
-
-        Ok([payload, signature].join("."))
-    }
-
-    /// Decode a token into a Claims struct
-    /// If the token or its signature is invalid, it will return an error
-    pub fn decode(token: &str,
-                  secret: jws::Secret,
-                  algorithm: jws::Algorithm)
-                  -> Result<(jws::Header, ClaimsSet<T>), Error> {
-        // Check that there are only two parts
-        let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
-        let signature: Vec<u8> = signature.from_base64()?;
-
-        if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
-            Err(ValidationError::InvalidSignature)?;
-        }
-
-        let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
-
-        let header = jws::Header::from_base64(header)?;
-        if header.algorithm != algorithm {
-            Err(ValidationError::WrongAlgorithmHeader)?;
-        }
-        let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
-
-        Ok((header, decoded_claims))
-    }
-}
-
-/// Serializer for `ClaimsSet`.
 impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
@@ -377,6 +329,74 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
     }
 }
 
+/// A JWT that can be encoded/decoded
+/// This struct does not implement Serialize or Deserialize because to (De)Serialize the JWT, the secret is
+/// required.
+#[derive(Debug, Eq, PartialEq)]
+pub struct JWT<T: Serialize + Deserialize> {
+    pub header: jws::Header,
+    pub claims_set: ClaimsSet<T>,
+}
+
+/// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
+/// Errors if we don't
+macro_rules! expect_two {
+    ($iter:expr) => {{
+        let mut i = $iter; // evaluate the expr
+        match (i.next(), i.next(), i.next()) {
+            (Some(first), Some(second), None) => Ok((first, second)),
+            _ => Err(Error::ValidationError(ValidationError::InvalidToken))
+        }
+    }}
+}
+
+impl<T: Serialize + Deserialize> JWT<T> {
+    pub fn new(header: jws::Header, claims_set: ClaimsSet<T>) -> Self {
+        JWT::<T> {
+            header: header,
+            claims_set: claims_set,
+        }
+    }
+
+    /// Encode the JWT passed and sign the payload using the algorithm from the header and the secret
+    /// The secret is dependent on the signing algorithm
+    pub fn encode(&self, secret: jws::Secret) -> Result<String, Error> {
+        let encoded_header = self.header.to_base64()?;
+        let encoded_claims = self.claims_set.to_base64()?;
+        // seems to be a tiny bit faster than format!("{}.{}", x, y)
+        let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
+        let signature = self.header
+            .algorithm
+            .sign(payload.as_bytes(), secret)?
+            .as_slice()
+            .to_base64(base64::URL_SAFE);
+
+        Ok([payload, signature].join("."))
+    }
+
+    /// Decode a token into the JWT struct and verify its signature
+    /// If the token or its signature is invalid, it will return an error
+    pub fn decode(token: &str, secret: jws::Secret, algorithm: jws::Algorithm) -> Result<Self, Error> {
+        // Check that there are only two parts
+        let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
+        let signature: Vec<u8> = signature.from_base64()?;
+
+        if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
+            Err(ValidationError::InvalidSignature)?;
+        }
+
+        let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
+
+        let header = jws::Header::from_base64(header)?;
+        if header.algorithm != algorithm {
+            Err(ValidationError::WrongAlgorithmHeader)?;
+        }
+        let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
+
+        Ok(Self::new(header, decoded_claims))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     extern crate serde_test;
@@ -390,7 +410,7 @@ mod tests {
     use serde_json;
     use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
-    use super::{SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
+    use super::{JWT, SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
     use jws::{Algorithm, Header, Secret};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -611,12 +631,14 @@ mod tests {
 
         let mut header = Header::default();
         header.key_id = Some("kid".to_string());
-        let token = not_err!(expected_claims.encode(header, Secret::Bytes("secret".to_string().into_bytes())));
-        let (actual_headers, actual_claims) = not_err!(ClaimsSet::<PrivateClaims>::decode(&token,
+
+        let expected_jwt = JWT::new(header, expected_claims);
+        let token = not_err!(expected_jwt.encode(Secret::Bytes("secret".to_string().into_bytes())));
+        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token,
                                                         Secret::Bytes("secret".to_string().into_bytes()),
                                                         Algorithm::HS256));
-        assert_eq!(expected_claims, actual_claims);
-        assert_eq!("kid", actual_headers.key_id.unwrap());
+        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
+        assert_eq!("kid", jwt.header.key_id.unwrap());
     }
 
     #[test]
@@ -639,12 +661,13 @@ mod tests {
             },
         };
 
-        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::None, ..Default::default() },
-                                                    Secret::None));
+        let expected_jwt = JWT::new(Header { algorithm: Algorithm::None, ..Default::default() },
+                                    expected_claims);
+        let token = not_err!(expected_jwt.encode(Secret::None));
         assert_eq!(expected_token, token);
 
-        let (_headers, claims) = not_err!(ClaimsSet::<PrivateClaims>::decode(&token, Secret::None, Algorithm::None));
-        assert_eq!(expected_claims, claims);
+        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token, Secret::None, Algorithm::None));
+        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
     }
 
     #[test]
@@ -668,15 +691,15 @@ mod tests {
             },
         };
 
-        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::HS256, ..Default::default() },
-                                                    Secret::Bytes("secret".to_string().into_bytes())));
+        let expected_jwt = JWT::new(Header { algorithm: Algorithm::HS256, ..Default::default() },
+                                    expected_claims);
+        let token = not_err!(expected_jwt.encode(Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, token);
 
-        let (_headers, claims) =
-            not_err!(ClaimsSet::<PrivateClaims>::decode(&token,
+        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token,
                                                         Secret::Bytes("secret".to_string().into_bytes()),
                                                         Algorithm::HS256));
-        assert_eq!(expected_claims, claims);
+        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
     }
 
     #[test]
@@ -704,22 +727,23 @@ mod tests {
         };
         let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
 
-        let token = not_err!(expected_claims.encode(Header { algorithm: Algorithm::RS256, ..Default::default() },
-                                                    private_key));
+        let expected_jwt = JWT::new(Header { algorithm: Algorithm::RS256, ..Default::default() },
+                                    expected_claims);
+        let token = not_err!(expected_jwt.encode(private_key));
         assert_eq!(expected_token, token);
 
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let (_headers, claims) = not_err!(ClaimsSet::<PrivateClaims>::decode(&token, public_key, Algorithm::RS256));
-        assert_eq!(expected_claims, claims);
+        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token, public_key, Algorithm::RS256));
+        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
     }
 
     #[test]
     #[should_panic(expected = "InvalidToken")]
     fn decode_token_missing_parts() {
         let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
-        let claims = ClaimsSet::<PrivateClaims>::decode(token,
-                                                        Secret::Bytes("secret".to_string().into_bytes()),
-                                                        Algorithm::HS256);
+        let claims = JWT::<PrivateClaims>::decode(token,
+                                                  Secret::Bytes("secret".to_string().into_bytes()),
+                                                  Algorithm::HS256);
         claims.unwrap();
     }
 
@@ -729,9 +753,9 @@ mod tests {
         let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                      eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                      WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___";
-        let claims = ClaimsSet::<PrivateClaims>::decode(token,
-                                                        Secret::Bytes("secret".to_string().into_bytes()),
-                                                        Algorithm::HS256);
+        let claims = JWT::<PrivateClaims>::decode(token,
+                                                  Secret::Bytes("secret".to_string().into_bytes()),
+                                                  Algorithm::HS256);
         claims.unwrap();
     }
 
@@ -742,7 +766,7 @@ mod tests {
                      eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                      WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___";
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let claims = ClaimsSet::<PrivateClaims>::decode(token, public_key, Algorithm::RS256);
+        let claims = JWT::<PrivateClaims>::decode(token, public_key, Algorithm::RS256);
         claims.unwrap();
     }
 
@@ -752,9 +776,9 @@ mod tests {
         let token = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
                      eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                      pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI";
-        let claims = ClaimsSet::<PrivateClaims>::decode(token,
-                                                        Secret::Bytes("secret".to_string().into_bytes()),
-                                                        Algorithm::HS256);
+        let claims = JWT::<PrivateClaims>::decode(token,
+                                                  Secret::Bytes("secret".to_string().into_bytes()),
+                                                  Algorithm::HS256);
         claims.unwrap();
     }
 
