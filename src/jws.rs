@@ -1,3 +1,4 @@
+//! Related to the JWS RFC, including JWT signing and headers
 use std::default::Default;
 use std::sync::Arc;
 
@@ -7,6 +8,7 @@ use untrusted;
 
 use errors::Error;
 
+/// The secrets used to sign and/or encrypt tokens
 pub enum Secret {
     /// Used with the `None` algorithm variant.
     None,
@@ -86,6 +88,7 @@ pub enum Secret {
     /// let der = include_bytes!("test/fixtures/rsa_public_key.der");
     /// let secret = Secret::PublicKey(der.iter().map(|b| b.clone()).collect());
     PublicKey(Vec<u8>),
+    /// Bytes for a ECDSA public key.
     ECDSAPublicKey(Vec<u8>),
 }
 
@@ -251,7 +254,7 @@ impl Algorithm {
 
     }
 
-    pub fn sign_none(secret: Secret) -> Result<Vec<u8>, Error> {
+    fn sign_none(secret: Secret) -> Result<Vec<u8>, Error> {
         match secret {
             Secret::None => {}
             _ => Err("Invalid secret type. `None` should be provided".to_string())?,
