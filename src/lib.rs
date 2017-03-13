@@ -6,6 +6,7 @@
 //! jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
 //! ```
 //!
+//! See [`jwt::JWT`](enum.JWT.html) for usage examples.
 // #![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
@@ -70,7 +71,7 @@ pub enum SingleOrMultipleStrings {
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
 
-/// Wrapper around DateTime<UTC> to allow us to do custom de(serialization)
+/// Wrapper around `DateTime<UTC>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<UTC>);
 
@@ -367,15 +368,18 @@ impl<T> Clone for ClaimsSet<T>
 /// }
 ///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-///     Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-///     u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+///     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4g\
+///     RG9lIiwiYXVkIjoiaHR0czovL2FjbWUtY3VzdG9tZXIuY29tIiwibmJmI\
+///     joxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQ\
+///     gQ2xlYW5pbmcifQ.u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
 ///         issuer: Some("https://www.acme.com".to_string()),
 ///         subject: Some("John Doe".to_string()),
-///         audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+///         audience: Some(
+///             SingleOrMultipleStrings::Single("htts://acme-customer.com"
+///                                              .to_string())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -385,10 +389,14 @@ impl<T> Clone for ClaimsSet<T>
 ///     },
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(Header { algorithm: Algorithm::HS256, ..Default::default() },
+/// let expected_jwt = JWT::new_decoded(Header {
+///                                         algorithm: Algorithm::HS256,
+///                                         ..Default::default()
+///                                     },
 ///                                     expected_claims.clone());
 ///
-/// let token = expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+/// let token = expected_jwt
+///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
 /// let token = serde_json::to_string(&token).unwrap();
 /// assert_eq!(format!("\"{}\"", expected_token), token);
 /// // Now, send `token` to your clients
@@ -396,17 +404,22 @@ impl<T> Clone for ClaimsSet<T>
 /// // ... some time later, we get token back!
 ///
 /// let token = serde_json::from_str::<JWT<PrivateClaims>>(&token).unwrap();
-/// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()), Algorithm::HS256).unwrap();
+/// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+///     Algorithm::HS256).unwrap();
 /// assert_eq!(*token.claims_set().unwrap(), expected_claims);
 /// # }
 /// ```
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JWT<T: Serialize + Deserialize> {
+    /// Decoded form of the JWT. **DO NOT SERIALIZE THIS AND SEND TO YOUR CLIENTS.**
     Decoded {
+        /// Embedded header
         header: jws::Header,
+        /// Claims sets, including registered and private claims
         claims_set: ClaimsSet<T>,
     },
+    /// Encoded and (optionally) signed JWT. Use this form to send to your clients
     Encoded(String),
 }
 
@@ -423,6 +436,7 @@ macro_rules! expect_two {
 }
 
 impl<T: Serialize + Deserialize> JWT<T> {
+    /// New decoded JWT
     pub fn new_decoded(header: jws::Header, claims_set: ClaimsSet<T>) -> Self {
         JWT::Decoded {
             header: header,
@@ -430,6 +444,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         }
     }
 
+    /// New encoded JWT
     pub fn new_encoded(token: &str) -> Self {
         JWT::Encoded(token.to_string())
     }
@@ -502,6 +517,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         }
     }
 
+    /// Convenience method to extract the encoded string from an encoded JWT
     pub fn encoded(&self) -> Result<&str, Error> {
         match *self {
             JWT::Decoded { .. } => Err(Error::UnsupportedOperation),
@@ -509,6 +525,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         }
     }
 
+    /// Convenience method to extract the claims set from a decoded JWT
     pub fn claims_set(&self) -> Result<&ClaimsSet<T>, Error> {
         match *self {
             JWT::Decoded { ref claims_set, .. } => Ok(claims_set),
@@ -516,6 +533,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         }
     }
 
+    /// Convenience method to extract the header from a decoded JWT
     pub fn header(&self) -> Result<&jws::Header, Error> {
         match *self {
             JWT::Decoded { ref header, .. } => Ok(header),
