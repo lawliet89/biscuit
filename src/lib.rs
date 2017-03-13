@@ -329,6 +329,9 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
     }
 }
 
+/// A JWT that can be encoded/decoded
+/// This struct does not implement Serialize or Deserialize because to (De)Serialize the JWT, the secret is
+/// required.
 #[derive(Debug, Eq, PartialEq)]
 pub struct JWT<T: Serialize + Deserialize> {
     pub header: jws::Header,
@@ -355,7 +358,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         }
     }
 
-    /// Encode the claims passed and sign the payload using the algorithm from the header and the secret
+    /// Encode the JWT passed and sign the payload using the algorithm from the header and the secret
     /// The secret is dependent on the signing algorithm
     pub fn encode(&self, secret: jws::Secret) -> Result<String, Error> {
         let encoded_header = self.header.to_base64()?;
@@ -371,7 +374,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
         Ok([payload, signature].join("."))
     }
 
-    /// Decode a token into a Claims struct
+    /// Decode a token into the JWT struct and verify its signature
     /// If the token or its signature is invalid, it will return an error
     pub fn decode(token: &str, secret: jws::Secret, algorithm: jws::Algorithm) -> Result<Self, Error> {
         // Check that there are only two parts
