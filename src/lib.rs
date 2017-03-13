@@ -7,7 +7,7 @@
 //! ```
 //!
 //! See [`jwt::JWT`](enum.JWT.html) for usage examples.
-// #![warn(missing_docs)]
+#![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -466,8 +466,7 @@ impl<T: Serialize + Deserialize> JWT<T> {
             JWT::Decoded { ref header, ref claims_set } => {
                 let encoded_header = header.to_base64()?;
                 let encoded_claims = claims_set.to_base64()?;
-                // seems to be a tiny bit faster than format!("{}.{}", x, y)
-                let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
+                let payload = [&*encoded_header, &*encoded_claims].join(".");
                 let signature = header.algorithm
                     .sign(payload.as_bytes(), secret)?
                     .as_slice()
