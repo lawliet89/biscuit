@@ -6,6 +6,7 @@
 //! jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
 //! ```
 //!
+//! See [`jwt::JWT`](enum.JWT.html) for usage examples.
 #![warn(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
@@ -60,7 +61,7 @@ impl<T> Part for T
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SingleOrMultipleStrings {
     Single(String),
@@ -70,7 +71,7 @@ pub enum SingleOrMultipleStrings {
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
 
-/// Wrapper around DateTime<UTC> to allow us to do custom de(serialization)
+/// Wrapper around `DateTime<UTC>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<UTC>);
 
@@ -118,7 +119,7 @@ impl Deserialize for Timestamp {
 
 
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RegisteredClaims {
     // Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
@@ -329,13 +330,97 @@ impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
     }
 }
 
+impl<T> Clone for ClaimsSet<T>
+    where T: Serialize + Deserialize + Clone
+{
+    fn clone(&self) -> Self {
+        ClaimsSet {
+            registered: self.registered.clone(),
+            private: self.private.clone(),
+        }
+    }
+}
+
 /// A JWT that can be encoded/decoded
-/// This struct does not implement Serialize or Deserialize because to (De)Serialize the JWT, the secret is
-/// required.
-#[derive(Debug, Eq, PartialEq)]
-pub struct JWT<T: Serialize + Deserialize> {
-    pub header: jws::Header,
-    pub claims_set: ClaimsSet<T>,
+///
+/// The serialization/deserialization is handled by serde. Before you transport the token, make sure you
+/// turn it into the encoded form first.
+///
+/// # Examples
+/// ## Encoding and decoding with HS256
+///
+/// ```
+/// extern crate jwt;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+/// use jwt::*;
+/// use jwt::jws::*;
+///
+/// # fn main() {
+///
+/// // Define our own private claims
+/// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+/// struct PrivateClaims {
+///     company: String,
+///     department: String,
+/// }
+///
+/// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+///     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4g\
+///     RG9lIiwiYXVkIjoiaHR0czovL2FjbWUtY3VzdG9tZXIuY29tIiwibmJmI\
+///     joxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQ\
+///     gQ2xlYW5pbmcifQ.u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+///
+/// let expected_claims = ClaimsSet::<PrivateClaims> {
+///     registered: RegisteredClaims {
+///         issuer: Some("https://www.acme.com".to_string()),
+///         subject: Some("John Doe".to_string()),
+///         audience: Some(
+///             SingleOrMultipleStrings::Single("htts://acme-customer.com"
+///                                              .to_string())),
+///         not_before: Some(1234.into()),
+///         ..Default::default()
+///     },
+///     private: PrivateClaims {
+///         department: "Toilet Cleaning".to_string(),
+///         company: "ACME".to_string(),
+///     },
+/// };
+///
+/// let expected_jwt = JWT::new_decoded(Header {
+///                                         algorithm: Algorithm::HS256,
+///                                         ..Default::default()
+///                                     },
+///                                     expected_claims.clone());
+///
+/// let token = expected_jwt
+///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+/// let token = serde_json::to_string(&token).unwrap();
+/// assert_eq!(format!("\"{}\"", expected_token), token);
+/// // Now, send `token` to your clients
+///
+/// // ... some time later, we get token back!
+///
+/// let token = serde_json::from_str::<JWT<PrivateClaims>>(&token).unwrap();
+/// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+///     Algorithm::HS256).unwrap();
+/// assert_eq!(*token.claims_set().unwrap(), expected_claims);
+/// # }
+/// ```
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum JWT<T: Serialize + Deserialize> {
+    /// Decoded form of the JWT. **DO NOT SERIALIZE THIS AND SEND TO YOUR CLIENTS.**
+    Decoded {
+        /// Embedded header
+        header: jws::Header,
+        /// Claims sets, including registered and private claims
+        claims_set: ClaimsSet<T>,
+    },
+    /// Encoded and (optionally) signed JWT. Use this form to send to your clients
+    Encoded(String),
 }
 
 /// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
@@ -351,49 +436,124 @@ macro_rules! expect_two {
 }
 
 impl<T: Serialize + Deserialize> JWT<T> {
-    pub fn new(header: jws::Header, claims_set: ClaimsSet<T>) -> Self {
-        JWT::<T> {
+    /// New decoded JWT
+    pub fn new_decoded(header: jws::Header, claims_set: ClaimsSet<T>) -> Self {
+        JWT::Decoded {
             header: header,
             claims_set: claims_set,
         }
     }
 
+    /// New encoded JWT
+    pub fn new_encoded(token: &str) -> Self {
+        JWT::Encoded(token.to_string())
+    }
+
+    /// Consumes self and convert into encoded form. If the token is already encoded,
+    /// this is a no-op.
+    // TODO: Is the no-op dangerous? What if the secret between the previous encode and this time is different?
+    pub fn into_encoded(self, secret: jws::Secret) -> Result<Self, Error> {
+        match self {
+            JWT::Encoded(_) => Ok(self),
+            JWT::Decoded { .. } => self.encode(secret),
+        }
+    }
+
     /// Encode the JWT passed and sign the payload using the algorithm from the header and the secret
     /// The secret is dependent on the signing algorithm
-    pub fn encode(&self, secret: jws::Secret) -> Result<String, Error> {
-        let encoded_header = self.header.to_base64()?;
-        let encoded_claims = self.claims_set.to_base64()?;
-        // seems to be a tiny bit faster than format!("{}.{}", x, y)
-        let payload = [encoded_header.as_ref(), encoded_claims.as_ref()].join(".");
-        let signature = self.header
-            .algorithm
-            .sign(payload.as_bytes(), secret)?
-            .as_slice()
-            .to_base64(base64::URL_SAFE);
+    pub fn encode(&self, secret: jws::Secret) -> Result<Self, Error> {
+        match *self {
+            JWT::Decoded { ref header, ref claims_set } => {
+                let encoded_header = header.to_base64()?;
+                let encoded_claims = claims_set.to_base64()?;
+                let payload = [&*encoded_header, &*encoded_claims].join(".");
+                let signature = header.algorithm
+                    .sign(payload.as_bytes(), secret)?
+                    .as_slice()
+                    .to_base64(base64::URL_SAFE);
 
-        Ok([payload, signature].join("."))
+                Ok(JWT::Encoded([payload, signature].join(".")))
+            }
+            JWT::Encoded(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+
+    /// Consumes self and convert into decoded form, verifying the signature, if any.
+    /// If the token is already decoded, this is a no-op.AsMut
+    // TODO: Is the no-op dangerous? What if the secret between the previous decode and this time is different?
+    pub fn into_decoded(self, secret: jws::Secret, algorithm: jws::Algorithm) -> Result<Self, Error> {
+        match self {
+            JWT::Encoded(_) => self.decode(secret, algorithm),
+            JWT::Decoded { .. } => Ok(self),
+        }
     }
 
     /// Decode a token into the JWT struct and verify its signature
     /// If the token or its signature is invalid, it will return an error
-    pub fn decode(token: &str, secret: jws::Secret, algorithm: jws::Algorithm) -> Result<Self, Error> {
-        // Check that there are only two parts
-        let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
-        let signature: Vec<u8> = signature.from_base64()?;
+    pub fn decode(&self, secret: jws::Secret, algorithm: jws::Algorithm) -> Result<Self, Error> {
+        match *self {
+            JWT::Decoded { .. } => Err(Error::UnsupportedOperation),
+            JWT::Encoded(ref token) => {
+                // Check that there are only two parts
+                let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
+                let signature: Vec<u8> = signature.from_base64()?;
 
-        if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
-            Err(ValidationError::InvalidSignature)?;
+                if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
+                    Err(ValidationError::InvalidSignature)?;
+                }
+
+                let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
+
+                let header = jws::Header::from_base64(header)?;
+                if header.algorithm != algorithm {
+                    Err(ValidationError::WrongAlgorithmHeader)?;
+                }
+                let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
+
+                Ok(Self::new_decoded(header, decoded_claims))
+            }
         }
+    }
 
-        let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
-
-        let header = jws::Header::from_base64(header)?;
-        if header.algorithm != algorithm {
-            Err(ValidationError::WrongAlgorithmHeader)?;
+    /// Convenience method to extract the encoded string from an encoded JWT
+    pub fn encoded(&self) -> Result<&str, Error> {
+        match *self {
+            JWT::Decoded { .. } => Err(Error::UnsupportedOperation),
+            JWT::Encoded(ref encoded) => Ok(encoded),
         }
-        let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
+    }
 
-        Ok(Self::new(header, decoded_claims))
+    /// Convenience method to extract the claims set from a decoded JWT
+    pub fn claims_set(&self) -> Result<&ClaimsSet<T>, Error> {
+        match *self {
+            JWT::Decoded { ref claims_set, .. } => Ok(claims_set),
+            JWT::Encoded(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+    /// Convenience method to extract the header from a decoded JWT
+    pub fn header(&self) -> Result<&jws::Header, Error> {
+        match *self {
+            JWT::Decoded { ref header, .. } => Ok(header),
+            JWT::Encoded(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+}
+
+impl<T> Clone for JWT<T>
+    where T: Serialize + Deserialize + Clone
+{
+    fn clone(&self) -> Self {
+        match *self {
+            JWT::Decoded { ref header, ref claims_set } => {
+                JWT::Decoded {
+                    header: (*header).clone(),
+                    claims_set: (*claims_set).clone(),
+                }
+            }
+            JWT::Encoded(ref encoded) => JWT::Encoded((*encoded).clone()),
+        }
     }
 }
 
@@ -614,6 +774,102 @@ mod tests {
     }
 
     #[test]
+    fn round_trip_none() {
+        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
+            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
+            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.";
+
+        let expected_claims = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        let expected_jwt = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
+                                            expected_claims.clone());
+        let token = not_err!(expected_jwt.into_encoded(Secret::None));
+        assert_eq!(expected_token, not_err!(token.encoded()));
+
+        let jwt = not_err!(token.into_decoded(Secret::None, Algorithm::None));
+        let actual_claims = not_err!(jwt.claims_set());
+        assert_eq!(expected_claims, *actual_claims);
+    }
+
+    #[test]
+    fn round_trip_hs256() {
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
+            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+            u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+
+        let expected_claims = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        let expected_jwt = JWT::new_decoded(Header { algorithm: Algorithm::HS256, ..Default::default() },
+                                            expected_claims.clone());
+        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
+        assert_eq!(expected_token, not_err!(token.encoded()));
+
+        let jwt = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+                                              Algorithm::HS256));
+        assert_eq!(expected_claims, *not_err!(jwt.claims_set()));
+    }
+
+    #[test]
+    fn round_trip_rs256() {
+        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
+            tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+            jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
+            chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
+            XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
+            jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
+
+        let expected_claims = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
+
+        let expected_jwt = JWT::new_decoded(Header { algorithm: Algorithm::RS256, ..Default::default() },
+                                            expected_claims.clone());
+        let token = not_err!(expected_jwt.into_encoded(private_key));
+        assert_eq!(expected_token, not_err!(token.encoded()));
+
+        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let jwt = not_err!(token.into_decoded(public_key, Algorithm::RS256));
+        assert_eq!(expected_claims, *not_err!(jwt.claims_set()));
+    }
+
+    #[test]
     fn encode_with_additional_header_fields() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
@@ -632,153 +888,52 @@ mod tests {
         let mut header = Header::default();
         header.key_id = Some("kid".to_string());
 
-        let expected_jwt = JWT::new(header, expected_claims);
-        let token = not_err!(expected_jwt.encode(Secret::Bytes("secret".to_string().into_bytes())));
-        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token,
-                                                        Secret::Bytes("secret".to_string().into_bytes()),
-                                                        Algorithm::HS256));
-        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
-        assert_eq!("kid", jwt.header.key_id.unwrap());
-    }
-
-    #[test]
-    fn round_trip_none() {
-        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
-        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-        Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.";
-
-        let expected_claims = ClaimsSet::<PrivateClaims> {
-            registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                not_before: Some(1234.into()),
-                ..Default::default()
-            },
-            private: PrivateClaims {
-                department: "Toilet Cleaning".to_string(),
-                company: "ACME".to_string(),
-            },
-        };
-
-        let expected_jwt = JWT::new(Header { algorithm: Algorithm::None, ..Default::default() },
-                                    expected_claims);
-        let token = not_err!(expected_jwt.encode(Secret::None));
-        assert_eq!(expected_token, token);
-
-        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token, Secret::None, Algorithm::None));
-        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
-    }
-
-    #[test]
-    fn round_trip_hs256() {
-        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-        Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-        u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
-
-        let expected_claims = ClaimsSet::<PrivateClaims> {
-            registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                not_before: Some(1234.into()),
-                ..Default::default()
-            },
-            private: PrivateClaims {
-                department: "Toilet Cleaning".to_string(),
-                company: "ACME".to_string(),
-            },
-        };
-
-        let expected_jwt = JWT::new(Header { algorithm: Algorithm::HS256, ..Default::default() },
-                                    expected_claims);
-        let token = not_err!(expected_jwt.encode(Secret::Bytes("secret".to_string().into_bytes())));
-        assert_eq!(expected_token, token);
-
-        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token,
-                                                        Secret::Bytes("secret".to_string().into_bytes()),
-                                                        Algorithm::HS256));
-        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
-    }
-
-    #[test]
-    fn round_trip_rs256() {
-        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
-        tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-        jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
-        chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
-        XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
-        jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
-
-        let expected_claims = ClaimsSet::<PrivateClaims> {
-            registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
-                not_before: Some(1234.into()),
-                ..Default::default()
-            },
-            private: PrivateClaims {
-                department: "Toilet Cleaning".to_string(),
-                company: "ACME".to_string(),
-            },
-        };
-        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
-
-        let expected_jwt = JWT::new(Header { algorithm: Algorithm::RS256, ..Default::default() },
-                                    expected_claims);
-        let token = not_err!(expected_jwt.encode(private_key));
-        assert_eq!(expected_token, token);
-
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let jwt = not_err!(JWT::<PrivateClaims>::decode(&token, public_key, Algorithm::RS256));
-        assert_eq!(expected_jwt.claims_set, jwt.claims_set);
+        let expected_jwt = JWT::new_decoded(header.clone(), expected_claims);
+        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
+        let jwt = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+                                              Algorithm::HS256));
+        assert_eq!(header, *not_err!(jwt.header()));
     }
 
     #[test]
     #[should_panic(expected = "InvalidToken")]
     fn decode_token_missing_parts() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9";
-        let claims = JWT::<PrivateClaims>::decode(token,
-                                                  Secret::Bytes("secret".to_string().into_bytes()),
-                                                  Algorithm::HS256);
+        let token = JWT::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+                                  Algorithm::HS256);
         claims.unwrap();
     }
 
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn decode_token_invalid_signature_hs256() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                     WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___";
-        let claims = JWT::<PrivateClaims>::decode(token,
-                                                  Secret::Bytes("secret".to_string().into_bytes()),
-                                                  Algorithm::HS256);
+        let token = JWT::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                                                       WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___");
+        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+                                  Algorithm::HS256);
         claims.unwrap();
     }
 
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn decode_token_invalid_signature_rs256() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                     WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___";
+        let token = JWT::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                                                       WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___");
         let public_key = Secret::PublicKey(::test::read_rsa_public_key());
-        let claims = JWT::<PrivateClaims>::decode(token, public_key, Algorithm::RS256);
+        let claims = token.decode(public_key, Algorithm::RS256);
         claims.unwrap();
     }
 
     #[test]
     #[should_panic(expected = "WrongAlgorithmHeader")]
     fn decode_token_wrong_algorithm() {
-        let token = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
-                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                     pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI";
-        let claims = JWT::<PrivateClaims>::decode(token,
-                                                  Secret::Bytes("secret".to_string().into_bytes()),
-                                                  Algorithm::HS256);
+        let token = JWT::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
+                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
+        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+                                  Algorithm::HS256);
         claims.unwrap();
     }
 

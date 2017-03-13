@@ -89,7 +89,7 @@ pub enum Secret {
     ECDSAPublicKey(Vec<u8>),
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 /// A basic JWT header part, the alg defaults to HS256 and typ is automatically
 /// set to `JWT`. All the other fields are optional.
 /// The fields are defined by [RFC7519#5](https://tools.ietf.org/html/rfc7519#section-5) and additionally in

@@ -43,7 +43,7 @@ fn main() {
         },
     };
     let key = "secret";
-    let jwt = JWT::new(Header::default(), my_claims);
+    let jwt = JWT::new_decoded(Header::default(), my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
@@ -51,9 +51,8 @@ fn main() {
 
     println!("{:?}", token);
 
-    let jwt = match JWT::<PrivateClaims>::decode(&token,
-                                       Secret::Bytes(key.to_string().into_bytes()),
-                                       Algorithm::HS256) {
+    let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
+                       Algorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {
@@ -63,7 +62,6 @@ fn main() {
             }
         }
     };
-    println!("{:?}", jwt.claims_set);
-    println!("{:?}", jwt.header);
-    println!("{:?}", jwt.claims_set.private.is_valid());
+    println!("{:?}", jwt);
+    println!("{:?}", jwt.claims_set().unwrap().private.is_valid());
 }

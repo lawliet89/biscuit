@@ -36,15 +36,14 @@ fn main() {
     header.key_id = Some("signing_key".to_string());
     header.algorithm = Algorithm::HS512;
 
-    let jwt = JWT::new(header, my_claims);
+    let jwt = JWT::new_decoded(header, my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
     };
 
-    let jwt = match JWT::<PrivateClaims>::decode(&token,
-                                       Secret::Bytes(key.to_string().into_bytes()),
-                                       Algorithm::HS256) {
+    let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
+                       Algorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {
@@ -54,6 +53,6 @@ fn main() {
             }
         }
     };
-    println!("{:?}", jwt.claims_set);
-    println!("{:?}", jwt.header);
+    println!("{:?}", jwt);
+    println!("{:?}", jwt.header());
 }
