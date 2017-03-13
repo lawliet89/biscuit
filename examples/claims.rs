@@ -16,18 +16,6 @@ struct PrivateClaims {
     department: String,
 }
 
-// Example validation implementation
-impl PrivateClaims {
-    fn is_valid(&self) -> bool {
-        if self.company != "ACME" {
-            return false;
-        }
-        // expiration etc
-
-        true
-    }
-}
-
 fn main() {
     let my_claims = ClaimsSet::<PrivateClaims> {
         registered: RegisteredClaims {

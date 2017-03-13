@@ -54,4 +54,5 @@ fn main() {
         }
     };
     println!("{:?}", jwt);
+    println!("{:?}", jwt.header());
 }
