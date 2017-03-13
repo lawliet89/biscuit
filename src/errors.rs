@@ -1,3 +1,4 @@
+//! Errors returned will be converted to one of the structs in this module.
 use ring;
 use std::{string, fmt, error};
 use serde_json;
@@ -8,22 +9,35 @@ use rustc_serialize::base64;
 /// and a couple of custom one for when the token we are trying
 /// to verify is invalid
 pub enum Error {
+    /// A generic error which is described by the contained string
     GenericError(String),
+    /// Error returned from failed token validation
     ValidationError(ValidationError),
+    /// Error during the serialization or deserialization of tokens
     JsonError(serde_json::error::Error),
+    /// Error during base64 encoding or decoding
     DecodeBase64(base64::FromBase64Error),
+    /// Error when decoding bytes to UTF8 string
     Utf8(string::FromUtf8Error),
 
+    /// An unknown cryptographic error
     UnspecifiedCryptographicError,
+    /// An unsupported or invalid operation
     UnsupportedOperation,
 }
 
 #[derive(Debug)]
+/// Errors from validating tokens
 pub enum ValidationError {
+    /// Token is invalid in structure or form
     InvalidToken,
+    /// Token has an invalid signature
     InvalidSignature,
+    /// Token was provided was signed with an unexpected algorithm
     WrongAlgorithmHeader,
+    /// A field required is missing from the token
     MissingRequired(String),
+    /// The token has invalid temporal field values
     TemporalError(String),
 }
 

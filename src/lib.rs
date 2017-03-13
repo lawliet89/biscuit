@@ -7,7 +7,7 @@
 //! ```
 //!
 //! See [`jwt::JWT`](enum.JWT.html) for usage examples.
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -61,10 +61,13 @@ impl<T> Part for T
     }
 }
 
+/// Represents a choice between a single string value or multiple strings
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SingleOrMultipleStrings {
+    /// One string value
     Single(String),
+    /// Multiple string values
     Multiple(Vec<String>),
 }
 
@@ -121,7 +124,7 @@ impl Deserialize for Timestamp {
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RegisteredClaims {
-    // Token issuer. Serialized to `iss`.
+    /// Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
 
