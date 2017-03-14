@@ -18,7 +18,7 @@ pub enum Secret {
     /// ```
     /// use jwt::jws::Secret;
     ///
-    /// let secret = Secret::Bytes("secret".to_string().into_bytes());
+    /// let secret = Secret::bytes_from_str("secret");
     /// ```
     Bytes(Vec<u8>),
     /// An RSA Key pair constructed from a DER-encoded private key
@@ -43,19 +43,9 @@ pub enum Secret {
     ///
     /// # Examples
     /// ```
-    /// extern crate jwt;
-    /// extern crate ring;
-    /// extern crate untrusted;
-    ///
-    /// use std::sync::Arc;
     /// use jwt::jws::Secret;
-    /// use ring::signature;
     ///
-    /// # fn main() {
-    /// let der = include_bytes!("test/fixtures/rsa_private_key.der");
-    /// let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der)).unwrap();
-    /// let secret = Secret::RSAKeyPair(Arc::new(key_pair));
-    /// # }
+    /// let secret = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der");
     /// ```
     RSAKeyPair(Arc<signature::RSAKeyPair>),
     /// Bytes of a DER encoded RSA Public Key
@@ -85,11 +75,42 @@ pub enum Secret {
     /// ```
     /// use jwt::jws::Secret;
     ///
-    /// let der = include_bytes!("test/fixtures/rsa_public_key.der");
-    /// let secret = Secret::PublicKey(der.iter().map(|b| b.clone()).collect());
+    /// let secret = Secret::public_key_from_file("test/fixtures/rsa_public_key.der");
     PublicKey(Vec<u8>),
-    /// Bytes for a ECDSA public key.
-    ECDSAPublicKey(Vec<u8>),
+}
+
+impl Secret {
+    fn read_bytes(path: &str) -> Result<Vec<u8>, Error> {
+        use std::io::prelude::*;
+        use std::fs::File;
+
+        let mut file = File::open(path)?;
+        let metadata = file.metadata()?;
+        let mut bytes: Vec<u8> = Vec::with_capacity(metadata.len() as usize);
+        file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// Convenience function to create a secret bytes array from a string
+    /// See example in the [`Secret::Bytes`] variant documentation for usage.
+    pub fn bytes_from_str(secret: &str) -> Self {
+        Secret::Bytes(secret.to_string().into_bytes())
+    }
+
+    /// Convenience function to get the RSA Keypair from a DER encoded RSA private key.
+    /// See example in the [`Secret::RSAKeyPair`] variant documentation for usage.
+    pub fn rsa_keypair_from_file(path: &str) -> Result<Self, Error> {
+        let der = Self::read_bytes(path)?;
+        let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der.as_slice()))?;
+        Ok(Secret::RSAKeyPair(Arc::new(key_pair)))
+    }
+
+    /// Convenience function to create a Public key from a DER encoded RSA or ECDSA public key
+    /// See examples in the [`Secret::PublicKey`] variant documentation for usage.
+    pub fn public_key_from_file(path: &str) -> Result<Self, Error> {
+        let der = Self::read_bytes(path)?;
+        Ok(Secret::PublicKey(der.iter().map(|b| b.clone()).collect()))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -367,7 +388,6 @@ impl Algorithm {
 #[cfg(test)]
 mod tests {
     use std::str;
-    use std::sync::Arc;
 
     use serde_json;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
@@ -417,13 +437,13 @@ mod tests {
         let expected_bytes: Vec<u8> = not_err!(expected_base64.from_base64());
 
         let actual_signature = not_err!(Algorithm::HS256.sign("payload".to_string().as_bytes(),
-                                                              Secret::Bytes("secret".to_string().into_bytes())));
+                                                              Secret::bytes_from_str("secret")));
         assert_eq!(actual_signature.as_slice().to_base64(base64::URL_SAFE),
                    expected_base64);
 
         let valid = not_err!(Algorithm::HS256.verify(expected_bytes.as_slice(),
                                                      "payload".to_string().as_bytes(),
-                                                     Secret::Bytes("secret".to_string().into_bytes())));
+                                                     Secret::bytes_from_str("secret")));
         assert!(valid);
     }
 
@@ -436,7 +456,7 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_and_verify_rs256() {
-        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
+        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
         // This is standard base64
@@ -451,7 +471,7 @@ mod tests {
         assert_eq!(expected_signature,
                    actual_signature.as_slice().to_base64(base64::URL_SAFE));
 
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(Algorithm::RS256.verify(expected_signature_bytes.as_slice(),
                                                      payload_bytes,
                                                      public_key));
@@ -461,13 +481,13 @@ mod tests {
     /// This signature is non-deterministic.
     #[test]
     fn sign_and_verify_ps256_round_trip() {
-        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
+        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
         let actual_signature = not_err!(Algorithm::PS256.sign(payload_bytes, private_key));
 
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(Algorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
@@ -490,7 +510,7 @@ mod tests {
                          mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(signature.from_base64());
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
@@ -572,7 +592,7 @@ mod tests {
 
     #[test]
     fn invalid_rs256() {
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(Algorithm::RS256.verify(signature_bytes,
@@ -583,7 +603,7 @@ mod tests {
 
     #[test]
     fn invalid_ps256() {
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(Algorithm::PS256.verify(signature_bytes,
@@ -594,7 +614,7 @@ mod tests {
 
     #[test]
     fn invalid_es256() {
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(Algorithm::ES256.verify(signature_bytes,

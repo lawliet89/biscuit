@@ -1,6 +1,6 @@
 //! Errors returned will be converted to one of the structs in this module.
 use ring;
-use std::{string, fmt, error};
+use std::{string, fmt, error, io};
 use serde_json;
 use rustc_serialize::base64;
 
@@ -19,6 +19,8 @@ pub enum Error {
     DecodeBase64(base64::FromBase64Error),
     /// Error when decoding bytes to UTF8 string
     Utf8(string::FromUtf8Error),
+    /// Errors related to IO
+    IOError(io::Error),
 
     /// An unknown cryptographic error
     UnspecifiedCryptographicError,
@@ -54,6 +56,7 @@ impl_from_error!(serde_json::error::Error, Error::JsonError);
 impl_from_error!(base64::FromBase64Error, Error::DecodeBase64);
 impl_from_error!(string::FromUtf8Error, Error::Utf8);
 impl_from_error!(ValidationError, Error::ValidationError);
+impl_from_error!(io::Error, Error::IOError);
 
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
@@ -71,6 +74,7 @@ impl error::Error for Error {
             DecodeBase64(ref err) => err.description(),
             Utf8(ref err) => err.description(),
             ValidationError(ref err) => err.description(),
+            IOError(ref e) => e.description(),
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
             UnsupportedOperation => "This operation is not supported",
         }
@@ -84,6 +88,7 @@ impl error::Error for Error {
                  DecodeBase64(ref err) => err as &error::Error,
                  Utf8(ref err) => err as &error::Error,
                  ValidationError(ref err) => err as &error::Error,
+                 IOError(ref e) => e as &error::Error,
                  ref e => e as &error::Error,
              })
     }
@@ -99,6 +104,7 @@ impl fmt::Display for Error {
             DecodeBase64(ref err) => fmt::Display::fmt(err, f),
             Utf8(ref err) => fmt::Display::fmt(err, f),
             ValidationError(ref err) => fmt::Display::fmt(err, f),
+            IOError(ref err) => fmt::Display::fmt(err, f),
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
             UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }

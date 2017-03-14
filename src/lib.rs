@@ -566,7 +566,6 @@ mod tests {
 
     use std::default::Default;
     use std::str;
-    use std::sync::Arc;
     use std::time::Duration;
 
     use chrono::{UTC, TimeZone};
@@ -860,14 +859,14 @@ mod tests {
                 company: "ACME".to_string(),
             },
         };
-        let private_key = Secret::RSAKeyPair(Arc::new(::test::read_rsa_private_key()));
+        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
         let expected_jwt = JWT::new_decoded(Header { algorithm: Algorithm::RS256, ..Default::default() },
                                             expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(private_key));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let jwt = not_err!(token.into_decoded(public_key, Algorithm::RS256));
         assert_eq!(expected_claims, *not_err!(jwt.claims_set()));
     }
@@ -924,7 +923,7 @@ mod tests {
         let token = JWT::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                        WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___");
-        let public_key = Secret::PublicKey(::test::read_rsa_public_key());
+        let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(public_key, Algorithm::RS256);
         claims.unwrap();
     }
