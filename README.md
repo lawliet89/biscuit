@@ -2,11 +2,13 @@
 
 [![Build Status](https://travis-ci.org/lawliet89/biscuit.svg)](https://travis-ci.org/lawliet89/biscuit)
 [![Crates.io](https://img.shields.io/crates/v/biscuit.svg)](https://crates.io/crates/biscuit)
+[![Repository](https://img.shields.io/github/tag/lawliet89/biscuit.svg)](https://github.com/lawliet89/biscuit)
 
-[Documentation](https://docs.rs/biscuit/) [Documentation (master branch)](https://lawliet89.github.io/biscuit)
+[[Documentation (stable)]](https://docs.rs/biscuit/)
+[[Documentation (master branch)]](https://lawliet89.github.io/biscuit)
 
-A library based off [`Keats/rust-jwt`](https://github.com/Keats/rust-jwt) that allows you to work with
-JSON Web Tokens.
+A library based off [`Keats/rust-jwt`](https://github.com/Keats/rust-jwt) that allows you create, parse, and
+verify JWT (JSON Web Tokens).
 
 ## Installation
 
