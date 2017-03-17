@@ -7,6 +7,7 @@ readme = "README.md"
 description = "A library to work with JSON Web Tokens (JWT)."
 homepage = "https://github.com/lawliet89/biscuit"
 repository = "https://github.com/lawliet89/biscuit"
+documentation = "https://docs.rs/biscuit/"
 keywords = ["jwt", "web", "token", "json"]
 categories = ["authentication", "web-programming"]
 
