@@ -63,5 +63,9 @@ fn main() {
         }
     };
     println!("{:?}", jwt);
-    println!("{:?}", jwt.claims_set().unwrap().private.is_valid());
+    println!("{:?}",
+             jwt.claims_set()
+                 .unwrap()
+                 .private
+                 .is_valid());
 }

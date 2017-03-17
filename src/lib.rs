@@ -415,7 +415,10 @@ impl<T> Clone for ClaimsSet<T>
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum JWT<T: Serialize + Deserialize> {
-    /// Decoded form of the JWT. **DO NOT SERIALIZE THIS AND SEND TO YOUR CLIENTS.**
+    /// Decoded form of the JWT. **DO NOT SERIALIZE THIS AND SEND TO YOUR CLIENTS.**.
+    /// This variant cannot be serialized or deserialized and will return an error.
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     Decoded {
         /// Embedded header
         header: jws::Header,
@@ -773,6 +776,38 @@ mod tests {
         };
 
         serde_json::to_string(&claim).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "the enum variant JWT::Decoded cannot be serialized")]
+    fn decoded_jwt_cannot_be_serialized() {
+        let expected_claims = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some("https://www.acme.com".to_string()),
+                subject: Some("John Doe".to_string()),
+                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        let jwt = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
+                                   expected_claims.clone());
+        serde_json::to_string(&jwt).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "data did not match any variant of untagged enum JWT")]
+    fn decoded_jwt_cannot_be_deserialized() {
+        let json = r#"{"header":{"alg":"none","typ":"JWT"},
+                       "claims_set":{"iss":"https://www.acme.com","sub":"John Doe",
+                                     "aud":"htts://acme-customer.com","nbf":1234,
+                                     "company":"ACME","department":"Toilet Cleaning"}}"#;
+        serde_json::from_str::<JWT<PrivateClaims>>(json).unwrap();
     }
 
     #[test]
