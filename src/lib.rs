@@ -3,10 +3,10 @@
 //! # Usage
 //! ```toml
 //! [dependencies]
-//! jwt = { git = "https://github.com/lawliet89/rust-jwt", branch = "master" }
+//! biscuit = "0.0.1"
 //! ```
 //!
-//! See [`jwt::JWT`](enum.JWT.html) for usage examples.
+//! See [`JWT`] for usage examples.
 #![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
@@ -353,13 +353,13 @@ impl<T> Clone for ClaimsSet<T>
 /// ## Encoding and decoding with HS256
 ///
 /// ```
-/// extern crate jwt;
+/// extern crate biscuit;
 /// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 /// extern crate serde_json;
-/// use jwt::*;
-/// use jwt::jws::*;
+/// use biscuit::*;
+/// use biscuit::jws::*;
 ///
 /// # fn main() {
 ///
@@ -795,9 +795,9 @@ mod tests {
             },
         };
 
-        let jwt = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
+        let biscuit = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
                                    expected_claims.clone());
-        serde_json::to_string(&jwt).unwrap();
+        serde_json::to_string(&biscuit).unwrap();
     }
 
     #[test]
@@ -835,8 +835,8 @@ mod tests {
         let token = not_err!(expected_jwt.into_encoded(Secret::None));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
-        let jwt = not_err!(token.into_decoded(Secret::None, Algorithm::None));
-        let actual_claims = not_err!(jwt.claims_set());
+        let biscuit = not_err!(token.into_decoded(Secret::None, Algorithm::None));
+        let actual_claims = not_err!(biscuit.claims_set());
         assert_eq!(expected_claims, *actual_claims);
     }
 
@@ -866,9 +866,9 @@ mod tests {
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
-        let jwt = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
                                               Algorithm::HS256));
-        assert_eq!(expected_claims, *not_err!(jwt.claims_set()));
+        assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
     }
 
     #[test]
@@ -902,8 +902,8 @@ mod tests {
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let jwt = not_err!(token.into_decoded(public_key, Algorithm::RS256));
-        assert_eq!(expected_claims, *not_err!(jwt.claims_set()));
+        let biscuit = not_err!(token.into_decoded(public_key, Algorithm::RS256));
+        assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
     }
 
     #[test]
@@ -927,9 +927,9 @@ mod tests {
 
         let expected_jwt = JWT::new_decoded(header.clone(), expected_claims);
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
-        let jwt = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
                                               Algorithm::HS256));
-        assert_eq!(header, *not_err!(jwt.header()));
+        assert_eq!(header, *not_err!(biscuit.header()));
     }
 
     #[test]

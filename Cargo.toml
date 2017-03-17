@@ -1,16 +1,16 @@
 [package]
-name = "jwt"
-version = "0.1.0"
+name = "biscuit"
+version = "0.0.1"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
-description = "Create and parse JWT in a strongly typed way."
+description = "A library to work with JSON Web Tokens (JWT)."
 homepage = "https://github.com/lawliet89/rust-jwt"
 repository = "https://github.com/lawliet89/rust-jwt"
-keywords = ["jwt", "web", "api", "token", "json"]
+keywords = ["jwt", "web", "token", "json"]
 
 [lib]
-name = "jwt"
+name = "biscuit"
 path = "src/lib.rs"
 test = true
 doctest = true

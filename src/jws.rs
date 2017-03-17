@@ -16,7 +16,7 @@ pub enum Secret {
     ///
     /// # Examples
     /// ```
-    /// use jwt::jws::Secret;
+    /// use biscuit::jws::Secret;
     ///
     /// let secret = Secret::bytes_from_str("secret");
     /// ```
@@ -43,7 +43,7 @@ pub enum Secret {
     ///
     /// # Examples
     /// ```
-    /// use jwt::jws::Secret;
+    /// use biscuit::jws::Secret;
     ///
     /// let secret = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der");
     /// ```
@@ -73,7 +73,7 @@ pub enum Secret {
     ///
     /// # Examples
     /// ```
-    /// use jwt::jws::Secret;
+    /// use biscuit::jws::Secret;
     ///
     /// let secret = Secret::public_key_from_file("test/fixtures/rsa_public_key.der");
     PublicKey(Vec<u8>),

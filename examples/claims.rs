@@ -1,14 +1,14 @@
 extern crate chrono;
-extern crate jwt;
+extern crate biscuit;
 #[macro_use]
 extern crate serde_derive;
 
 use std::default::Default;
 
 use chrono::UTC;
-use jwt::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
-use jwt::jws::{Algorithm, Header, Secret};
-use jwt::errors::{Error, ValidationError};
+use biscuit::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
+use biscuit::jws::{Algorithm, Header, Secret};
+use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PrivateClaims {
