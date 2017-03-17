@@ -5,9 +5,13 @@ authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewi
 license = "MIT"
 readme = "README.md"
 description = "A library to work with JSON Web Tokens (JWT)."
-homepage = "https://github.com/lawliet89/rust-jwt"
-repository = "https://github.com/lawliet89/rust-jwt"
+homepage = "https://github.com/lawliet89/biscuit"
+repository = "https://github.com/lawliet89/biscuit"
 keywords = ["jwt", "web", "token", "json"]
+categories = ["authentication", "web-programming"]
+
+[badges]
+travis-ci = { repository = "lawliet89/biscuit" }
 
 [lib]
 name = "biscuit"
