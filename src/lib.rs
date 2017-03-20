@@ -33,14 +33,20 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate untrusted;
+extern crate url;
 
 use std::convert::{From, Into};
+use std::fmt::{self, Debug};
 use std::ops::Deref;
+use std::str::FromStr;
 
 use chrono::{DateTime, UTC, NaiveDateTime};
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de;
 use serde_json::value;
+
+pub use url::{Url, ParseError};
 
 #[cfg(test)]
 #[macro_use]
@@ -76,14 +82,164 @@ impl<T> Part for T
     }
 }
 
-/// Represents a choice between a single string value or multiple strings
+/// Represents a choice between a single value or multiple values.
+/// This value is serialized by serde [untagged](https://serde.rs/enum-representations.html).
+///
+/// # Examples
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use biscuit::SingleOrMultiple;
+///
+/// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// struct SingleOrMultipleStrings {
+///     values: SingleOrMultiple<String>,
+/// }
+///
+/// # fn main() {
+/// let single = SingleOrMultipleStrings {
+///     values: SingleOrMultiple::Single("foobar".to_string())
+/// };
+/// let expected_json = r#"{"values":"foobar"}"#;
+///
+/// let serialized = serde_json::to_string(&single).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStrings = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, single);
+///
+/// let multiple = SingleOrMultipleStrings {
+///     values: SingleOrMultiple::Multiple(vec!["foo".to_string(),
+///                                             "bar".to_string(),
+///                                             "baz".to_string()]),
+/// };
+///
+/// let expected_json = r#"{"values":["foo","bar","baz"]}"#;
+///
+/// let serialized = serde_json::to_string(&multiple).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStrings = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, multiple);
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SingleOrMultipleStrings {
-    /// One string value
-    Single(String),
-    /// Multiple string values
-    Multiple(Vec<String>),
+pub enum SingleOrMultiple<T>
+    where T: Clone + Debug + Eq + PartialEq + Serialize + Deserialize + Send + Sync
+{
+    /// One single value
+    Single(T),
+    /// Multiple values
+    Multiple(Vec<T>),
+}
+
+/// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
+/// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
+/// will be deserialized as a URL. Any invalid URLs will be treated as a deserialization failure.
+/// The URL is parsed according to the [URL Standard](https://url.spec.whatwg.org/) which supersedes
+/// [RFC 3986](https://tools.ietf.org/html/rfc3986) as required in
+/// the [JWT RFC](https://tools.ietf.org/html/rfc7519).
+///
+/// # Examples
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use std::str::FromStr;
+/// use biscuit::{SingleOrMultiple, StringOrUri};
+///
+/// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// struct SingleOrMultipleStringOrUris {
+///     values: SingleOrMultiple<StringOrUri>,
+/// }
+///
+/// # fn main() {
+/// let multiple = SingleOrMultipleStringOrUris {
+///     values: SingleOrMultiple::Multiple(vec![FromStr::from_str("foo").unwrap(),
+///                                             FromStr::from_str("https://www.bar.com/").unwrap(),
+///                                             FromStr::from_str("http://baz/").unwrap()]),
+/// };
+///
+/// let expected_json = r#"{"values":["foo","https://www.bar.com/","http://baz/"]}"#;
+///
+/// let serialized = serde_json::to_string(&multiple).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStringOrUris = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, multiple);
+/// # }
+/// ```
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StringOrUri {
+    /// A generic string
+    String(String),
+    /// A parsed URI
+    Uri(Url),
+}
+
+impl AsRef<str> for StringOrUri {
+    fn as_ref(&self) -> &str {
+        match *self {
+            StringOrUri::String(ref string) => string.as_ref(),
+            StringOrUri::Uri(ref uri) => uri.as_ref(),
+        }
+    }
+}
+
+impl FromStr for StringOrUri {
+    type Err = Error;
+
+    /// Parses a `&str` into a `StringOrUri`.
+    /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
+    /// will be treated as a URL. Any invalid URLs will be treated as failure.
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.contains(":") {
+            let uri = Url::from_str(input)?;
+            Ok(StringOrUri::Uri(uri))
+        } else {
+            Ok(StringOrUri::String(input.to_string()))
+        }
+    }
+}
+
+impl Serialize for StringOrUri {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(self.as_ref())
+    }
+}
+
+impl Deserialize for StringOrUri {
+    fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
+        where D: Deserializer
+    {
+        struct StringOrUriVisitor {}
+
+        impl de::Visitor for StringOrUriVisitor {
+            type Value = StringOrUri;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an arbitrary string or URI")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                StringOrUri::from_str(value).map_err(|e| E::custom(e))
+            }
+        }
+
+        deserializer.deserialize_str(StringOrUriVisitor {})
+    }
 }
 
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
@@ -135,21 +291,20 @@ impl Deserialize for Timestamp {
     }
 }
 
-
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RegisteredClaims {
     /// Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<String>,
+    pub issuer: Option<StringOrUri>,
 
     /// Subject where the JWT is referring to. Serialized to `sub`
     #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<String>,
+    pub subject: Option<StringOrUri>,
 
     /// Audience intended for the JWT. Serialized to `aud`
     #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
-    pub audience: Option<SingleOrMultipleStrings>,
+    pub audience: Option<SingleOrMultiple<StringOrUri>>,
 
     /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
     #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
@@ -373,6 +528,8 @@ impl<T> Clone for ClaimsSet<T>
 /// #[macro_use]
 /// extern crate serde_derive;
 /// extern crate serde_json;
+///
+/// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
 ///
@@ -386,18 +543,19 @@ impl<T> Clone for ClaimsSet<T>
 /// }
 ///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4g\
-///     RG9lIiwiYXVkIjoiaHR0czovL2FjbWUtY3VzdG9tZXIuY29tIiwibmJmI\
-///     joxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQ\
-///     gQ2xlYW5pbmcifQ.u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
+///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
+///                         mh0dHM6Ly9hY21lLWN1c3RvbWVyLmNvbS8iLC\
+///                         JuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwi\
+///                         ZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+///                         VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
-///         issuer: Some("https://www.acme.com".to_string()),
-///         subject: Some("John Doe".to_string()),
-///         audience: Some(
-///             SingleOrMultipleStrings::Single("htts://acme-customer.com"
-///                                              .to_string())),
+///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         audience:
+///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -583,14 +741,14 @@ mod tests {
     extern crate serde_test;
 
     use std::default::Default;
-    use std::str;
+    use std::str::{self, FromStr};
     use std::time::Duration;
 
     use chrono::{UTC, TimeZone};
     use serde_json;
     use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
-    use super::{JWT, SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
+    use super::*;
     use jws::{Algorithm, Header, Secret};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -606,33 +764,137 @@ mod tests {
     }
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-    struct SingleOrMultipleStringsTest {
-        values: SingleOrMultipleStrings,
+    struct StringOrUriTest {
+        string: StringOrUri,
+    }
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    struct SingleOrMultipleStrings {
+        values: SingleOrMultiple<String>,
+    }
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    struct SingleOrMultipleStringOrUris {
+        values: SingleOrMultiple<StringOrUri>,
+    }
+
+    #[test]
+    fn string_or_uri_arbitrary_serialization_round_trip() {
+        let test = StringOrUriTest { string: not_err!(FromStr::from_str("Random")) };
+        assert_matches!(test, StringOrUriTest{ string: StringOrUri::String(_) });
+
+        let expected_json = r#"{"string":"Random"}"#;
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+
+        assert_tokens(&test,
+                      &[Token::StructStart("StringOrUriTest", 1),
+                        Token::StructSep,
+                        Token::Str("string"),
+                        Token::Str("Random"),
+
+                        Token::StructEnd]);
+    }
+
+    #[test]
+    fn string_or_uri_uri_serialization_round_trip() {
+        let test = StringOrUriTest { string: not_err!(FromStr::from_str("https://www.example.com/")) };
+        assert_matches!(test, StringOrUriTest{ string: StringOrUri::Uri(_) });
+
+        let expected_json = r#"{"string":"https://www.example.com/"}"#;
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+
+        assert_tokens(&test,
+                      &[Token::StructStart("StringOrUriTest", 1),
+                        Token::StructSep,
+                        Token::Str("string"),
+                        Token::Str("https://www.example.com/"),
+
+                        Token::StructEnd]);
+    }
+
+    #[test]
+    #[should_panic(expected = "UriParseError")]
+    fn string_or_uri_will_fail_invalid_uris_containing_colons() {
+        StringOrUriTest { string: FromStr::from_str("Invalid URI: yes!").unwrap() };
     }
 
     #[test]
     fn single_string_serialization_round_trip() {
-        let test = SingleOrMultipleStringsTest { values: SingleOrMultipleStrings::Single("foobar".to_string()) };
+        let test = SingleOrMultipleStrings { values: SingleOrMultiple::Single("foobar".to_string()) };
         let expected_json = r#"{"values":"foobar"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringsTest = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
     }
 
     #[test]
     fn multiple_strings_serialization_round_trip() {
-        let test = SingleOrMultipleStringsTest {
-            values: SingleOrMultipleStrings::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
+        let test = SingleOrMultipleStrings {
+            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringsTest = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn single_string_or_uri_string_serialization_round_trip() {
+        let test =
+            SingleOrMultipleStringOrUris { values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))) };
+        let expected_json = r#"{"values":"foobar"}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn single_string_or_uri_uri_serialization_round_trip() {
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Single(not_err!(FromStr::from_str("https://www.examples.com/"))),
+        };
+        let expected_json = r#"{"values":"https://www.examples.com/"}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn multiple_string_or_uri_serialization_round_trip() {
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("foo")),
+                                                    not_err!(FromStr::from_str("https://www.example.com/")),
+                                                    not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
+                                                    not_err!(FromStr::from_str("http://[::1]/")),
+                                                    not_err!(FromStr::from_str("baz"))]),
+        };
+        let expected_json =
+            r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
     }
 
@@ -667,12 +929,12 @@ mod tests {
     #[test]
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
-            issuer: Some("https://www.acme.com".to_string()),
-            audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+            audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
             not_before: Some(1234.into()),
             ..Default::default()
         };
-        let expected_json = r#"{"iss":"https://www.acme.com","aud":"htts://acme-customer.com","nbf":1234}"#;
+        let expected_json = r#"{"iss":"https://www.acme.com/","aud":"htts://acme-customer.com/","nbf":1234}"#;
 
         let serialized = not_err!(serde_json::to_string(&claim));
         assert_eq!(expected_json, serialized);
@@ -685,9 +947,9 @@ mod tests {
     fn claims_set_serialization_tokens_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some((-1234).into()),
                 ..Default::default()
             },
@@ -701,7 +963,7 @@ mod tests {
                       &[Token::MapStart(Some(6)),
                         Token::MapSep,
                         Token::Str("iss"),
-                        Token::Str("https://www.acme.com"),
+                        Token::Str("https://www.acme.com/"),
 
                         Token::MapSep,
                         Token::Str("sub"),
@@ -709,7 +971,7 @@ mod tests {
 
                         Token::MapSep,
                         Token::Str("aud"),
-                        Token::Str("htts://acme-customer.com"),
+                        Token::Str("htts://acme-customer.com/"),
 
                         Token::MapSep,
                         Token::Str("nbf"),
@@ -729,9 +991,9 @@ mod tests {
     fn claims_set_serialization_tokens_error() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -750,9 +1012,9 @@ mod tests {
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -762,8 +1024,8 @@ mod tests {
             },
         };
 
-        let expected_json = "{\"iss\":\"https://www.acme.com\",\"sub\":\"John Doe\",\
-                            \"aud\":\"htts://acme-customer.com\",\
+        let expected_json = "{\"iss\":\"https://www.acme.com/\",\"sub\":\"John Doe\",\
+                            \"aud\":\"htts://acme-customer.com/\",\
                             \"nbf\":1234,\"company\":\"ACME\",\"department\":\"Toilet Cleaning\"}";
 
         let serialized = not_err!(serde_json::to_string(&claim));
@@ -778,9 +1040,9 @@ mod tests {
     fn invalid_private_claims_will_fail_to_serialize() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -798,9 +1060,9 @@ mod tests {
     fn decoded_jwt_cannot_be_serialized() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -811,7 +1073,7 @@ mod tests {
         };
 
         let biscuit = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
-                                   expected_claims.clone());
+                                       expected_claims.clone());
         serde_json::to_string(&biscuit).unwrap();
     }
 
@@ -819,7 +1081,7 @@ mod tests {
     #[should_panic(expected = "data did not match any variant of untagged enum JWT")]
     fn decoded_jwt_cannot_be_deserialized() {
         let json = r#"{"header":{"alg":"none","typ":"JWT"},
-                       "claims_set":{"iss":"https://www.acme.com","sub":"John Doe",
+                       "claims_set":{"iss":"https://www.acme.com/","sub":"John Doe",
                                      "aud":"htts://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
         serde_json::from_str::<JWT<PrivateClaims>>(json).unwrap();
@@ -828,14 +1090,15 @@ mod tests {
     #[test]
     fn round_trip_none() {
         let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.";
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
+                              hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
+                              RvaWxldCBDbGVhbmluZyJ9.";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -858,15 +1121,15 @@ mod tests {
     #[test]
     fn round_trip_hs256() {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-            u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                              VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -882,25 +1145,25 @@ mod tests {
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
-                                              Algorithm::HS256));
+                                                  Algorithm::HS256));
         assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
     }
 
     #[test]
     fn round_trip_rs256() {
         let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
-            tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-            jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
-            chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
-            XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
-            jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                              VhbmluZyJ9.THHNGg4AIq2RT30zecAD41is6j1ffGRn6GdK6cpl08esHufG5neJOMTO1fONVykOFgCaJw9jLP7GCd\
+                              YumsMKU3434QAQyvLCPklHQWE7VcSFSdsf7skcvuvwPtkMWCGrzFK7seVv9OiJzjNzoeyS2d8io7wviFqkpcXwOVZ\
+                              W4ArP5katX4nIoXlwWfcK82E6MacSIL2uq_ha6yL2z7trq3dSszSnUevlWKq-9FIFk11XwToMTmGubkWyGk-k-dfH\
+                              AXwnS1hADXkwSAemWoCG98v6zFtTZHOOAPnB09acEKVtVRFKZQa3V2IpdsHtRoPJU5pFgCXi8VRebHJm99yTXw";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -925,9 +1188,9 @@ mod tests {
     fn encode_with_additional_header_fields() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -943,7 +1206,7 @@ mod tests {
         let expected_jwt = JWT::new_decoded(header.clone(), expected_claims);
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
-                                              Algorithm::HS256));
+                                                  Algorithm::HS256));
         assert_eq!(header, *not_err!(biscuit.header()));
     }
 

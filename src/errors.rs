@@ -3,6 +3,7 @@ use ring;
 use std::{string, fmt, error, io};
 use serde_json;
 use rustc_serialize::base64;
+use url::ParseError;
 
 #[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
@@ -21,6 +22,8 @@ pub enum Error {
     Utf8(string::FromUtf8Error),
     /// Errors related to IO
     IOError(io::Error),
+    /// Errors related to URI parsing
+    UriParseError(ParseError),
 
     /// An unknown cryptographic error
     UnspecifiedCryptographicError,
@@ -57,6 +60,8 @@ impl_from_error!(base64::FromBase64Error, Error::DecodeBase64);
 impl_from_error!(string::FromUtf8Error, Error::Utf8);
 impl_from_error!(ValidationError, Error::ValidationError);
 impl_from_error!(io::Error, Error::IOError);
+impl_from_error!(ParseError, Error::UriParseError);
+
 
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
@@ -75,6 +80,7 @@ impl error::Error for Error {
             Utf8(ref err) => err.description(),
             ValidationError(ref err) => err.description(),
             IOError(ref e) => e.description(),
+            UriParseError(ref e) => e.description(),
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
             UnsupportedOperation => "This operation is not supported",
         }
@@ -89,6 +95,7 @@ impl error::Error for Error {
                  Utf8(ref err) => err as &error::Error,
                  ValidationError(ref err) => err as &error::Error,
                  IOError(ref e) => e as &error::Error,
+                 UriParseError(ref e) => e as &error::Error,
                  ref e => e as &error::Error,
              })
     }
@@ -105,6 +112,7 @@ impl fmt::Display for Error {
             Utf8(ref err) => fmt::Display::fmt(err, f),
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             IOError(ref err) => fmt::Display::fmt(err, f),
+            UriParseError(ref err) => fmt::Display::fmt(err, f),
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
             UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }
