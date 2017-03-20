@@ -84,6 +84,49 @@ impl<T> Part for T
 
 /// Represents a choice between a single value or multiple values.
 /// This value is serialized by serde [untagged](https://serde.rs/enum-representations.html).
+///
+/// # Examples
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use biscuit::SingleOrMultiple;
+///
+/// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// struct SingleOrMultipleStrings {
+///     values: SingleOrMultiple<String>,
+/// }
+///
+/// # fn main() {
+/// let single = SingleOrMultipleStrings {
+///     values: SingleOrMultiple::Single("foobar".to_string())
+/// };
+/// let expected_json = r#"{"values":"foobar"}"#;
+///
+/// let serialized = serde_json::to_string(&single).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStrings = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, single);
+///
+/// let multiple = SingleOrMultipleStrings {
+///     values: SingleOrMultiple::Multiple(vec!["foo".to_string(),
+///                                             "bar".to_string(),
+///                                             "baz".to_string()]),
+/// };
+///
+/// let expected_json = r#"{"values":["foo","bar","baz"]}"#;
+///
+/// let serialized = serde_json::to_string(&multiple).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStrings = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, multiple);
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SingleOrMultiple<T>
@@ -101,6 +144,39 @@ pub enum SingleOrMultiple<T>
 /// The URL is parsed according to the [URL Standard](https://url.spec.whatwg.org/) which supersedes
 /// [RFC 3986](https://tools.ietf.org/html/rfc3986) as required in
 /// the [JWT RFC](https://tools.ietf.org/html/rfc7519).
+///
+/// # Examples
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use std::str::FromStr;
+/// use biscuit::{SingleOrMultiple, StringOrUri};
+///
+/// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// struct SingleOrMultipleStringOrUris {
+///     values: SingleOrMultiple<StringOrUri>,
+/// }
+///
+/// # fn main() {
+/// let multiple = SingleOrMultipleStringOrUris {
+///     values: SingleOrMultiple::Multiple(vec![FromStr::from_str("foo").unwrap(),
+///                                             FromStr::from_str("https://www.bar.com/").unwrap(),
+///                                             FromStr::from_str("http://baz/").unwrap()]),
+/// };
+///
+/// let expected_json = r#"{"values":["foo","https://www.bar.com/","http://baz/"]}"#;
+///
+/// let serialized = serde_json::to_string(&multiple).unwrap();
+/// assert_eq!(expected_json, serialized);
+///
+/// let deserialized: SingleOrMultipleStringOrUris = serde_json::from_str(&serialized).unwrap();
+/// assert_eq!(deserialized, multiple);
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringOrUri {
     /// A generic string
@@ -220,15 +296,15 @@ impl Deserialize for Timestamp {
 pub struct RegisteredClaims {
     /// Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<String>,
+    pub issuer: Option<StringOrUri>,
 
     /// Subject where the JWT is referring to. Serialized to `sub`
     #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<String>,
+    pub subject: Option<StringOrUri>,
 
     /// Audience intended for the JWT. Serialized to `aud`
     #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
-    pub audience: Option<SingleOrMultiple<String>>,
+    pub audience: Option<SingleOrMultiple<StringOrUri>>,
 
     /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
     #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
@@ -710,6 +786,14 @@ mod tests {
 
         let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+
+        assert_tokens(&test,
+                      &[Token::StructStart("StringOrUriTest", 1),
+                        Token::StructSep,
+                        Token::Str("string"),
+                        Token::Str("Random"),
+
+                        Token::StructEnd]);
     }
 
     #[test]
@@ -723,6 +807,14 @@ mod tests {
 
         let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+
+        assert_tokens(&test,
+                      &[Token::StructStart("StringOrUriTest", 1),
+                        Token::StructSep,
+                        Token::Str("string"),
+                        Token::Str("https://www.example.com/"),
+
+                        Token::StructEnd]);
     }
 
     #[test]
@@ -771,22 +863,6 @@ mod tests {
     }
 
     #[test]
-    fn multiple_string_or_uri_string_serialization_round_trip() {
-        let test = SingleOrMultipleStringOrUris {
-            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("foo")),
-                                                    not_err!(FromStr::from_str("bar")),
-                                                    not_err!(FromStr::from_str("baz"))]),
-        };
-        let expected_json = r#"{"values":["foo","bar","baz"]}"#;
-
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-    }
-
-    #[test]
     fn single_string_or_uri_uri_serialization_round_trip() {
         let test = SingleOrMultipleStringOrUris {
             values: SingleOrMultiple::Single(not_err!(FromStr::from_str("https://www.examples.com/"))),
@@ -801,13 +877,16 @@ mod tests {
     }
 
     #[test]
-    fn multiple_string_or_uri_uri_serialization_round_trip() {
+    fn multiple_string_or_uri_serialization_round_trip() {
         let test = SingleOrMultipleStringOrUris {
-            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("https://www.example.com/")),
+            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("foo")),
+                                                    not_err!(FromStr::from_str("https://www.example.com/")),
                                                     not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
-                                                    not_err!(FromStr::from_str("http://[::1]/"))]),
+                                                    not_err!(FromStr::from_str("http://[::1]/")),
+                                                    not_err!(FromStr::from_str("baz"))]),
         };
-        let expected_json = r#"{"values":["https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/"]}"#;
+        let expected_json =
+            r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
