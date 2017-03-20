@@ -528,6 +528,8 @@ impl<T> Clone for ClaimsSet<T>
 /// #[macro_use]
 /// extern crate serde_derive;
 /// extern crate serde_json;
+///
+/// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
 ///
@@ -541,18 +543,19 @@ impl<T> Clone for ClaimsSet<T>
 /// }
 ///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4g\
-///     RG9lIiwiYXVkIjoiaHR0czovL2FjbWUtY3VzdG9tZXIuY29tIiwibmJmI\
-///     joxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQ\
-///     gQ2xlYW5pbmcifQ.u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
+///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
+///                         mh0dHM6Ly9hY21lLWN1c3RvbWVyLmNvbS8iLC\
+///                         JuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwi\
+///                         ZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+///                         VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
-///         issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-///         subject: Some(not_err!(FromStr::from_str("John Doe"))),
-///         audience: Some(
-///             SingleOrMultiple::Single("htts://acme-customer.com"
-///                                              .to_string())),
+///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         audience:
+///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -1117,13 +1120,10 @@ mod tests {
 
     #[test]
     fn round_trip_hs256() {
-        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
-            tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-            jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
-            chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
-            XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
-            jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                              VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
@@ -1151,7 +1151,7 @@ mod tests {
 
     #[test]
     fn round_trip_rs256() {
- let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
                               eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
                               WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
                               VhbmluZyJ9.THHNGg4AIq2RT30zecAD41is6j1ffGRn6GdK6cpl08esHufG5neJOMTO1fONVykOFgCaJw9jLP7GCd\
