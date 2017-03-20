@@ -35,6 +35,7 @@ extern crate serde_json;
 extern crate untrusted;
 
 use std::convert::{From, Into};
+use std::fmt::Debug;
 use std::ops::Deref;
 
 use chrono::{DateTime, UTC, NaiveDateTime};
@@ -76,14 +77,17 @@ impl<T> Part for T
     }
 }
 
-/// Represents a choice between a single string value or multiple strings
+/// Represents a choice between a single value or multiple values.
+/// This value is serialized by serde [untagged](https://serde.rs/enum-representations.html).
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SingleOrMultipleStrings {
-    /// One string value
-    Single(String),
-    /// Multiple string values
-    Multiple(Vec<String>),
+pub enum SingleOrMultiple<T>
+    where T: Clone + Debug + Eq + PartialEq + Serialize + Deserialize + Send + Sync
+{
+    /// One single value
+    Single(T),
+    /// Multiple values
+    Multiple(Vec<T>),
 }
 
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
@@ -149,7 +153,7 @@ pub struct RegisteredClaims {
 
     /// Audience intended for the JWT. Serialized to `aud`
     #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
-    pub audience: Option<SingleOrMultipleStrings>,
+    pub audience: Option<SingleOrMultiple<String>>,
 
     /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
     #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
@@ -396,7 +400,7 @@ impl<T> Clone for ClaimsSet<T>
 ///         issuer: Some("https://www.acme.com".to_string()),
 ///         subject: Some("John Doe".to_string()),
 ///         audience: Some(
-///             SingleOrMultipleStrings::Single("htts://acme-customer.com"
+///             SingleOrMultiple::Single("htts://acme-customer.com"
 ///                                              .to_string())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
@@ -590,7 +594,7 @@ mod tests {
     use serde_json;
     use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
-    use super::{JWT, SingleOrMultipleStrings, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
+    use super::{JWT, SingleOrMultiple, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
     use jws::{Algorithm, Header, Secret};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -607,12 +611,12 @@ mod tests {
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct SingleOrMultipleStringsTest {
-        values: SingleOrMultipleStrings,
+        values: SingleOrMultiple<String>,
     }
 
     #[test]
     fn single_string_serialization_round_trip() {
-        let test = SingleOrMultipleStringsTest { values: SingleOrMultipleStrings::Single("foobar".to_string()) };
+        let test = SingleOrMultipleStringsTest { values: SingleOrMultiple::Single("foobar".to_string()) };
         let expected_json = r#"{"values":"foobar"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
@@ -625,7 +629,7 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStringsTest {
-            values: SingleOrMultipleStrings::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
+            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -668,7 +672,7 @@ mod tests {
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
             issuer: Some("https://www.acme.com".to_string()),
-            audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
             not_before: Some(1234.into()),
             ..Default::default()
         };
@@ -687,7 +691,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some((-1234).into()),
                 ..Default::default()
             },
@@ -731,7 +735,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -752,7 +756,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -780,7 +784,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -800,7 +804,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -811,7 +815,7 @@ mod tests {
         };
 
         let biscuit = JWT::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
-                                   expected_claims.clone());
+                                       expected_claims.clone());
         serde_json::to_string(&biscuit).unwrap();
     }
 
@@ -835,7 +839,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -866,7 +870,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -882,7 +886,7 @@ mod tests {
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
-                                              Algorithm::HS256));
+                                                  Algorithm::HS256));
         assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
     }
 
@@ -900,7 +904,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -927,7 +931,7 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some("https://www.acme.com".to_string()),
                 subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -943,7 +947,7 @@ mod tests {
         let expected_jwt = JWT::new_decoded(header.clone(), expected_claims);
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
-                                              Algorithm::HS256));
+                                                  Algorithm::HS256));
         assert_eq!(header, *not_err!(biscuit.header()));
     }
 

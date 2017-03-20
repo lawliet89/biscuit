@@ -6,7 +6,7 @@ extern crate serde_derive;
 use std::default::Default;
 
 use chrono::UTC;
-use biscuit::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultipleStrings};
+use biscuit::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultiple};
 use biscuit::jws::{Algorithm, Header, Secret};
 use biscuit::errors::{Error, ValidationError};
 
@@ -33,7 +33,7 @@ fn main() {
         registered: RegisteredClaims {
             issuer: Some("https://www.acme.com".to_string()),
             subject: Some("John Doe".to_string()),
-            audience: Some(SingleOrMultipleStrings::Single("htts://acme-customer.com".to_string())),
+            audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
             not_before: Some(UTC::now().into()),
             ..Default::default()
         },
