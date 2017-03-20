@@ -4,6 +4,7 @@ extern crate biscuit;
 extern crate serde_derive;
 
 use std::default::Default;
+use std::str::FromStr;
 
 use chrono::UTC;
 use biscuit::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultiple};
@@ -31,9 +32,9 @@ impl PrivateClaims {
 fn main() {
     let my_claims = ClaimsSet::<PrivateClaims> {
         registered: RegisteredClaims {
-            issuer: Some("https://www.acme.com".to_string()),
-            subject: Some("John Doe".to_string()),
-            audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+            issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+            subject: Some(FromStr::from_str("John Doe").unwrap()),
+            audience: Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
             not_before: Some(UTC::now().into()),
             ..Default::default()
         },

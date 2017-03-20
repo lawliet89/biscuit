@@ -548,8 +548,8 @@ impl<T> Clone for ClaimsSet<T>
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
-///         issuer: Some("https://www.acme.com".to_string()),
-///         subject: Some("John Doe".to_string()),
+///         issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+///         subject: Some(not_err!(FromStr::from_str("John Doe"))),
 ///         audience: Some(
 ///             SingleOrMultiple::Single("htts://acme-customer.com"
 ///                                              .to_string())),
@@ -926,12 +926,12 @@ mod tests {
     #[test]
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
-            issuer: Some("https://www.acme.com".to_string()),
-            audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+            issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+            audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
             not_before: Some(1234.into()),
             ..Default::default()
         };
-        let expected_json = r#"{"iss":"https://www.acme.com","aud":"htts://acme-customer.com","nbf":1234}"#;
+        let expected_json = r#"{"iss":"https://www.acme.com/","aud":"htts://acme-customer.com/","nbf":1234}"#;
 
         let serialized = not_err!(serde_json::to_string(&claim));
         assert_eq!(expected_json, serialized);
@@ -944,9 +944,9 @@ mod tests {
     fn claims_set_serialization_tokens_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some((-1234).into()),
                 ..Default::default()
             },
@@ -960,7 +960,7 @@ mod tests {
                       &[Token::MapStart(Some(6)),
                         Token::MapSep,
                         Token::Str("iss"),
-                        Token::Str("https://www.acme.com"),
+                        Token::Str("https://www.acme.com/"),
 
                         Token::MapSep,
                         Token::Str("sub"),
@@ -968,7 +968,7 @@ mod tests {
 
                         Token::MapSep,
                         Token::Str("aud"),
-                        Token::Str("htts://acme-customer.com"),
+                        Token::Str("htts://acme-customer.com/"),
 
                         Token::MapSep,
                         Token::Str("nbf"),
@@ -988,9 +988,9 @@ mod tests {
     fn claims_set_serialization_tokens_error() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1009,9 +1009,9 @@ mod tests {
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1021,8 +1021,8 @@ mod tests {
             },
         };
 
-        let expected_json = "{\"iss\":\"https://www.acme.com\",\"sub\":\"John Doe\",\
-                            \"aud\":\"htts://acme-customer.com\",\
+        let expected_json = "{\"iss\":\"https://www.acme.com/\",\"sub\":\"John Doe\",\
+                            \"aud\":\"htts://acme-customer.com/\",\
                             \"nbf\":1234,\"company\":\"ACME\",\"department\":\"Toilet Cleaning\"}";
 
         let serialized = not_err!(serde_json::to_string(&claim));
@@ -1037,9 +1037,9 @@ mod tests {
     fn invalid_private_claims_will_fail_to_serialize() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1057,9 +1057,9 @@ mod tests {
     fn decoded_jwt_cannot_be_serialized() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1078,7 +1078,7 @@ mod tests {
     #[should_panic(expected = "data did not match any variant of untagged enum JWT")]
     fn decoded_jwt_cannot_be_deserialized() {
         let json = r#"{"header":{"alg":"none","typ":"JWT"},
-                       "claims_set":{"iss":"https://www.acme.com","sub":"John Doe",
+                       "claims_set":{"iss":"https://www.acme.com/","sub":"John Doe",
                                      "aud":"htts://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
         serde_json::from_str::<JWT<PrivateClaims>>(json).unwrap();
@@ -1087,14 +1087,15 @@ mod tests {
     #[test]
     fn round_trip_none() {
         let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.";
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
+                              hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
+                              RvaWxldCBDbGVhbmluZyJ9.";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1116,16 +1117,19 @@ mod tests {
 
     #[test]
     fn round_trip_hs256() {
-        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWUt\
-            Y3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-            u3ORB8my861WsYulP6UE_m2nwSDo3uu3K0ylCRjCiFw";
+        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
+            tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+            jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
+            chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
+            XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
+            jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1147,19 +1151,19 @@ mod tests {
 
     #[test]
     fn round_trip_rs256() {
-        let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbSIsInN1YiI6IkpvaG4gRG9lIiwiYXVkIjoiaHR0czovL2FjbWU\
-            tY3VzdG9tZXIuY29tIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
-            jHqjTw5360qo-0vaQF9JI6cnc14m_VNNeqTzhG90xSNZN8242adFW-EhOPKPrwY7NqDEZh1YmilxpVKy-qMlNWEQ7HxHzYY8ldFznH\
-            chJdXTy90RHw6zJVlawttj5PmGpHiQ8aBktu-TPNE03xDOIBd_97a5-WDQ_O1xENQ45YTwHGStit77Zov2VLYFtt7zeU8OC50wbbbnGP\
-            XNmDKcXAcx8ZVz30B2lTFq3UWwy0GuvKI4hKdZK7ga_cfu5d6Ch2Uv1mK3Hg5cNZ8tTIXv6J69rr3ZG5pE9DDxlJ7Hq082YOgAr7LFtdFYg\
-            jchhVxIiE2zrQPuwnXD2Uw9zyr5ag";
+ let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                              VhbmluZyJ9.THHNGg4AIq2RT30zecAD41is6j1ffGRn6GdK6cpl08esHufG5neJOMTO1fONVykOFgCaJw9jLP7GCd\
+                              YumsMKU3434QAQyvLCPklHQWE7VcSFSdsf7skcvuvwPtkMWCGrzFK7seVv9OiJzjNzoeyS2d8io7wviFqkpcXwOVZ\
+                              W4ArP5katX4nIoXlwWfcK82E6MacSIL2uq_ha6yL2z7trq3dSszSnUevlWKq-9FIFk11XwToMTmGubkWyGk-k-dfH\
+                              AXwnS1hADXkwSAemWoCG98v6zFtTZHOOAPnB09acEKVtVRFKZQa3V2IpdsHtRoPJU5pFgCXi8VRebHJm99yTXw";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1184,9 +1188,9 @@ mod tests {
     fn encode_with_additional_header_fields() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some("https://www.acme.com".to_string()),
-                subject: Some("John Doe".to_string()),
-                audience: Some(SingleOrMultiple::Single("htts://acme-customer.com".to_string())),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
