@@ -690,8 +690,13 @@ mod tests {
     }
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-    struct SingleOrMultipleStringsTest {
+    struct SingleOrMultipleStrings {
         values: SingleOrMultiple<String>,
+    }
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    struct SingleOrMultipleStringOrUris {
+        values: SingleOrMultiple<StringOrUri>,
     }
 
     #[test]
@@ -728,19 +733,19 @@ mod tests {
 
     #[test]
     fn single_string_serialization_round_trip() {
-        let test = SingleOrMultipleStringsTest { values: SingleOrMultiple::Single("foobar".to_string()) };
+        let test = SingleOrMultipleStrings { values: SingleOrMultiple::Single("foobar".to_string()) };
         let expected_json = r#"{"values":"foobar"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringsTest = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
     }
 
     #[test]
     fn multiple_strings_serialization_round_trip() {
-        let test = SingleOrMultipleStringsTest {
+        let test = SingleOrMultipleStrings {
             values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
@@ -748,7 +753,66 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringsTest = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn single_string_or_uri_string_serialization_round_trip() {
+        let test =
+            SingleOrMultipleStringOrUris { values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))) };
+        let expected_json = r#"{"values":"foobar"}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn multiple_string_or_uri_string_serialization_round_trip() {
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("foo")),
+                                                    not_err!(FromStr::from_str("bar")),
+                                                    not_err!(FromStr::from_str("baz"))]),
+        };
+        let expected_json = r#"{"values":["foo","bar","baz"]}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn single_string_or_uri_uri_serialization_round_trip() {
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Single(not_err!(FromStr::from_str("https://www.examples.com/"))),
+        };
+        let expected_json = r#"{"values":"https://www.examples.com/"}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn multiple_string_or_uri_uri_serialization_round_trip() {
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("https://www.example.com/")),
+                                                    not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
+                                                    not_err!(FromStr::from_str("http://[::1]/"))]),
+        };
+        let expected_json = r#"{"values":["https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/"]}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
     }
 
