@@ -33,15 +33,20 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate untrusted;
+extern crate url;
 
 use std::convert::{From, Into};
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 use std::ops::Deref;
+use std::str::FromStr;
 
 use chrono::{DateTime, UTC, NaiveDateTime};
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de;
 use serde_json::value;
+
+pub use url::{Url, ParseError};
 
 #[cfg(test)]
 #[macro_use]
@@ -88,6 +93,77 @@ pub enum SingleOrMultiple<T>
     Single(T),
     /// Multiple values
     Multiple(Vec<T>),
+}
+
+/// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
+/// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
+/// will be deserialized as a URL. Any invalid URLs will be treated as a deserialization failure.
+/// The URL is parsed according to the [URL Standard](https://url.spec.whatwg.org/) which supersedes
+/// [RFC 3986](https://tools.ietf.org/html/rfc3986) as required in
+/// the [JWT RFC](https://tools.ietf.org/html/rfc7519).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StringOrUri {
+    /// A generic string
+    String(String),
+    /// A parsed URI
+    Uri(Url),
+}
+
+impl AsRef<str> for StringOrUri {
+    fn as_ref(&self) -> &str {
+        match *self {
+            StringOrUri::String(ref string) => string.as_ref(),
+            StringOrUri::Uri(ref uri) => uri.as_ref(),
+        }
+    }
+}
+
+impl FromStr for StringOrUri {
+    type Err = Error;
+
+    /// Parses a `&str` into a `StringOrUri`.
+    /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
+    /// will be treated as a URL. Any invalid URLs will be treated as failure.
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.contains(":") {
+            let uri = Url::from_str(input)?;
+            Ok(StringOrUri::Uri(uri))
+        } else {
+            Ok(StringOrUri::String(input.to_string()))
+        }
+    }
+}
+
+impl Serialize for StringOrUri {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(self.as_ref())
+    }
+}
+
+impl Deserialize for StringOrUri {
+    fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
+        where D: Deserializer
+    {
+        struct StringOrUriVisitor {}
+
+        impl de::Visitor for StringOrUriVisitor {
+            type Value = StringOrUri;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an arbitrary string or URI")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                StringOrUri::from_str(value).map_err(|e| E::custom(e))
+            }
+        }
+
+        deserializer.deserialize_str(StringOrUriVisitor {})
+    }
 }
 
 /// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
@@ -138,7 +214,6 @@ impl Deserialize for Timestamp {
         Ok(Timestamp(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), UTC)))
     }
 }
-
 
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
@@ -587,14 +662,14 @@ mod tests {
     extern crate serde_test;
 
     use std::default::Default;
-    use std::str;
+    use std::str::{self, FromStr};
     use std::time::Duration;
 
     use chrono::{UTC, TimeZone};
     use serde_json;
     use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
-    use super::{JWT, SingleOrMultiple, RegisteredClaims, ClaimsSet, TemporalValidationOptions, Timestamp};
+    use super::*;
     use jws::{Algorithm, Header, Secret};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -610,8 +685,45 @@ mod tests {
     }
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+    struct StringOrUriTest {
+        string: StringOrUri,
+    }
+
+    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct SingleOrMultipleStringsTest {
         values: SingleOrMultiple<String>,
+    }
+
+    #[test]
+    fn string_or_uri_arbitrary_serialization_round_trip() {
+        let test = StringOrUriTest { string: not_err!(FromStr::from_str("Random")) };
+        assert_matches!(test, StringOrUriTest{ string: StringOrUri::String(_) });
+
+        let expected_json = r#"{"string":"Random"}"#;
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    fn string_or_uri_uri_serialization_round_trip() {
+        let test = StringOrUriTest { string: not_err!(FromStr::from_str("https://www.example.com/")) };
+        assert_matches!(test, StringOrUriTest{ string: StringOrUri::Uri(_) });
+
+        let expected_json = r#"{"string":"https://www.example.com/"}"#;
+        let serialized = not_err!(serde_json::to_string(&test));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test);
+    }
+
+    #[test]
+    #[should_panic(expected = "UriParseError")]
+    fn string_or_uri_will_fail_invalid_uris_containing_colons() {
+        StringOrUriTest { string: FromStr::from_str("Invalid URI: yes!").unwrap() };
     }
 
     #[test]
