@@ -35,6 +35,7 @@ extern crate serde_json;
 extern crate untrusted;
 extern crate url;
 
+use std::borrow::Borrow;
 use std::convert::{From, Into};
 use std::fmt::{self, Debug};
 use std::ops::Deref;
@@ -136,6 +137,21 @@ pub enum SingleOrMultiple<T>
     Single(T),
     /// Multiple values
     Multiple(Vec<T>),
+}
+
+impl<T> SingleOrMultiple<T>
+    where T: Clone + Debug + Eq + PartialEq + Serialize + Deserialize + Send + Sync
+{
+    /// Checks whether this enum, regardless of single or multiple value contains `value`.
+    pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
+        where T: Borrow<Q>,
+              Q: PartialEq
+    {
+        match *self {
+            SingleOrMultiple::Single(ref single) => single.borrow() == value,
+            SingleOrMultiple::Multiple(ref vector) => vector.iter().map(Borrow::borrow).any(|v| v == value),
+        }
+    }
 }
 
 /// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
@@ -836,6 +852,8 @@ mod tests {
 
         let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+        assert!(deserialized.values.contains("foobar"));
+        assert!(!deserialized.values.contains("does not exist"));
     }
 
     #[test]
@@ -850,6 +868,10 @@ mod tests {
 
         let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+        assert!(deserialized.values.contains("foo"));
+        assert!(deserialized.values.contains("bar"));
+        assert!(deserialized.values.contains("baz"));
+        assert!(!deserialized.values.contains("does not exist"));
     }
 
     #[test]
@@ -863,6 +885,8 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+        assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
+        assert!(!deserialized.values.contains(&FromStr::from_str("does not exist").unwrap()));
     }
 
     #[test]
@@ -877,6 +901,8 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+        assert!(deserialized.values.contains(&FromStr::from_str("https://www.examples.com").unwrap()));
+        assert!(!deserialized.values.contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
@@ -896,6 +922,13 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
+
+        assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
+        assert!(deserialized.values.contains(&FromStr::from_str("https://www.example.com").unwrap()));
+        assert!(deserialized.values.contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap()));
+        assert!(deserialized.values.contains(&FromStr::from_str("http://[::1]").unwrap()));
+        assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
+        assert!(!deserialized.values.contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
