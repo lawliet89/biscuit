@@ -21,7 +21,7 @@ pub enum Algorithm {
     /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
     KeyManagement,
     /// Algorithms meant for content encryption.
-    /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
+    /// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
     ContentEncryption,
 }
 
