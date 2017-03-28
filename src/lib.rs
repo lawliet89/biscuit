@@ -110,7 +110,7 @@ use errors::{Error, ValidationError};
 /// };
 ///
 /// let expected_jwt = JWT::new_decoded(Header {
-///                                         algorithm: Algorithm::HS256,
+///                                         algorithm: SignatureAlgorithm::HS256,
 ///                                         ..Default::default()
 ///                                     },
 ///                                     expected_claims.clone());
@@ -125,7 +125,7 @@ use errors::{Error, ValidationError};
 ///
 /// let token = serde_json::from_str::<JWT<PrivateClaims>>(&token).unwrap();
 /// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
-///     Algorithm::HS256).unwrap();
+///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
 /// ```

@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
-use biscuit::jwa::Algorithm;
+use biscuit::jwa::SignatureAlgorithm;
 use biscuit::jws::{Compact, Header, Secret};
 use biscuit::errors::{Error, ValidationError};
 
@@ -36,7 +36,7 @@ fn main() {
 
     let mut header = Header::default();
     header.key_id = Some("signing_key".to_string());
-    header.algorithm = Algorithm::HS512;
+    header.algorithm = SignatureAlgorithm::HS512;
 
     let jwt = Compact::new_decoded(header, my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
@@ -45,7 +45,7 @@ fn main() {
     };
 
     let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
-                       Algorithm::HS256) {
+                       SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {

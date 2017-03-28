@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
-use biscuit::jwa::Algorithm;
+use biscuit::jwa::SignatureAlgorithm;
 use biscuit::jws::{Compact, Header, Secret};
 use biscuit::errors::{Error, ValidationError};
 
@@ -54,7 +54,7 @@ fn main() {
     println!("{:?}", token);
 
     let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
-                       Algorithm::HS256) {
+                       SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {

@@ -9,10 +9,26 @@ use errors::Error;
 use jws::Secret;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
-/// The algorithms supported for signatures and encryption, defined by [RFC 7518](https://tools.ietf.org/html/rfc7518).
-/// Currently, only signing is supported.
-// TODO: Add support for `none`
+/// Algorithms described by [RFC 7518](https://tools.ietf.org/html/rfc7518).
+/// This enum is serialized `untagged`.
+#[serde(untagged)]
 pub enum Algorithm {
+    /// Algorithms meant for Digital signature or MACs
+    /// See [RFC7518#3](https://tools.ietf.org/html/rfc7518#section-3)
+    Signature(SignatureAlgorithm),
+    /// Algorithms meant for key management. The algorithms are either meant to
+    /// encrypt a content encryption key or determine the content encryption key.
+    /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
+    KeyManagement,
+    /// Algorithms meant for content encryption.
+    /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
+    ContentEncryption,
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+/// The algorithms supported for digital signature and MACs, defined by
+/// [RFC7518#3](https://tools.ietf.org/html/rfc7518#section-3).
+pub enum SignatureAlgorithm {
     /// No encryption/signature is included for the JWT.
     /// During verification, the signature _MUST BE_ empty or verification  will fail.
     #[serde(rename = "none")]
@@ -47,16 +63,16 @@ pub enum Algorithm {
     PS512,
 }
 
-impl Default for Algorithm {
+impl Default for SignatureAlgorithm {
     fn default() -> Self {
-        Algorithm::HS256
+        SignatureAlgorithm::HS256
     }
 }
 
-impl Algorithm {
+impl SignatureAlgorithm {
     /// Take some bytes and sign it according to the algorithm and secret provided.
     pub fn sign(&self, data: &[u8], secret: Secret) -> Result<Vec<u8>, Error> {
-        use self::Algorithm::*;
+        use self::SignatureAlgorithm::*;
 
         match *self {
             None => Self::sign_none(secret),
@@ -68,7 +84,7 @@ impl Algorithm {
 
     /// Verify signature based on the algorithm and secret provided.
     pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: Secret) -> Result<bool, Error> {
-        use self::Algorithm::*;
+        use self::SignatureAlgorithm::*;
 
         match *self {
             None => Self::verify_none(expected_signature, secret),
@@ -77,8 +93,9 @@ impl Algorithm {
                 Self::verify_public_key(expected_signature, data, secret, self)
             }
         }
-
     }
+
+    /// Returns the type of operations the key is meant for
 
     fn sign_none(secret: Secret) -> Result<Vec<u8>, Error> {
         match secret {
@@ -88,23 +105,23 @@ impl Algorithm {
         Ok(vec![])
     }
 
-    fn sign_hmac(data: &[u8], secret: Secret, algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
+    fn sign_hmac(data: &[u8], secret: Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
         let secret = match secret {
             Secret::Bytes(secret) => secret,
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
         };
 
         let digest = match *algorithm {
-            Algorithm::HS256 => &digest::SHA256,
-            Algorithm::HS384 => &digest::SHA384,
-            Algorithm::HS512 => &digest::SHA512,
+            SignatureAlgorithm::HS256 => &digest::SHA256,
+            SignatureAlgorithm::HS384 => &digest::SHA384,
+            SignatureAlgorithm::HS512 => &digest::SHA512,
             _ => unreachable!("Should not happen"),
         };
         let key = hmac::SigningKey::new(digest, &secret);
         Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
-    fn sign_rsa(data: &[u8], secret: Secret, algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
+    fn sign_rsa(data: &[u8], secret: Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
         let key_pair = match secret {
             Secret::RSAKeyPair(key_pair) => key_pair,
             _ => Err("Invalid secret type. A RSAKeyPair is required".to_string())?,
@@ -113,19 +130,19 @@ impl Algorithm {
         let rng = rand::SystemRandom::new();
         let mut signature = vec![0; signing_state.key_pair().public_modulus_len()];
         let padding_algorithm: &signature::RSAEncoding = match *algorithm {
-            Algorithm::RS256 => &signature::RSA_PKCS1_SHA256,
-            Algorithm::RS384 => &signature::RSA_PKCS1_SHA384,
-            Algorithm::RS512 => &signature::RSA_PKCS1_SHA512,
-            Algorithm::PS256 => &signature::RSA_PSS_SHA256,
-            Algorithm::PS384 => &signature::RSA_PSS_SHA384,
-            Algorithm::PS512 => &signature::RSA_PSS_SHA512,
+            SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_SHA256,
+            SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_SHA384,
+            SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_SHA512,
+            SignatureAlgorithm::PS256 => &signature::RSA_PSS_SHA256,
+            SignatureAlgorithm::PS384 => &signature::RSA_PSS_SHA384,
+            SignatureAlgorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
         signing_state.sign(padding_algorithm, &rng, data, &mut signature)?;
         Ok(signature)
     }
 
-    fn sign_ecdsa(_data: &[u8], _secret: Secret, _algorithm: &Algorithm) -> Result<Vec<u8>, Error> {
+    fn sign_ecdsa(_data: &[u8], _secret: Secret, _algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
         // Not supported at the moment by ring
         // Tracking issues:
         //  - P-256: https://github.com/briansmith/ring/issues/207
@@ -145,7 +162,7 @@ impl Algorithm {
     fn verify_hmac(expected_signature: &[u8],
                    data: &[u8],
                    secret: Secret,
-                   algorithm: &Algorithm)
+                   algorithm: &SignatureAlgorithm)
                    -> Result<bool, Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
         Ok(verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref()).is_ok())
@@ -154,7 +171,7 @@ impl Algorithm {
     fn verify_public_key(expected_signature: &[u8],
                          data: &[u8],
                          secret: Secret,
-                         algorithm: &Algorithm)
+                         algorithm: &SignatureAlgorithm)
                          -> Result<bool, Error> {
         let public_key = match secret {
             Secret::PublicKey(public_key) => public_key,
@@ -163,15 +180,15 @@ impl Algorithm {
         let public_key_der = untrusted::Input::from(public_key.as_slice());
 
         let verification_algorithm: &signature::VerificationAlgorithm = match *algorithm {
-            Algorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
-            Algorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
-            Algorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
-            Algorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
-            Algorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
-            Algorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
-            Algorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
-            Algorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
-            Algorithm::ES512 => Err(Error::UnsupportedOperation)?,
+            SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
+            SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
+            SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+            SignatureAlgorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
+            SignatureAlgorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
+            SignatureAlgorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
+            SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
+            SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
+            SignatureAlgorithm::ES512 => Err(Error::UnsupportedOperation)?,
             _ => unreachable!("Should not happen"),
         };
 
@@ -198,10 +215,10 @@ mod tests {
     #[test]
     fn sign_and_verify_none() {
         let expected_signature: Vec<u8> = vec![];
-        let actual_signature = not_err!(Algorithm::None.sign("payload".to_string().as_bytes(), Secret::None));
+        let actual_signature = not_err!(SignatureAlgorithm::None.sign("payload".to_string().as_bytes(), Secret::None));
         assert_eq!(expected_signature, actual_signature);
 
-        let valid = not_err!(Algorithm::None.verify(vec![].as_slice(),
+        let valid = not_err!(SignatureAlgorithm::None.verify(vec![].as_slice(),
                                                     "payload".to_string().as_bytes(),
                                                     Secret::None));
         assert!(valid);
@@ -212,11 +229,11 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
 
-        let actual_signature = not_err!(Algorithm::HS256.sign("payload".to_string().as_bytes(),
+        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
                                                               Secret::bytes_from_str("secret")));
         assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
 
-        let valid = not_err!(Algorithm::HS256.verify(expected_bytes.as_slice(),
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(expected_bytes.as_slice(),
                                                      "payload".to_string().as_bytes(),
                                                      Secret::bytes_from_str("secret")));
         assert!(valid);
@@ -242,11 +259,11 @@ mod tests {
                                   5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
         let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_signature));
 
-        let actual_signature = not_err!(Algorithm::RS256.sign(payload_bytes, private_key));
+        let actual_signature = not_err!(SignatureAlgorithm::RS256.sign(payload_bytes, private_key));
         assert_eq!(not_err!(actual_signature.to_base64()), expected_signature);
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(Algorithm::RS256.verify(expected_signature_bytes.as_slice(),
+        let valid = not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(),
                                                      payload_bytes,
                                                      public_key));
         assert!(valid);
@@ -259,10 +276,10 @@ mod tests {
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        let actual_signature = not_err!(Algorithm::PS256.sign(payload_bytes, private_key));
+        let actual_signature = not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, private_key));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(Algorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, public_key));
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
@@ -287,7 +304,7 @@ mod tests {
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(base64::decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
@@ -298,7 +315,7 @@ mod tests {
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        Algorithm::ES256.sign(payload_bytes, private_key).unwrap();
+        SignatureAlgorithm::ES256.sign(payload_bytes, private_key).unwrap();
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L248
@@ -314,7 +331,7 @@ mod tests {
         let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C\
                          41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(Algorithm::ES256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
+        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
@@ -333,7 +350,7 @@ mod tests {
                          DD1E80FABE4602310099EF4AEB15F178CEA1FE40DB2603138F130E740A19624526203B6351D0A3A94FA329C145786E\
                          679E7B82C71A38628AC8";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(Algorithm::ES384.verify(signature_bytes.as_slice(), payload_bytes, public_key));
+        let valid = not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
 
@@ -343,14 +360,14 @@ mod tests {
         let payload: Vec<u8> = vec![];
         let signature: Vec<u8> = vec![];
         let public_key = Secret::PublicKey(vec![]);
-        Algorithm::ES512.verify(signature.as_slice(), payload.as_slice(), public_key).unwrap();
+        SignatureAlgorithm::ES512.verify(signature.as_slice(), payload.as_slice(), public_key).unwrap();
     }
 
     #[test]
     fn invalid_none() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(Algorithm::None.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::None.verify(signature_bytes,
                                                     "payload".to_string().as_bytes(),
                                                     Secret::None));
         assert!(!valid);
@@ -360,7 +377,7 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(Algorithm::HS256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
                                                      "payload".to_string().as_bytes(),
                                                      Secret::Bytes("secret".to_string().into_bytes())));
         assert!(!valid);
@@ -371,7 +388,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(Algorithm::RS256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::RS256.verify(signature_bytes,
                                                      "payload".to_string().as_bytes(),
                                                      public_key));
         assert!(!valid);
@@ -382,7 +399,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(Algorithm::PS256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(signature_bytes,
                                                      "payload".to_string().as_bytes(),
                                                      public_key));
         assert!(!valid);
@@ -393,7 +410,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(Algorithm::ES256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes,
                                                      "payload".to_string().as_bytes(),
                                                      public_key));
         assert!(!valid);
