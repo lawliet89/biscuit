@@ -35,6 +35,9 @@ extern crate serde_json;
 extern crate untrusted;
 extern crate url;
 
+#[cfg(test)]
+extern crate serde_test;
+
 use std::borrow::Borrow;
 use std::convert::{From, Into};
 use std::fmt::{self, Debug};
@@ -52,9 +55,12 @@ pub use url::{Url, ParseError};
 #[cfg(test)]
 #[macro_use]
 mod test;
+mod serde_custom;
+
 pub mod errors;
 pub mod jwa;
 pub mod jws;
+pub mod jwk;
 
 use errors::{Error, ValidationError};
 
@@ -674,8 +680,6 @@ impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize {}
 
 #[cfg(test)]
 mod tests {
-    extern crate serde_test;
-
     use std::default::Default;
     use std::str::{self, FromStr};
     use std::time::Duration;
