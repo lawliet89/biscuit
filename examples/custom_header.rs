@@ -7,8 +7,8 @@ use std::default::Default;
 use std::str::FromStr;
 
 use chrono::UTC;
-use biscuit::{JWT, ClaimsSet, RegisteredClaims, SingleOrMultiple};
-use biscuit::jws::{Algorithm, Header, Secret};
+use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
+use biscuit::jws::{Compact, Algorithm, Header, Secret};
 use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,7 +37,7 @@ fn main() {
     header.key_id = Some("signing_key".to_string());
     header.algorithm = Algorithm::HS512;
 
-    let jwt = JWT::new_decoded(header, my_claims);
+    let jwt = Compact::new_decoded(header, my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
