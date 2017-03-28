@@ -27,6 +27,7 @@
 
 extern crate chrono;
 extern crate data_encoding;
+extern crate num;
 extern crate ring;
 extern crate serde;
 #[macro_use]

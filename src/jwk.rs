@@ -3,6 +3,7 @@
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
 use std::default::Default;
 
+use num::BigUint;
 use serde::{Serialize, Deserialize};
 
 use serde_custom;
@@ -156,6 +157,116 @@ pub enum AlgorithmParameters {
         #[serde(with = "serde_custom::option_byte_sequence", skip_serializing_if = "Option::is_none", default)]
         d: Option<Vec<u8>>,
     },
+
+    /// A RSA Public Key
+    RSAPublicKey {
+        /// Key type value for a RSA Key
+        #[serde(rename = "kty")]
+        key_type: RSAKeyType,
+
+        /// The "n" (modulus) parameter contains the modulus value for the RSA
+        /// public key.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::base64_url_uint")]
+        n: BigUint,
+
+        /// The "e" (exponent) parameter contains the exponent value for the RSA
+        /// public key.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::base64_url_uint")]
+        e: BigUint,
+    },
+
+    /// A RSA Private Key
+    RSAPrivateKey {
+        /// Key type value for a RSA Key
+        #[serde(rename = "kty")]
+        key_type: RSAKeyType,
+
+        /// The "d" (private exponent) parameter contains the private exponent
+        /// value for the RSA private key.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::base64_url_uint")]
+        d: BigUint,
+
+        /// The "p" (first prime factor) parameter contains the first prime
+        /// factor.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::option_base64_url_uint")]
+        p: Option<BigUint>,
+
+        /// The "q" (second prime factor) parameter contains the second prime
+        /// factor.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::option_base64_url_uint")]
+        q: Option<BigUint>,
+
+        /// The "dp" (first factor CRT exponent) parameter contains the Chinese
+        /// Remainder Theorem (CRT) exponent of the first factor.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::option_base64_url_uint")]
+        dp: Option<BigUint>,
+
+        /// The "dq" (second factor CRT exponent) parameter contains the CRT
+        /// exponent of the second factor.
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::option_base64_url_uint")]
+        dq: Option<BigUint>,
+
+        /// The "qi" (first CRT coefficient) parameter contains the CRT
+        /// coefficient of the second factor
+        /// It is serialized as a `Base64urlUInt`-encoded value.
+        #[serde(with = "serde_custom::option_base64_url_uint")]
+        qi: Option<BigUint>,
+
+        /// The "oth" (other primes info) parameter contains an array of
+        /// information about any third and subsequent primes, should they exist.
+        #[serde(rename = "oth", skip_serializing_if = "Option::is_none")]
+        other_primes_info: Option<Vec<OtherPrimesInfo>>,
+    },
+
+    /// A symmetric Octect key
+    OctectKey {
+        /// Key type value for an Octect Key
+        #[serde(rename = "kty")]
+        key_type: OctectKeyType,
+
+        /// The octect key value
+        #[serde(rename = "k", with = "serde_custom::byte_sequence")]
+        value: Vec<u8>
+    }
+}
+
+/// The "oth" (other primes info) parameter contains an array of
+/// information about any third and subsequent primes, should they exist.
+/// When only two primes have been used (the normal case), this parameter
+/// MUST be omitted.  When three or more primes have been used, the
+/// number of array elements MUST be the number of primes used minus two.
+/// For more information on this case, see the description of the
+/// OtherPrimeInfo parameters in [Appendix A.1.2 of RFC 3447](https://tools.ietf.org/html/rfc3447#appendix-A.1.2),
+/// upon which the following parameters are modeled.  If the consumer of
+/// a JWK does not support private keys with more than two primes and it
+/// encounters a private key that includes the "oth" parameter, then it
+/// MUST NOT use the key.
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OtherPrimesInfo {
+    /// The "r" (prime factor) parameter
+    /// represents the value of a subsequent prime factor.
+    /// It is serialized as a Base64urlUInt-encoded value.
+    #[serde(with = "serde_custom::base64_url_uint")]
+    pub r: BigUint,
+
+    /// The "d" (factor CRT exponent) parameter
+    /// represents the CRT exponent of the corresponding prime factor.
+    /// It is serialized as a Base64urlUInt-encoded value.
+    #[serde(with = "serde_custom::base64_url_uint")]
+    pub d: BigUint,
+
+    /// The "t" (factor CRT coefficient) parameter
+    /// member represents the CRT coefficient of the corresponding prime
+    /// factor.
+    #[serde(with = "serde_custom::base64_url_uint")]
+    pub t: BigUint,
 }
 
 /// Key type value for an Elliptic Curve Key.
@@ -169,6 +280,35 @@ pub enum EllipticCurveKeyType {
 impl Default for EllipticCurveKeyType {
     fn default() -> Self {
         EllipticCurveKeyType::EC
+    }
+}
+
+/// Key type value for an RSA Key.
+/// This single value enum is a workaround for Rust not supporting associated constants.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum RSAKeyType {
+    /// Key type value for an RSA Key.
+    RSA,
+}
+
+impl Default for RSAKeyType {
+    fn default() -> Self {
+        RSAKeyType::RSA
+    }
+}
+
+/// Key type value for an Octect symmetric Key.
+/// This single value enum is a workaround for Rust not supporting associated constants.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum OctectKeyType {
+    /// Key type value for an RSA Key.
+    #[serde(rename = "oct")]
+    Octect,
+}
+
+impl Default for OctectKeyType {
+    fn default() -> Self {
+        OctectKeyType::Octect
     }
 }
 

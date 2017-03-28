@@ -1,32 +1,35 @@
-//! Serialize or deserialize an Option<Vec<u8>>
+//! Serialize and Deserialize `num_bigint::BigUint` into `Base64urlUInt` form as described in
+//! [RFC 7518](https://tools.ietf.org/html/rfc7518)
 use std::fmt;
 
 use data_encoding::base64url;
+use num::BigUint;
 use serde::{Serializer, Deserializer};
 use serde::de;
 
-pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(value: &Option<BigUint>, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer
 {
     match *value {
         Some(ref value) => {
-            let base64 = base64url::encode_nopad(value.as_slice());
+            let bytes = value.to_bytes_be();
+            let base64 = base64url::encode_nopad(bytes.as_slice());
             serializer.serialize_some(&base64)
         },
         None => serializer.serialize_none()
     }
 }
 
-pub fn deserialize<D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+pub fn deserialize<D>(deserializer: D) -> Result<Option<BigUint>, D::Error>
     where D: Deserializer
 {
-    struct BytesVisitor;
+    struct BigUintVisitor;
 
-    impl de::Visitor for BytesVisitor {
-        type Value = Option<Vec<u8>>;
+    impl de::Visitor for BigUintVisitor {
+        type Value = Option<BigUint>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a URL safe base64 encoding of a byte sequence")
+            formatter.write_str("a Base64urlUInt string")
         }
 
         fn visit_none<E>(self) -> Result<Self::Value, E>
@@ -45,34 +48,36 @@ pub fn deserialize<D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
             where E: de::Error
         {
             let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
-            Ok(Some(bytes))
+            Ok(Some(BigUint::from_bytes_be(&bytes)))
         }
     }
 
-    deserializer.deserialize_option(BytesVisitor)
+    deserializer.deserialize_option(BigUintVisitor)
 }
 
 #[cfg(test)]
 mod tests {
+    use num::BigUint;
+    use num::cast::FromPrimitive;
     use serde_json;
     use serde_test::{Token, assert_tokens};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct TestStruct {
         #[serde(with = "super")]
-        bytes: Option<Vec<u8>>,
+        bytes: Option<BigUint>,
     }
 
     #[test]
     fn some_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
+        let test_value = TestStruct { bytes: Some(BigUint::from_u64(12345).unwrap()) };
 
         assert_tokens(&test_value,
                       &[Token::StructStart("TestStruct", 1),
                         Token::StructSep,
                         Token::Str("bytes"),
                         Token::Option(true),
-                        Token::Str("aGVsbG8gd29ybGQ"),
+                        Token::Str("MDk"),
 
                         Token::StructEnd]);
     }
@@ -92,8 +97,8 @@ mod tests {
 
     #[test]
     fn some_json_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
-        let expected_json = r#"{"bytes":"aGVsbG8gd29ybGQ"}"#;
+        let test_value = TestStruct { bytes: Some(BigUint::from_u64(12345).unwrap()) };
+        let expected_json = r#"{"bytes":"MDk"}"#;
 
         let actual_json = not_err!(serde_json::to_string(&test_value));
         assert_eq!(expected_json, actual_json);
