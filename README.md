@@ -14,7 +14,7 @@ verify JWT (JSON Web Tokens).
 Add the following to Cargo.toml:
 
 ```toml
-biscuit = "0.0.1"
+biscuit = "0.0.2"
 ```
 
 To use the latest `master` branch, for example:

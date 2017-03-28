@@ -23,8 +23,8 @@ doc = true
 
 [dependencies]
 chrono = "0.3"
+data-encoding = "1.2.0"
 ring = { version = "0.7", features = ["rsa_signing"] }
-rustc-serialize = "0.3"
 serde = "0.9"
 serde_derive = "0.9"
 serde_json = { version = "0.9", features = ["preserve_order"] }

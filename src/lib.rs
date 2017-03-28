@@ -12,7 +12,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.0.1"
+//! biscuit = "0.0.2"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -26,7 +26,7 @@
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
-extern crate rustc_serialize;
+extern crate data_encoding;
 extern crate ring;
 extern crate serde;
 #[macro_use]
@@ -42,7 +42,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use chrono::{DateTime, UTC, NaiveDateTime};
-use rustc_serialize::base64::{self, ToBase64, FromBase64};
+use data_encoding::base64url;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de;
 use serde_json::value;
@@ -131,34 +131,51 @@ pub type JWT<T> = jws::Compact<ClaimsSet<T>>;
 /// A "part" of the compact representation of JWT/JWS/JWE. Parts are first serialized to some form and then
 /// base64 encoded and separated by periods.
 ///
-/// An automatic implementation for any `T` that implements `Serialize` and `Deserialize` is provided.
+/// An automatic implementation for any `T` that implements the marker trait `CompactJson` is provided.
 /// This implementation will serialize/deserialize `T` to JSON via serde.
 pub trait CompactPart {
-    /// The type which the part will be base64 encoded into and from.
+    /// The type holding the base64 encoding
     type Encoded: AsRef<str>;
+
     /// Base64 decode `Encoded` and then deserialize it to `Self`.
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> where Self: Sized;
     /// Serialize `Self` to some form and then base64 encode to `Encoded`
     fn to_base64(&self) -> Result<Self::Encoded, Error>;
 }
 
+/// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
+/// This is primarily used in conjunction with the `CompactPart` trait which will serialize structs to JSON before
+/// base64 encoding, and vice-versa.
+pub trait CompactJson: Serialize + Deserialize {}
 
 impl<T> CompactPart for T
-    where T: Serialize + Deserialize
+    where T: CompactJson
 {
     type Encoded = String;
 
     /// JSON serialize the part and then serialize into URL Safe base64
     fn to_base64(&self) -> Result<Self::Encoded, Error> {
         let encoded = serde_json::to_string(&self)?;
-        Ok(encoded.as_bytes().to_base64(base64::URL_SAFE))
+        Ok(base64url::encode_nopad(encoded.as_bytes()))
     }
 
     /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<T, Error> {
-        let decoded = encoded.as_ref().from_base64()?;
+    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> {
+        let decoded = base64url::decode_nopad(encoded.as_ref())?;
         let s = String::from_utf8(decoded)?;
         Ok(serde_json::from_str(&s)?)
+    }
+}
+
+impl CompactPart for Vec<u8> {
+    type Encoded = String;
+
+    fn to_base64(&self) -> Result<Self::Encoded, Error> {
+        Ok(base64url::encode_nopad(self))
+    }
+
+    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> {
+        Ok(base64url::decode_nopad(encoded.as_ref())?)
     }
 }
 
@@ -296,7 +313,7 @@ impl FromStr for StringOrUri {
     /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
     /// will be treated as a URL. Any invalid URLs will be treated as failure.
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        if input.contains(":") {
+        if input.contains(':') {
             let uri = Url::from_str(input)?;
             Ok(StringOrUri::Uri(uri))
         } else {
@@ -329,7 +346,7 @@ impl Deserialize for StringOrUri {
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                StringOrUri::from_str(value).map_err(|e| E::custom(e))
+                StringOrUri::from_str(value).map_err(E::custom)
             }
         }
 
@@ -609,6 +626,8 @@ impl<T> Clone for ClaimsSet<T>
     }
 }
 
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize {}
+
 #[cfg(test)]
 mod tests {
     extern crate serde_test;
@@ -628,6 +647,8 @@ mod tests {
         company: String,
         department: String,
     }
+
+    impl CompactJson for PrivateClaims {}
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct InvalidPrivateClaim {
