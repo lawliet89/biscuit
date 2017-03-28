@@ -53,7 +53,9 @@ pub use url::{Url, ParseError};
 #[macro_use]
 mod test;
 pub mod errors;
+pub mod jwa;
 pub mod jws;
+pub mod jwk;
 
 use errors::{Error, ValidationError};
 
@@ -73,6 +75,7 @@ use errors::{Error, ValidationError};
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
+/// use biscuit::jwa::*;
 ///
 /// # fn main() {
 ///

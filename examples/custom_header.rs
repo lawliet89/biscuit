@@ -8,7 +8,8 @@ use std::str::FromStr;
 
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
-use biscuit::jws::{Compact, Algorithm, Header, Secret};
+use biscuit::jwa::Algorithm;
+use biscuit::jws::{Compact, Header, Secret};
 use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
