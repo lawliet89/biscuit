@@ -55,7 +55,6 @@ mod test;
 pub mod errors;
 pub mod jwa;
 pub mod jws;
-pub mod jwk;
 
 use errors::{Error, ValidationError};
 
