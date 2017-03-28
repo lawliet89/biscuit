@@ -130,6 +130,48 @@ use errors::{Error, ValidationError};
 /// ```
 pub type JWT<T> = jws::Compact<ClaimsSet<T>>;
 
+/// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
+/// for custom values (such as private claims in a `ClaimsSet`) is required but you have nothing to implement.
+///
+/// # Examples
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// extern crate serde_json;
+///
+/// use std::default::Default;
+/// use std::str::FromStr;
+/// use biscuit::*;
+/// use biscuit::jws::*;
+/// use biscuit::jwa::*;
+///
+/// # fn main() {
+///
+/// let claims_set = ClaimsSet::<biscuit::Empty> {
+///     registered: RegisteredClaims {
+///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         audience:
+///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///         not_before: Some(1234.into()),
+///         ..Default::default()
+///     },
+///     private: Default::default(),
+/// };
+///
+/// let expected_jwt = JWT::new_decoded(Header {
+///                                         algorithm: SignatureAlgorithm::HS256,
+///                                         ..Default::default()
+///                                     },
+///                                     claims_set);
+///
+/// # }
+/// ```
+#[derive(Debug, Eq, PartialEq, Clone, Copy, Serialize, Deserialize, Default)]
+pub struct Empty {}
+
+impl CompactJson for Empty {}
+
 /// A "part" of the compact representation of JWT/JWS/JWE. Parts are first serialized to some form and then
 /// base64 encoded and separated by periods.
 ///
