@@ -8,12 +8,12 @@ use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use serde::{Serialize, Deserialize};
 use untrusted;
 
-use ::{ClaimsSet, CompactPart};
+use CompactPart;
 use errors::{Error, ValidationError};
 
 /// Compact representation of a JWS
 ///
-/// This representation contains a payload (e.g. a claims set) and is (optionally) signed. This is the
+/// This representation contains a payload (type `T`) (e.g. a claims set) and is (optionally) signed. This is the
 /// most common form of tokens used.
 ///
 /// Serialization/deserialization is handled by serde. Before you transport the token, make sure you
@@ -79,15 +79,15 @@ use errors::{Error, ValidationError};
 ///
 /// // ... some time later, we get token back!
 ///
-/// let token = serde_json::from_str::<Compact<PrivateClaims>>(&token).unwrap();
+/// let token = serde_json::from_str::<Compact<ClaimsSet<PrivateClaims>>>(&token).unwrap();
 /// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
 ///     Algorithm::HS256).unwrap();
-/// assert_eq!(*token.claims_set().unwrap(), expected_claims);
+/// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
 /// ```
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: Serialize + Deserialize> {
+pub enum Compact<T: CompactPart> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
@@ -95,8 +95,8 @@ pub enum Compact<T: Serialize + Deserialize> {
     Decoded {
         /// Embedded header
         header: Header,
-        /// Claims sets, including registered and private claims
-        claims_set: ClaimsSet<T>,
+        /// Payload, usually a claims set
+        payload: T,
     },
     /// Encoded and (optionally) signed JWT. Use this form to send to your clients
     Encoded(String),
@@ -116,10 +116,10 @@ macro_rules! expect_two {
 
 impl<T: Serialize + Deserialize> Compact<T> {
     /// New decoded JWT
-    pub fn new_decoded(header: Header, claims_set: ClaimsSet<T>) -> Self {
+    pub fn new_decoded(header: Header, payload: T) -> Self {
         Compact::Decoded {
             header: header,
-            claims_set: claims_set,
+            payload: payload,
         }
     }
 
@@ -142,9 +142,9 @@ impl<T: Serialize + Deserialize> Compact<T> {
     /// The secret is dependent on the signing algorithm
     pub fn encode(&self, secret: Secret) -> Result<Self, Error> {
         match *self {
-            Compact::Decoded { ref header, ref claims_set } => {
+            Compact::Decoded { ref header, ref payload } => {
                 let encoded_header = header.to_base64()?;
-                let encoded_claims = claims_set.to_base64()?;
+                let encoded_claims = payload.to_base64()?;
                 let payload = [&*encoded_header, &*encoded_claims].join(".");
                 let signature = header.algorithm
                     .sign(payload.as_bytes(), secret)?
@@ -188,14 +188,14 @@ impl<T: Serialize + Deserialize> Compact<T> {
                 if header.algorithm != algorithm {
                     Err(ValidationError::WrongAlgorithmHeader)?;
                 }
-                let decoded_claims = ClaimsSet::<T>::from_base64(claims)?;
+                let decoded_claims = T::from_base64(claims)?;
 
                 Ok(Self::new_decoded(header, decoded_claims))
             }
         }
     }
 
-    /// Convenience method to extract the encoded string from an encoded JWT
+    /// Convenience method to extract the encoded string from an encoded compact JWS
     pub fn encoded(&self) -> Result<&str, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
@@ -203,15 +203,15 @@ impl<T: Serialize + Deserialize> Compact<T> {
         }
     }
 
-    /// Convenience method to extract the claims set from a decoded JWT
-    pub fn claims_set(&self) -> Result<&ClaimsSet<T>, Error> {
+    /// Convenience method to extract the claims set from a decoded compact JWS
+    pub fn payload(&self) -> Result<&T, Error> {
         match *self {
-            Compact::Decoded { ref claims_set, .. } => Ok(claims_set),
+            Compact::Decoded { ref payload, .. } => Ok(payload),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
 
-    /// Convenience method to extract the header from a decoded JWT
+    /// Convenience method to extract the header from a decoded compact JWS
     pub fn header(&self) -> Result<&Header, Error> {
         match *self {
             Compact::Decoded { ref header, .. } => Ok(header),
@@ -225,10 +225,10 @@ impl<T> Clone for Compact<T>
 {
     fn clone(&self) -> Self {
         match *self {
-            Compact::Decoded { ref header, ref claims_set } => {
+            Compact::Decoded { ref header, ref payload } => {
                 Compact::Decoded {
                     header: (*header).clone(),
-                    claims_set: (*claims_set).clone(),
+                    payload: (*payload).clone(),
                 }
             }
             Compact::Encoded(ref encoded) => Compact::Encoded((*encoded).clone()),
@@ -620,7 +620,7 @@ mod tests {
     use serde_json;
     use rustc_serialize::base64::{self, ToBase64, FromBase64};
 
-    use ::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
+    use {ClaimsSet, RegisteredClaims, SingleOrMultiple};
     use super::{Secret, Algorithm, Header, Compact};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -647,7 +647,7 @@ mod tests {
         };
 
         let biscuit = Compact::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
-                                       expected_claims.clone());
+                                           expected_claims.clone());
         serde_json::to_string(&biscuit).unwrap();
     }
 
@@ -655,7 +655,7 @@ mod tests {
     #[should_panic(expected = "data did not match any variant of untagged enum Compact")]
     fn decoded_compact_jws_cannot_be_deserialized() {
         let json = r#"{"header":{"alg":"none","typ":"JWT"},
-                       "claims_set":{"iss":"https://www.acme.com/","sub":"John Doe",
+                       "payload":{"iss":"https://www.acme.com/","sub":"John Doe",
                                      "aud":"htts://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
         serde_json::from_str::<Compact<PrivateClaims>>(json).unwrap();
@@ -683,12 +683,12 @@ mod tests {
         };
 
         let expected_jwt = Compact::new_decoded(Header { algorithm: Algorithm::None, ..Default::default() },
-                                            expected_claims.clone());
+                                                expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::None));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let biscuit = not_err!(token.into_decoded(Secret::None, Algorithm::None));
-        let actual_claims = not_err!(biscuit.claims_set());
+        let actual_claims = not_err!(biscuit.payload());
         assert_eq!(expected_claims, *actual_claims);
     }
 
@@ -714,13 +714,13 @@ mod tests {
         };
 
         let expected_jwt = Compact::new_decoded(Header { algorithm: Algorithm::HS256, ..Default::default() },
-                                            expected_claims.clone());
+                                                expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
                                                   Algorithm::HS256));
-        assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
+        assert_eq!(expected_claims, *not_err!(biscuit.payload()));
     }
 
     #[test]
@@ -749,13 +749,13 @@ mod tests {
         let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
         let expected_jwt = Compact::new_decoded(Header { algorithm: Algorithm::RS256, ..Default::default() },
-                                            expected_claims.clone());
+                                                expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(private_key));
         assert_eq!(expected_token, not_err!(token.encoded()));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let biscuit = not_err!(token.into_decoded(public_key, Algorithm::RS256));
-        assert_eq!(expected_claims, *not_err!(biscuit.claims_set()));
+        assert_eq!(expected_claims, *not_err!(biscuit.payload()));
     }
 
     #[test]

@@ -57,24 +57,33 @@ pub mod jws;
 
 use errors::{Error, ValidationError};
 
-/// A "part" of the compact representation of JWT/JWS/JWE. Parts are base64 encoded and separated by periods
-trait CompactPart {
+/// A "part" of the compact representation of JWT/JWS/JWE. Parts are first serialized to some form and then
+/// base64 encoded and separated by periods.
+///
+/// An automatic implementation for any `T` that implements `Serialize` and `Deserialize` is provided.
+/// This implementation will serialize/deserialize `T` to JSON via serde.
+pub trait CompactPart {
+    /// The type which the part will be base64 encoded into and from.
     type Encoded: AsRef<str>;
-
+    /// Base64 decode `Encoded` and then deserialize it to `Self`.
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> where Self: Sized;
+    /// Serialize `Self` to some form and then base64 encode to `Encoded`
     fn to_base64(&self) -> Result<Self::Encoded, Error>;
 }
+
 
 impl<T> CompactPart for T
     where T: Serialize + Deserialize
 {
     type Encoded = String;
 
+    /// JSON serialize the part and then serialize into URL Safe base64
     fn to_base64(&self) -> Result<Self::Encoded, Error> {
         let encoded = serde_json::to_string(&self)?;
         Ok(encoded.as_bytes().to_base64(base64::URL_SAFE))
     }
 
+    /// From base64, deserialize the JSON representation and further deserialize into `T`
     fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<T, Error> {
         let decoded = encoded.as_ref().from_base64()?;
         let s = String::from_utf8(decoded)?;

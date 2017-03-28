@@ -44,7 +44,7 @@ fn main() {
         },
     };
     let key = "secret";
-    let jwt = Compact::new_decoded(Header::default(), my_claims);
+    let jwt = Compact::<ClaimsSet<PrivateClaims>>::new_decoded(Header::default(), my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
@@ -65,7 +65,7 @@ fn main() {
     };
     println!("{:?}", jwt);
     println!("{:?}",
-             jwt.claims_set()
+             jwt.payload()
                  .unwrap()
                  .private
                  .is_valid());
