@@ -5,7 +5,6 @@ use std::sync::Arc;
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use rustc_serialize::base64::{self, ToBase64, FromBase64};
-use serde::{Serialize, Deserialize};
 use untrusted;
 
 use CompactPart;
@@ -114,7 +113,7 @@ macro_rules! expect_two {
     }}
 }
 
-impl<T: Serialize + Deserialize> Compact<T> {
+impl<T: CompactPart> Compact<T> {
     /// New decoded JWT
     pub fn new_decoded(header: Header, payload: T) -> Self {
         Compact::Decoded {
@@ -145,7 +144,7 @@ impl<T: Serialize + Deserialize> Compact<T> {
             Compact::Decoded { ref header, ref payload } => {
                 let encoded_header = header.to_base64()?;
                 let encoded_claims = payload.to_base64()?;
-                let payload = [&*encoded_header, &*encoded_claims].join(".");
+                let payload = [&*encoded_header, encoded_claims.as_ref()].join(".");
                 let signature = header.algorithm
                     .sign(payload.as_bytes(), secret)?
                     .as_slice()
@@ -221,7 +220,7 @@ impl<T: Serialize + Deserialize> Compact<T> {
 }
 
 impl<T> Clone for Compact<T>
-    where T: Serialize + Deserialize + Clone
+    where T: CompactPart + Clone
 {
     fn clone(&self) -> Self {
         match *self {
