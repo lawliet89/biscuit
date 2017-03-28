@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
-use rustc_serialize::base64::{self, ToBase64, FromBase64};
 use untrusted;
 
+use CompactJson;
 use CompactPart;
 use errors::{Error, ValidationError};
 
@@ -86,7 +86,7 @@ use errors::{Error, ValidationError};
 /// ```
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: CompactPart> {
+pub enum Compact<T: CompactJson> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
@@ -113,7 +113,7 @@ macro_rules! expect_two {
     }}
 }
 
-impl<T: CompactPart> Compact<T> {
+impl<T: CompactJson> Compact<T> {
     /// New decoded JWT
     pub fn new_decoded(header: Header, payload: T) -> Self {
         Compact::Decoded {
@@ -147,8 +147,7 @@ impl<T: CompactPart> Compact<T> {
                 let payload = [&*encoded_header, encoded_claims.as_ref()].join(".");
                 let signature = header.algorithm
                     .sign(payload.as_bytes(), secret)?
-                    .as_slice()
-                    .to_base64(base64::URL_SAFE);
+                    .to_base64()?;
 
                 Ok(Compact::Encoded([payload, signature].join(".")))
             }
@@ -175,7 +174,7 @@ impl<T: CompactPart> Compact<T> {
             Compact::Encoded(ref token) => {
                 // Check that there are only two parts
                 let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
-                let signature: Vec<u8> = signature.from_base64()?;
+                let signature: Vec<u8> = CompactPart::from_base64(signature.as_bytes())?;
 
                 if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
                     Err(ValidationError::InvalidSignature)?;
@@ -187,7 +186,7 @@ impl<T: CompactPart> Compact<T> {
                 if header.algorithm != algorithm {
                     Err(ValidationError::WrongAlgorithmHeader)?;
                 }
-                let decoded_claims = T::from_base64(claims)?;
+                let decoded_claims: T = T::from_base64(claims)?;
 
                 Ok(Self::new_decoded(header, decoded_claims))
             }
@@ -220,7 +219,7 @@ impl<T: CompactPart> Compact<T> {
 }
 
 impl<T> Clone for Compact<T>
-    where T: CompactPart + Clone
+    where T: CompactJson + Clone
 {
     fn clone(&self) -> Self {
         match *self {
@@ -430,6 +429,8 @@ impl Default for Header {
     }
 }
 
+impl CompactJson for Header {}
+
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 /// The algorithms supported for signatures and encryption, defined by [RFC 7518](https://tools.ietf.org/html/rfc7518).
 /// Currently, only signing is supported.
@@ -617,9 +618,8 @@ mod tests {
     use std::str::{self, FromStr};
 
     use serde_json;
-    use rustc_serialize::base64::{self, ToBase64, FromBase64};
 
-    use {ClaimsSet, RegisteredClaims, SingleOrMultiple};
+    use {ClaimsSet, RegisteredClaims, SingleOrMultiple, CompactPart, CompactJson};
     use super::{Secret, Algorithm, Header, Compact};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -627,6 +627,8 @@ mod tests {
         company: String,
         department: String,
     }
+
+    impl CompactJson for PrivateClaims {}
 
     #[test]
     #[should_panic(expected = "the enum variant Compact::Decoded cannot be serialized")]
@@ -797,7 +799,7 @@ mod tests {
     fn compact_jws_decode_token_invalid_signature_hs256() {
         let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___");
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   Algorithm::HS256);
         claims.unwrap();
@@ -808,7 +810,7 @@ mod tests {
     fn compact_jws_decode_token_invalid_signature_rs256() {
         let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       WRONGWRONGWRONGWRONGWRONGWRONGWRONGWRONG___");
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(public_key, Algorithm::RS256);
         claims.unwrap();
@@ -866,12 +868,11 @@ mod tests {
     #[test]
     fn sign_and_verify_hs256() {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
-        let expected_bytes: Vec<u8> = not_err!(expected_base64.from_base64());
+        let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
 
         let actual_signature = not_err!(Algorithm::HS256.sign("payload".to_string().as_bytes(),
                                                               Secret::bytes_from_str("secret")));
-        assert_eq!(actual_signature.as_slice().to_base64(base64::URL_SAFE),
-                   expected_base64);
+        assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
 
         let valid = not_err!(Algorithm::HS256.verify(expected_bytes.as_slice(),
                                                      "payload".to_string().as_bytes(),
@@ -897,11 +898,10 @@ mod tests {
                                   uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
                                   j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
                                   5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
-        let expected_signature_bytes: Vec<u8> = not_err!(expected_signature.from_base64());
+        let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_signature));
 
         let actual_signature = not_err!(Algorithm::RS256.sign(payload_bytes, private_key));
-        assert_eq!(expected_signature,
-                   actual_signature.as_slice().to_base64(base64::URL_SAFE));
+        assert_eq!(not_err!(actual_signature.to_base64()), expected_signature);
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(Algorithm::RS256.verify(expected_signature_bytes.as_slice(),
@@ -934,6 +934,8 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn verify_ps256() {
+        use data_encoding::base64;
+
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
         let signature = "TiMXtt3Wmv/a/tbLWuJPDlFYMfuKsD7U5lbBUn2mBu8DLMLj1EplEZNmkB8w65BgUijnu9hxmhwv\
@@ -941,7 +943,7 @@ mod tests {
                          tFNPZpz4/3pYQdxco/n6DpaR5206wsur/8H0FwoyiFKanhqLb1SgZqyc+SXRPepjKc28wzBnfWl4\
                          mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
-        let signature_bytes: Vec<u8> = not_err!(signature.from_base64());
+        let signature_bytes: Vec<u8> = not_err!(base64::decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(Algorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
@@ -960,16 +962,16 @@ mod tests {
     /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L248
     #[test]
     fn verify_es256() {
-        use rustc_serialize::hex::FromHex;
+        use data_encoding::hex;
 
         let payload = "sample".to_string();
         let payload_bytes = payload.as_bytes();
         let public_key = "0460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8BC99A41AE9E9562\
                           8BC64F2F1B20C2D7E9F5177A3C294D4462299";
-        let public_key = Secret::PublicKey(not_err!(public_key.from_hex()));
+        let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
         let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C\
                          41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
-        let signature_bytes: Vec<u8> = not_err!(signature.from_hex());
+        let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
         let valid = not_err!(Algorithm::ES256.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
@@ -977,18 +979,18 @@ mod tests {
     /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L283
     #[test]
     fn verify_es384() {
-        use rustc_serialize::hex::FromHex;
+        use data_encoding::hex;
 
         let payload = "sample".to_string();
         let payload_bytes = payload.as_bytes();
         let public_key = "04EC3A4E415B4E19A4568618029F427FA5DA9A8BC4AE92E02E06AAE5286B300C64DEF8F0EA9055866064A25451548\
                           0BC138015D9B72D7D57244EA8EF9AC0C621896708A59367F9DFB9F54CA84B3F1C9DB1288B231C3AE0D4FE7344FD25\
                           33264720";
-        let public_key = Secret::PublicKey(not_err!(public_key.from_hex()));
+        let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
         let signature = "306602310094EDBB92A5ECB8AAD4736E56C691916B3F88140666CE9FA73D64C4EA95AD133C81A648152E44ACF96E36\
                          DD1E80FABE4602310099EF4AEB15F178CEA1FE40DB2603138F130E740A19624526203B6351D0A3A94FA329C145786E\
                          679E7B82C71A38628AC8";
-        let signature_bytes: Vec<u8> = not_err!(signature.from_hex());
+        let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
         let valid = not_err!(Algorithm::ES384.verify(signature_bytes.as_slice(), payload_bytes, public_key));
         assert!(valid);
     }
