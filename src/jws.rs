@@ -335,7 +335,7 @@ impl Secret {
     /// See examples in the [`Secret::PublicKey`] variant documentation for usage.
     pub fn public_key_from_file(path: &str) -> Result<Self, Error> {
         let der = Self::read_bytes(path)?;
-        Ok(Secret::PublicKey(der.iter().map(|b| b.clone()).collect()))
+        Ok(Secret::PublicKey(der.to_vec()))
     }
 }
 

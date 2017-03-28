@@ -313,7 +313,7 @@ impl FromStr for StringOrUri {
     /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
     /// will be treated as a URL. Any invalid URLs will be treated as failure.
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        if input.contains(":") {
+        if input.contains(':') {
             let uri = Url::from_str(input)?;
             Ok(StringOrUri::Uri(uri))
         } else {
@@ -346,7 +346,7 @@ impl Deserialize for StringOrUri {
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
                 where E: de::Error
             {
-                StringOrUri::from_str(value).map_err(|e| E::custom(e))
+                StringOrUri::from_str(value).map_err(E::custom)
             }
         }
 
