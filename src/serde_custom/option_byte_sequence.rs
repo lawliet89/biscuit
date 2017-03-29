@@ -5,6 +5,7 @@ use data_encoding::base64url;
 use serde::{Serializer, Deserializer};
 use serde::de;
 
+/// Serialize a byte sequence into Base64 URL encoded string
 pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer
 {
@@ -17,6 +18,7 @@ pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::
     }
 }
 
+/// Deserialize a byte sequence from Base64 URL encoded string
 pub fn deserialize<D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
     where D: Deserializer
 {

@@ -56,8 +56,8 @@ pub use url::{Url, ParseError};
 #[cfg(test)]
 #[macro_use]
 mod test;
-mod serde_custom;
 
+pub mod serde_custom;
 pub mod errors;
 pub mod jwa;
 pub mod jws;

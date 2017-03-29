@@ -1,5 +1,6 @@
 //! Serialize and Deserialize `num_bigint::BigUint` into `Base64urlUInt` form as described in
-//! [RFC 7518](https://tools.ietf.org/html/rfc7518)
+//! [RFC 7518](https://tools.ietf.org/html/rfc7518).
+//! The integers are first converted into bytes in big-endian form and then base64 encoded.
 use std::fmt;
 
 use data_encoding::base64url;
@@ -7,6 +8,7 @@ use num::BigUint;
 use serde::{Serializer, Deserializer};
 use serde::de;
 
+/// Serialize a `BigUint` into Base64 URL encoded big endian bytes
 pub fn serialize<S>(value: &Option<BigUint>, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer
 {
@@ -20,6 +22,7 @@ pub fn serialize<S>(value: &Option<BigUint>, serializer: S) -> Result<S::Ok, S::
     }
 }
 
+/// Deserialize a `BigUint` from Base64 URL encoded big endian bytes
 pub fn deserialize<D>(deserializer: D) -> Result<Option<BigUint>, D::Error>
     where D: Deserializer
 {
