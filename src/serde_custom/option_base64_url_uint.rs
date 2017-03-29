@@ -15,8 +15,8 @@ pub fn serialize<S>(value: &Option<BigUint>, serializer: S) -> Result<S::Ok, S::
             let bytes = value.to_bytes_be();
             let base64 = base64url::encode_nopad(bytes.as_slice());
             serializer.serialize_some(&base64)
-        },
-        None => serializer.serialize_none()
+        }
+        None => serializer.serialize_none(),
     }
 }
 
@@ -33,13 +33,15 @@ pub fn deserialize<D>(deserializer: D) -> Result<Option<BigUint>, D::Error>
         }
 
         fn visit_none<E>(self) -> Result<Self::Value, E>
-            where E: de::Error {
+            where E: de::Error
+        {
 
             Ok(None)
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where D: Deserializer {
+            where D: Deserializer
+        {
 
             deserializer.deserialize_str(self)
         }

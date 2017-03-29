@@ -75,19 +75,6 @@ pub enum KeyOperations {
     Other(String),
 }
 
-/// A JSON object that represents a cryptographic key.
-/// The members of the object represent properties of the key, including its value.
-/// Type `T` is a struct representing additional JWK properties
-#[derive(Debug, Eq, PartialEq)]
-pub struct JWK<T: Serialize + Deserialize> {
-    /// Common JWK parameters
-    pub common: CommonParameters,
-    /// Key algorithm specific parameters
-    pub algorithm: AlgorithmParameters,
-    /// Additional JWK parameters
-    pub additional: T,
-}
-
 /// Common JWK parameters
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CommonParameters {
@@ -233,8 +220,8 @@ pub enum AlgorithmParameters {
 
         /// The octect key value
         #[serde(rename = "k", with = "serde_custom::byte_sequence")]
-        value: Vec<u8>
-    }
+        value: Vec<u8>,
+    },
 }
 
 /// The "oth" (other primes info) parameter contains an array of
@@ -327,12 +314,24 @@ pub enum EllipticCurve {
     P521,
 }
 
+/// A JSON object that represents a cryptographic key.
+/// The members of the object represent properties of the key, including its value.
+/// Type `T` is a struct representing additional JWK properties
+#[derive(Debug, Eq, PartialEq)]
+pub struct JWK<T: Serialize + Deserialize> {
+    /// Common JWK parameters
+    pub common: CommonParameters,
+    /// Key algorithm specific parameters
+    pub algorithm: AlgorithmParameters,
+    /// Additional JWK parameters
+    pub additional: T,
+}
+
 /// A JSON object that represents a set of JWKs.
 pub struct JWKSet<T: Serialize + Deserialize> {
     /// Containted JWKs
     keys: Vec<JWK<T>>,
 }
 
-// /// The type of key contained in this JWK
-//     #[serde(rename = "kty")]
-//     pub key_type: KeyType,
+#[cfg(test)]
+mod tests {}
