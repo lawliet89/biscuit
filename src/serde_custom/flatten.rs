@@ -2,9 +2,14 @@
 //!
 //! This serializer will take a struct, and then flatten all its first-level children.
 use std::collections::HashSet;
+use std::default::Default;
+use std::fmt;
 use std::hash::Hash;
+use std::marker::PhantomData;
 
-use serde::{Serialize, Serializer};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de;
+use serde_json;
 use serde_json::map::Map;
 use serde_json::value::{Value, ToJson};
 
@@ -13,7 +18,8 @@ use serde_json::value::{Value, ToJson};
 pub enum DuplicateKeysBehaviour {
     /// Raise an error when a duplicate key is encountered
     RaiseError,
-    /// Overwrite the keys encountered earlier with the ones encountered later
+    /// Overwrite the keys encountered earlier with the ones encountered later. If the types of the values of the
+    /// duplicated keys differ, this type will probably fail deserialization
     Overwrite,
 }
 
@@ -24,9 +30,9 @@ pub trait FlattenSerializable {
     fn yield_children(&self) -> Vec<Box<&ToJson>>;
 
     /// The behaviour the serializer should adopt when encountering duplicate keys. The default implementation
-    /// is to overwrite.
+    /// is to raise errors.
     fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
-        DuplicateKeysBehaviour::Overwrite
+        DuplicateKeysBehaviour::RaiseError
     }
 }
 
@@ -95,48 +101,34 @@ impl Serialize for FlattenSerializable {
     }
 }
 
-// impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//         where D: Deserializer
-//     {
-//         use serde::de::Error;
-//         use serde_json::value::{from_value, Value};
-//         use serde_json::map::Map;
+pub trait FromJson {
+    fn from_json(value: Value) -> Result<Self, serde_json::error::Error> where Self: Sized;
+}
 
-//         // Deserialize the whole thing into a JSON Value
-//         let value: Value = Deserialize::deserialize(deserializer)?;
-//         // ... which should be of the Object variant containing a Map
-//         let mut map = match value {
-//             Value::Object(map) => map,
-//             others => Err(D::Error::custom(format!("Expected a map, got {:?}", others)))?,
-//         };
+impl<T> FromJson for T
+    where T: Deserialize
+{
+    fn from_json(value: Value) -> Result<T, serde_json::error::Error> {
+        serde_json::value::from_value(value)
+    }
+}
 
-//         // Let's extract the registered claims from the object
-//         let mut registered = Map::with_capacity(REGISTERED_CLAIMS.len());
-//         for claim in REGISTERED_CLAIMS.iter() {
-//             match map.remove(*claim) {
-//                 Some(value) => {
-//                     registered.insert(claim.to_string(), value);
-//                 }
-//                 None => {
-//                     registered.insert(claim.to_string(), Value::Null);
-//                 }
-//             }
-//         }
+macro_rules! impl_flatten_deserialize {
+    ($t:ty, $( $child:ident ),*) => {
+        impl Deserialize for $t {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where D: Deserializer
+            {
+                use serde::de::Error;
 
-//         // Deserialize the two parts separately
-//         let registered: RegisteredClaims =
-//             from_value(Value::Object(registered))
-//                 .map_err(|e| D::Error::custom(format!("Error deserializing registered claims: {}", e)))?;
-//         let private: T = from_value(Value::Object(map))
-//             .map_err(|e| D::Error::custom(format!("Error deserializing private claims: {}", e)))?;
-
-//         Ok(ClaimsSet {
-//                registered: registered,
-//                private: private,
-//            })
-//     }
-// }
+                let value: Value = Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    $( $child: serde_json::from_value(value.clone()).map_err(D::Error::custom)? ),*
+                })
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -166,6 +158,7 @@ mod tests {
         i: bool,
     }
 
+    /// Will not serialize (and certainly not deserialize) due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct OuterNoDuplicates {
         one: InnerOne,
@@ -175,16 +168,11 @@ mod tests {
 
     impl FlattenSerializable for OuterNoDuplicates {
         fn yield_children(&self) -> Vec<Box<&ToJson>> {
-            vec![Box::<&ToJson>::new(&self.one),
-                 Box::<&ToJson>::new(&self.two),
-                 Box::<&ToJson>::new(&self.three)]
-        }
-
-        fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
-            DuplicateKeysBehaviour::RaiseError
+            vec![Box::<&ToJson>::new(&self.one), Box::<&ToJson>::new(&self.two), Box::<&ToJson>::new(&self.three)]
         }
     }
 
+    /// Will not deserialize due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct OuterOverwrite {
         one: InnerOne,
@@ -194,11 +182,15 @@ mod tests {
 
     impl FlattenSerializable for OuterOverwrite {
         fn yield_children(&self) -> Vec<Box<&ToJson>> {
-            vec![Box::<&ToJson>::new(&self.one),
-                 Box::<&ToJson>::new(&self.two),
-                 Box::<&ToJson>::new(&self.three)]
+            vec![Box::<&ToJson>::new(&self.one), Box::<&ToJson>::new(&self.two), Box::<&ToJson>::new(&self.three)]
+        }
+
+        fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
+            DuplicateKeysBehaviour::Overwrite
         }
     }
+
+    impl_flatten_deserialize!(OuterOverwrite, one, two, three);
 
     #[test]
     fn pairwise_intersection_for_one() {
@@ -238,7 +230,8 @@ mod tests {
     /// Intersecting element is not in the shortest set
     #[test]
     fn pairwise_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
+        let sets: Vec<HashSet<i32>> =
+            vec![[1, 2, 3].iter().cloned().collect(),
                                            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
                                            [11, 12, 13, 14].iter().cloned().collect(),
                                            [15, 16, 17].iter().cloned().collect(),
@@ -248,7 +241,8 @@ mod tests {
 
     #[test]
     fn pairwise_non_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
+        let sets: Vec<HashSet<i32>> =
+            vec![[1, 2, 3].iter().cloned().collect(),
                                            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
                                            [11, 12, 13, 14].iter().cloned().collect(),
                                            [15, 16, 17].iter().cloned().collect(),
@@ -264,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    fn serialization_test() {
+    fn serialization_overwrite_test() {
         let test_value = OuterOverwrite::default();
         let serialized = not_err!(serde_json::to_string_pretty(&test_value as &FlattenSerializable));
 
