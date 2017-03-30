@@ -122,7 +122,6 @@ impl Serialize for KeyOperations {
     }
 }
 
-
 impl Deserialize for KeyOperations {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where D: Deserializer
@@ -622,8 +621,7 @@ mod tests {
   "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
 }"#;
 
-        let serialized = not_err!(serde_json::to_string_pretty(&test_value));
-        assert_eq!(expected_json, serialized);
+        assert_serde_json(&test_value, Some(&expected_json));
 
         let deserialized: JWK<::Empty> = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test_value);
