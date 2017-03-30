@@ -1,4 +1,6 @@
-//! Related to the JWS RFC, including JWT signing and headers
+//! JSON Web Signatures, including JWT signing and headers
+//!
+//! Defined in [RFC 7515](https://tools.ietf.org/html/rfc7515)
 use std::default::Default;
 use std::sync::Arc;
 
