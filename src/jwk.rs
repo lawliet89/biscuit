@@ -623,7 +623,5 @@ mod tests {
 
         assert_serde_json(&test_value, Some(&expected_json));
 
-        let deserialized: JWK<::Empty> = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test_value);
     }
 }
