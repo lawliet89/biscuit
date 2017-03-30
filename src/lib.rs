@@ -22,7 +22,7 @@
 //! ```
 //!
 //! See [`JWT`] for usage examples.
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -57,6 +57,7 @@ pub use url::{Url, ParseError};
 #[macro_use]
 mod test;
 
+#[macro_use]
 pub mod serde_custom;
 pub mod errors;
 pub mod jwa;

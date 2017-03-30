@@ -1,15 +1,75 @@
 //! A "flattened" serializer and deserializer.
 //!
-//! This serializer will take a struct, and then flatten all its first-level children.
+//! This serializer will take a struct, and then flatten all its first-level children. The implementation makes use
+//! of some macros to enable implementation
+//!
+//! # Examples
+//! ```
+//! #[macro_use]
+//! extern crate biscuit;
+//! extern crate serde;
+//! extern crate serde_json;
+//! #[macro_use]
+//! extern crate serde_derive;
+//!
+//! use std::default::Default;
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerOne {
+//!     a: i32,
+//!     b: i32,
+//!     c: i32,
+//!     d: InnerTwo,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerTwo {
+//!     a: bool,
+//!     e: bool,
+//!     f: u32,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerThree {
+//!     g: bool,
+//!     h: bool,
+//!     i: bool,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Default)]
+//! struct Outer {
+//!     one: InnerOne,
+//!     three: InnerThree
+//! }
+//!
+//! impl_flatten_serde!(Outer, biscuit::serde_custom::flatten::DuplicateKeysBehaviour::Overwrite, one, three);
+//!
+//! # fn main() {
+//! let test_value = Outer::default();
+//! let expected_json = r#"{
+//!   "a": 0,
+//!   "b": 0,
+//!   "c": 0,
+//!   "d": {
+//!     "a": false,
+//!     "e": false,
+//!     "f": 0
+//!   },
+//!   "g": false,
+//!   "h": false,
+//!   "i": false
+//! }"#;
+//! let serialized = serde_json::to_string_pretty(&test_value).unwrap();
+//! assert_eq!(expected_json, serialized);
+//!
+//! let deserialized: Outer = serde_json::from_str(&serialized).unwrap();
+//! assert_eq!(deserialized, test_value);
+//! # }
+//! ```
 use std::collections::HashSet;
-use std::default::Default;
-use std::fmt;
 use std::hash::Hash;
-use std::marker::PhantomData;
 
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de;
-use serde_json;
+use serde::{Serialize, Serializer};
 use serde_json::map::Map;
 use serde_json::value::{Value, ToJson};
 
@@ -101,27 +161,53 @@ impl Serialize for FlattenSerializable {
     }
 }
 
-pub trait FromJson {
-    fn from_json(value: Value) -> Result<Self, serde_json::error::Error> where Self: Sized;
+/// Implement flatten serialization for a struct.
+/// Due to the way the type system is set up, we cannot do a blanket
+/// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
+/// The first parameter is the type of the struct you want to implement for, followed by `DuplicateKeysBehaviour`,
+/// followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+// TODO: Procedural macro
+#[macro_export]
+macro_rules! impl_flatten_serialize {
+    ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        impl $crate::serde_custom::flatten::FlattenSerializable for $t {
+            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
+                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+            }
+
+            fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
+                $behaviour
+            }
+        }
+
+        impl serde::Serialize for $t {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: serde::Serializer
+            {
+                let flatten = self as &$crate::serde_custom::flatten::FlattenSerializable;
+                flatten.serialize(serializer)
+            }
+        }
+    };
 }
 
-impl<T> FromJson for T
-    where T: Deserialize
-{
-    fn from_json(value: Value) -> Result<T, serde_json::error::Error> {
-        serde_json::value::from_value(value)
-    }
-}
-
+/// Implement flatten deserialization for a struct.
+/// Due to the way the type system is set up, there is no way to define a trait and then have an automatic
+/// implementation of the trait.
+/// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+// TODO: Procedural macro
+#[macro_export]
 macro_rules! impl_flatten_deserialize {
     ($t:ty, $( $child:ident ),*) => {
-        impl Deserialize for $t {
+        impl serde::Deserialize for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where D: Deserializer
+                where D: serde::Deserializer
             {
                 use serde::de::Error;
 
-                let value: Value = Deserialize::deserialize(deserializer)?;
+                let value: serde_json::value::Value = serde::Deserialize::deserialize(deserializer)?;
                 Ok(Self {
                     $( $child: serde_json::from_value(value.clone()).map_err(D::Error::custom)? ),*
                 })
@@ -130,8 +216,23 @@ macro_rules! impl_flatten_deserialize {
     }
 }
 
+/// Implement flatten serde for a struct.
+/// Due to the way the type system is set up, we cannot do a blanket
+/// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
+/// Neither can we do the same for deserialization.
+/// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+#[macro_export]
+macro_rules! impl_flatten_serde {
+    ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        impl_flatten_serialize!($t, $behaviour, $( $child ),*);
+        impl_flatten_deserialize!($t, $( $child ),*);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use serde;
     use serde_json;
 
     use super::*;
@@ -166,11 +267,7 @@ mod tests {
         three: InnerThree,
     }
 
-    impl FlattenSerializable for OuterNoDuplicates {
-        fn yield_children(&self) -> Vec<Box<&ToJson>> {
-            vec![Box::<&ToJson>::new(&self.one), Box::<&ToJson>::new(&self.two), Box::<&ToJson>::new(&self.three)]
-        }
-    }
+    impl_flatten_serde!(OuterNoDuplicates, DuplicateKeysBehaviour::RaiseError, one, two, three);
 
     /// Will not deserialize due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
@@ -180,17 +277,15 @@ mod tests {
         three: InnerThree,
     }
 
-    impl FlattenSerializable for OuterOverwrite {
-        fn yield_children(&self) -> Vec<Box<&ToJson>> {
-            vec![Box::<&ToJson>::new(&self.one), Box::<&ToJson>::new(&self.two), Box::<&ToJson>::new(&self.three)]
-        }
+    impl_flatten_serde!(OuterOverwrite, DuplicateKeysBehaviour::Overwrite, one, two, three);
 
-        fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
-            DuplicateKeysBehaviour::Overwrite
-        }
+    #[derive(Eq, PartialEq, Debug, Clone, Default)]
+    struct Outer {
+        one: InnerOne,
+        three: InnerThree
     }
 
-    impl_flatten_deserialize!(OuterOverwrite, one, two, three);
+    impl_flatten_serde!(Outer, DuplicateKeysBehaviour::Overwrite, one, three);
 
     #[test]
     fn pairwise_intersection_for_one() {
@@ -260,7 +355,7 @@ mod tests {
     #[test]
     fn serialization_overwrite_test() {
         let test_value = OuterOverwrite::default();
-        let serialized = not_err!(serde_json::to_string_pretty(&test_value as &FlattenSerializable));
+        let serialized = not_err!(serde_json::to_string_pretty(&test_value));
 
         let expected_json = r#"{
   "b": 0,
@@ -281,8 +376,10 @@ mod tests {
     }
 
     #[test]
-    fn deserialization_test() {
-        let test_json = r#"{
+    fn serde_json() {
+        let test_value = Outer::default();
+        let expected_json = r#"{
+  "a": 0,
   "b": 0,
   "c": 0,
   "d": {
@@ -290,14 +387,14 @@ mod tests {
     "e": false,
     "f": 0
   },
-  "a": false,
-  "e": false,
-  "f": 0,
   "g": false,
   "h": false,
   "i": false
 }"#;
+        let serialized = not_err!(serde_json::to_string_pretty(&test_value));
+        assert_eq!(expected_json, serialized);
 
-        let deserialized: InnerThree = not_err!(serde_json::from_str(&test_json));
+        let deserialized: Outer = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test_value);
     }
 }
