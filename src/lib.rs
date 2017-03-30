@@ -22,7 +22,7 @@
 //! ```
 //!
 //! See [`JWT`] for usage examples.
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
