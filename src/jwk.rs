@@ -22,7 +22,7 @@ pub enum KeyType {
     Octect,
 }
 
-/// The intended usage of the public KeyType. This enum is serialized `untagged`
+/// The intended usage of the public `KeyType`. This enum is serialized `untagged`
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PublicKeyUse {
@@ -231,7 +231,7 @@ pub enum AlgorithmParameters {
 /// MUST be omitted.  When three or more primes have been used, the
 /// number of array elements MUST be the number of primes used minus two.
 /// For more information on this case, see the description of the
-/// OtherPrimeInfo parameters in [Appendix A.1.2 of RFC 3447](https://tools.ietf.org/html/rfc3447#appendix-A.1.2),
+/// `OtherPrimeInfo` parameters in [Appendix A.1.2 of RFC 3447](https://tools.ietf.org/html/rfc3447#appendix-A.1.2),
 /// upon which the following parameters are modeled.  If the consumer of
 /// a JWK does not support private keys with more than two primes and it
 /// encounters a private key that includes the "oth" parameter, then it
