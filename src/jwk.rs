@@ -421,10 +421,12 @@ pub struct JWKSet<T: Serialize + Deserialize + 'static> {
 #[cfg(test)]
 mod tests {
     use std::default::Default;
-    use serde_json;
+    use std::str;
+
     use serde_test::{Token, assert_tokens};
 
     use super::*;
+    use jwa;
     use test::assert_serde_json;
 
     #[test]
@@ -622,6 +624,59 @@ mod tests {
 }"#;
 
         assert_serde_json(&test_value, Some(&expected_json));
+    }
 
+    /// Example public key set
+    #[test]
+    fn jwk_set_public_key_serde_test() {
+        let test_value: JWKSet<::Empty> = JWKSet {
+            keys: vec![
+                JWK {
+                    common: CommonParameters {
+                        public_key_use: Some(PublicKeyUse::Encryption),
+                        key_operations: None,
+                        algorithm: None,
+                        key_id: Some("1".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::EllipticCurve {
+                        key_type: Default::default(),
+                        curve: EllipticCurve::P256,
+                        x: vec![48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231,
+                                110, 162, 13, 159, 0, 137, 58, 59, 78, 238, 138, 60, 10, 175, 236, 62],
+                        y: vec![224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189, 251, 213,
+                                30, 232, 105, 239, 31, 15, 198, 91, 102, 89, 105, 91, 108, 206, 8, 23, 35],
+                        d: None },
+                    additional: Default::default()
+                },
+
+                JWK {
+                    common: CommonParameters {
+                        algorithm: Some(Algorithm::Signature(jwa::SignatureAlgorithm::RS256)),
+                        key_id: Some("2011-04-29".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::RSAPublicKey {
+                        key_type: Default::default(),
+                        n: BigUint::new(vec![2661337731, 446995658, 1209332140, 183172752, 955894533,
+                                            3140848734, 581365968, 3217299938, 3520742369, 1559833632, 1548159735,
+                                            2303031139, 1726816051, 92775838, 37272772, 1817499268, 2876656510,
+                                            1328166076, 2779910671,4258539214, 2834014041, 3172137349, 4008354576,
+                                            121660540, 1941402830, 1620936445, 993798294, 47616683, 272681116,
+                                            983097263, 225284287, 3494334405, 4005126248, 1126447551, 2189379704,
+                                            4098746126, 3730484719, 3232696701, 2583545877, 428738419,
+                                            2533069420, 2922211325, 2227907999, 4154608099, 679827337, 1165541732,
+                                            2407118218, 3485541440, 799756961, 1854157941, 3062830172, 3270332715,
+                                            1431293619, 3068067851, 2238478449, 2704523019, 2826966453, 1548381401,
+                                            3719104923, 2605577849, 2293389158, 273345423, 169765991, 3539762026]),
+                        e: BigUint::new(vec![65537]),
+                    },
+                    additional: Default::default()
+                }
+            ],
+        };
+
+        let expected_json = str::from_utf8(include_bytes!("../test/fixtures/jwk_public_key.json")).unwrap();
+        assert_serde_json(&test_value, Some(&expected_json));
     }
 }
