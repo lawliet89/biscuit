@@ -219,8 +219,8 @@ mod tests {
         assert_eq!(expected_signature, actual_signature);
 
         let valid = not_err!(SignatureAlgorithm::None.verify(vec![].as_slice(),
-                                                    "payload".to_string().as_bytes(),
-                                                    Secret::None));
+                                                             "payload".to_string().as_bytes(),
+                                                             Secret::None));
         assert!(valid);
     }
 
@@ -229,13 +229,14 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
 
-        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
-                                                              Secret::bytes_from_str("secret")));
+        let actual_signature =
+            not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
+                                                                       Secret::bytes_from_str("secret")));
         assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
 
         let valid = not_err!(SignatureAlgorithm::HS256.verify(expected_bytes.as_slice(),
-                                                     "payload".to_string().as_bytes(),
-                                                     Secret::bytes_from_str("secret")));
+                                                              "payload".to_string().as_bytes(),
+                                                              Secret::bytes_from_str("secret")));
         assert!(valid);
     }
 
@@ -264,8 +265,8 @@ mod tests {
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(),
-                                                     payload_bytes,
-                                                     public_key));
+                                                              payload_bytes,
+                                                              public_key));
         assert!(valid);
     }
 
@@ -368,8 +369,8 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(SignatureAlgorithm::None.verify(signature_bytes,
-                                                    "payload".to_string().as_bytes(),
-                                                    Secret::None));
+                                                             "payload".to_string().as_bytes(),
+                                                             Secret::None));
         assert!(!valid);
     }
 
@@ -377,9 +378,10 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
-                                                     "payload".to_string().as_bytes(),
-                                                     Secret::Bytes("secret".to_string().into_bytes())));
+        let valid =
+            not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
+                                                              "payload".to_string().as_bytes(),
+                                                              Secret::Bytes("secret".to_string().into_bytes())));
         assert!(!valid);
     }
 
@@ -389,8 +391,8 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(SignatureAlgorithm::RS256.verify(signature_bytes,
-                                                     "payload".to_string().as_bytes(),
-                                                     public_key));
+                                                              "payload".to_string().as_bytes(),
+                                                              public_key));
         assert!(!valid);
     }
 
@@ -400,8 +402,8 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(SignatureAlgorithm::PS256.verify(signature_bytes,
-                                                     "payload".to_string().as_bytes(),
-                                                     public_key));
+                                                              "payload".to_string().as_bytes(),
+                                                              public_key));
         assert!(!valid);
     }
 
@@ -411,8 +413,8 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes,
-                                                     "payload".to_string().as_bytes(),
-                                                     public_key));
+                                                              "payload".to_string().as_bytes(),
+                                                              public_key));
         assert!(!valid);
     }
 }

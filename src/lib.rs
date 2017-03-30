@@ -27,6 +27,7 @@
 
 extern crate chrono;
 extern crate data_encoding;
+extern crate num;
 extern crate ring;
 extern crate serde;
 #[macro_use]
@@ -34,6 +35,9 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate untrusted;
 extern crate url;
+
+#[cfg(test)]
+extern crate serde_test;
 
 use std::borrow::Borrow;
 use std::convert::{From, Into};
@@ -45,13 +49,15 @@ use chrono::{DateTime, UTC, NaiveDateTime};
 use data_encoding::base64url;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de;
-use serde_json::value;
 
 pub use url::{Url, ParseError};
 
 #[cfg(test)]
 #[macro_use]
 mod test;
+
+#[macro_use]
+pub mod serde_custom;
 pub mod errors;
 pub mod jwa;
 pub mod jws;
@@ -398,9 +404,6 @@ impl Deserialize for StringOrUri {
     }
 }
 
-/// List of registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
-static REGISTERED_CLAIMS: &'static [&'static str] = &["iss", "sub", "aud", "exp", "nbf", "iat", "jti"];
-
 /// Wrapper around `DateTime<UTC>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<UTC>);
@@ -581,81 +584,36 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
     pub private: T,
 }
 
-impl<T: Serialize + Deserialize> Serialize for ClaimsSet<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        use serde::ser::Error;
-
-        // A "hack" to combine two structs into one serialized JSON
-        // First, we serialize each of them into JSON Value enum
-        let registered = value::to_value(&self.registered).map_err(S::Error::custom)?;
-        let private = value::to_value(&self.private).map_err(S::Error::custom)?;
-
-        // Extract the Maps out
-        let mut registered = match registered {
-            value::Value::Object(map) => map,
-            _ => unreachable!("RegisteredClaims needs to be a struct"),
-        };
-        let private = match private {
-            value::Value::Object(map) => map,
-            _ => Err(S::Error::custom("Private Claims type is not a struct"))?,
-        };
-
-        // Merge the Maps
-        for (key, value) in private {
-            if REGISTERED_CLAIMS.iter().any(|claim| *claim == key) {
-                Err(S::Error::custom(format!("Private claims has registered claim `{}`", key)))?
-            }
-            if registered.insert(key.clone(), value).is_some() {
-                unreachable!("Should have been caught above!");
-            }
-        }
-
-        registered.serialize(serializer)
+impl<T> serde_custom::flatten::FlattenSerializable for ClaimsSet<T>
+    where T: Serialize + Deserialize
+{
+    fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
+        vec![Box::<&serde_json::value::ToJson>::new(&self.registered),
+             Box::<&serde_json::value::ToJson>::new(&self.private)]
     }
 }
 
-impl<T: Serialize + Deserialize> Deserialize for ClaimsSet<T> {
+impl<T> Deserialize for ClaimsSet<T> where T: Serialize + Deserialize {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: serde::Deserializer
     {
         use serde::de::Error;
-        use serde_json::value::{from_value, Value};
-        use serde_json::map::Map;
 
-        // Deserialize the whole thing into a JSON Value
-        let value: Value = Deserialize::deserialize(deserializer)?;
-        // ... which should be of the Object variant containing a Map
-        let mut map = match value {
-            Value::Object(map) => map,
-            others => Err(D::Error::custom(format!("Expected a map, got {:?}", others)))?,
-        };
+        let value: serde_json::value::Value = serde::Deserialize::deserialize(deserializer)?;
+        Ok(Self {
+            registered: serde_json::from_value(value.clone()).map_err(D::Error::custom)?,
+            private: serde_json::from_value(value.clone()).map_err(D::Error::custom)?,
+        })
+    }
+}
 
-        // Let's extract the registered claims from the object
-        let mut registered = Map::with_capacity(REGISTERED_CLAIMS.len());
-        for claim in REGISTERED_CLAIMS.iter() {
-            match map.remove(*claim) {
-                Some(value) => {
-                    registered.insert(claim.to_string(), value);
-                }
-                None => {
-                    registered.insert(claim.to_string(), Value::Null);
-                }
-            }
-        }
-
-        // Deserialize the two parts separately
-        let registered: RegisteredClaims =
-            from_value(Value::Object(registered))
-                .map_err(|e| D::Error::custom(format!("Error deserializing registered claims: {}", e)))?;
-        let private: T = from_value(Value::Object(map))
-            .map_err(|e| D::Error::custom(format!("Error deserializing private claims: {}", e)))?;
-
-        Ok(ClaimsSet {
-               registered: registered,
-               private: private,
-           })
+impl<T> Serialize for ClaimsSet<T>
+    where T: Serialize + Deserialize + 'static
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: serde::Serializer
+    {
+        serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
     }
 }
 
@@ -670,19 +628,17 @@ impl<T> Clone for ClaimsSet<T>
     }
 }
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize {}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize + 'static {}
 
 #[cfg(test)]
 mod tests {
-    extern crate serde_test;
-
     use std::default::Default;
     use std::str::{self, FromStr};
     use std::time::Duration;
 
     use chrono::{UTC, TimeZone};
     use serde_json;
-    use self::serde_test::{Token, assert_tokens, assert_ser_tokens_error};
+    use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
     use super::*;
 
@@ -959,7 +915,7 @@ mod tests {
 
         assert_ser_tokens_error(&claim,
                                 &[],
-                                serde_test::Error::Message("Private claims has registered claim `sub`".to_string()));
+                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
     }
 
     #[test]
@@ -990,7 +946,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Private claims has registered claim `sub`")]
+    #[should_panic(expected = "Structs have duplicate keys")]
     fn invalid_private_claims_will_fail_to_serialize() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
