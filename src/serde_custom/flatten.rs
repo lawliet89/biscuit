@@ -185,8 +185,7 @@ macro_rules! impl_flatten_serialize {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
-                let flatten = self as &$crate::serde_custom::flatten::FlattenSerializable;
-                flatten.serialize(serializer)
+                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
             }
         }
     };
@@ -234,6 +233,7 @@ macro_rules! impl_flatten_serde {
 mod tests {
     use serde;
     use serde_json;
+    use serde_test::{self, Token, assert_tokens, assert_ser_tokens_error};
 
     use super::*;
 
@@ -282,7 +282,7 @@ mod tests {
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct Outer {
         one: InnerOne,
-        three: InnerThree
+        three: InnerThree,
     }
 
     impl_flatten_serde!(Outer, DuplicateKeysBehaviour::Overwrite, one, three);
@@ -396,5 +396,63 @@ mod tests {
 
         let deserialized: Outer = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test_value);
+    }
+
+    #[test]
+    fn serde_tokens() {
+        let test_value = Outer::default();
+
+        assert_tokens(&test_value,
+                      &[Token::MapStart(Some(7)),
+                        Token::MapSep,
+                        Token::Str("a"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("b"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("c"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("d"),
+
+                        // InnerTwo map
+                        Token::MapStart(Some(3)),
+                        Token::MapSep,
+                        Token::Str("a"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("e"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("f"),
+                        Token::U64(0),
+                        Token::MapEnd,
+                        // End InnerTwo map
+                        Token::MapSep,
+                        Token::Str("g"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("h"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("i"),
+                        Token::Bool(false),
+                        Token::MapEnd]);
+    }
+
+    #[test]
+    fn duplicate_keys_serialization_token_error() {
+        let test_value = OuterNoDuplicates::default();
+        assert_ser_tokens_error(&test_value,
+                                &[],
+                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
     }
 }
