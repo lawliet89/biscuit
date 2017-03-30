@@ -1,4 +1,4 @@
-//! Serialize or deserialize an Option<Vec<u8>>
+//! Serialize or deserialize an `Option<Vec<u8>>`
 use std::fmt;
 
 use data_encoding::base64url;
