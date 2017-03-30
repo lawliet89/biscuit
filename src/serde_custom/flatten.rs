@@ -4,6 +4,8 @@
 //! of some macros to enable implementation
 //!
 //! # Examples
+//! ## Non-generic
+//!
 //! ```
 //! #[macro_use]
 //! extern crate biscuit;
@@ -63,6 +65,73 @@
 //! assert_eq!(expected_json, serialized);
 //!
 //! let deserialized: Outer = serde_json::from_str(&serialized).unwrap();
+//! assert_eq!(deserialized, test_value);
+//! # }
+//! ```
+//!
+//! # Generics
+//!
+//! ```
+//! #[macro_use]
+//! extern crate biscuit;
+//! extern crate serde;
+//! extern crate serde_json;
+//! #[macro_use]
+//! extern crate serde_derive;
+//!
+//! use std::default::Default;
+//! use serde::{Serialize, Deserialize};
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerOne {
+//!     a: i32,
+//!     b: i32,
+//!     c: i32,
+//!     d: InnerTwo,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerTwo {
+//!     a: bool,
+//!     e: bool,
+//!     f: u32,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
+//! struct InnerThree {
+//!     g: bool,
+//!     h: bool,
+//!     i: bool,
+//! }
+//!
+//! #[derive(Eq, PartialEq, Debug, Clone, Default)]
+//! struct Outer<T: Serialize + Deserialize> {
+//!     one: InnerOne,
+//!     generic: T
+//! }
+//!
+//! impl_flatten_serde_generic!(Outer<T>, biscuit::serde_custom::flatten::DuplicateKeysBehaviour::Overwrite,
+//!                             one, generic);
+//!
+//! # fn main() {
+//! let test_value = Outer::<InnerThree>::default();
+//! let expected_json = r#"{
+//!   "a": 0,
+//!   "b": 0,
+//!   "c": 0,
+//!   "d": {
+//!     "a": false,
+//!     "e": false,
+//!     "f": 0
+//!   },
+//!   "g": false,
+//!   "h": false,
+//!   "i": false
+//! }"#;
+//! let serialized = serde_json::to_string_pretty(&test_value).unwrap();
+//! assert_eq!(expected_json, serialized);
+//!
+//! let deserialized: Outer<InnerThree> = serde_json::from_str(&serialized).unwrap();
 //! assert_eq!(deserialized, test_value);
 //! # }
 //! ```
@@ -229,9 +298,77 @@ macro_rules! impl_flatten_serde {
     }
 }
 
+/// Implement flatten serialization for a struct with a generic type `T: Serialize + Deserialize`.
+/// Due to the way the type system is set up, we cannot do a blanket
+/// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
+/// The first parameter is the type of the struct you want to implement for, followed by `DuplicateKeysBehaviour`,
+/// followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+// TODO: Procedural macro
+#[macro_export]
+macro_rules! impl_flatten_serialize_generic {
+    ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        impl<T: Serialize + Deserialize + 'static> $crate::serde_custom::flatten::FlattenSerializable for $t {
+            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
+                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+            }
+
+            fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
+                $behaviour
+            }
+        }
+
+        impl<T: Serialize + Deserialize + 'static> serde::Serialize for $t {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where S: serde::Serializer
+            {
+                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
+            }
+        }
+    };
+}
+
+/// Implement flatten deserialization for a struct with a generic type `T: Serialize + Deserialize`.
+/// Due to the way the type system is set up, there is no way to define a trait and then have an automatic
+/// implementation of the trait.
+/// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+// TODO: Procedural macro
+#[macro_export]
+macro_rules! impl_flatten_deserialize_generic {
+    ($t:ty, $( $child:ident ),*) => {
+        impl<T: Serialize + Deserialize> serde::Deserialize for $t {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where D: serde::Deserializer
+            {
+                use serde::de::Error;
+
+                let value: serde_json::value::Value = serde::Deserialize::deserialize(deserializer)?;
+                Ok(Self {
+                    $( $child: serde_json::from_value(value.clone()).map_err(D::Error::custom)? ),*
+                })
+            }
+        }
+    }
+}
+
+/// Implement flatten serde for a struct with a generic type `T: Serialize + Deserialize`.
+/// Due to the way the type system is set up, we cannot do a blanket
+/// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
+/// Neither can we do the same for deserialization.
+/// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
+/// See module level documentation for `serde_custom::flatten`.
+#[macro_export]
+macro_rules! impl_flatten_serde_generic {
+    ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        impl_flatten_serialize_generic!($t, $behaviour, $( $child ),*);
+        impl_flatten_deserialize_generic!($t, $( $child ),*);
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use serde;
+    use serde::{self, Serialize, Deserialize};
     use serde_json;
     use serde_test::{self, Token, assert_tokens, assert_ser_tokens_error};
 
@@ -285,7 +422,16 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(Outer, DuplicateKeysBehaviour::Overwrite, one, three);
+    impl_flatten_serde!(Outer, DuplicateKeysBehaviour::RaiseError, one, three);
+
+    #[derive(Eq, PartialEq, Debug, Clone, Default)]
+    struct OuterGeneric<T: Serialize + Deserialize> {
+        one: InnerOne,
+        generic: T,
+    }
+
+    impl_flatten_serde_generic!(OuterGeneric<T>, DuplicateKeysBehaviour::RaiseError, one, generic);
+
 
     #[test]
     fn pairwise_intersection_for_one() {
@@ -350,6 +496,14 @@ mod tests {
     fn errors_on_duplicate_keys() {
         let test_value = OuterNoDuplicates::default();
         serde_json::to_string(&test_value as &FlattenSerializable).unwrap();
+    }
+
+    #[test]
+    fn duplicate_keys_serialization_token_error() {
+        let test_value = OuterNoDuplicates::default();
+        assert_ser_tokens_error(&test_value,
+                                &[],
+                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
     }
 
     #[test]
@@ -449,10 +603,75 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_keys_serialization_token_error() {
-        let test_value = OuterNoDuplicates::default();
-        assert_ser_tokens_error(&test_value,
-                                &[],
-                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
+    fn serde_json_generic() {
+        let test_value = OuterGeneric::<InnerThree>::default();
+        let expected_json = r#"{
+  "a": 0,
+  "b": 0,
+  "c": 0,
+  "d": {
+    "a": false,
+    "e": false,
+    "f": 0
+  },
+  "g": false,
+  "h": false,
+  "i": false
+}"#;
+        let serialized = not_err!(serde_json::to_string_pretty(&test_value));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: OuterGeneric<InnerThree> = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(deserialized, test_value);
+    }
+
+    #[test]
+    fn serde_tokens_generic() {
+        let test_value = OuterGeneric::<InnerThree>::default();
+
+        assert_tokens(&test_value,
+                      &[Token::MapStart(Some(7)),
+                        Token::MapSep,
+                        Token::Str("a"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("b"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("c"),
+                        Token::U64(0),
+
+                        Token::MapSep,
+                        Token::Str("d"),
+
+                        // InnerTwo map
+                        Token::MapStart(Some(3)),
+                        Token::MapSep,
+                        Token::Str("a"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("e"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("f"),
+                        Token::U64(0),
+                        Token::MapEnd,
+                        // End InnerTwo map
+                        Token::MapSep,
+                        Token::Str("g"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("h"),
+                        Token::Bool(false),
+
+                        Token::MapSep,
+                        Token::Str("i"),
+                        Token::Bool(false),
+                        Token::MapEnd]);
     }
 }

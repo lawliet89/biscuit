@@ -584,38 +584,8 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
     pub private: T,
 }
 
-impl<T> serde_custom::flatten::FlattenSerializable for ClaimsSet<T>
-    where T: Serialize + Deserialize
-{
-    fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
-        vec![Box::<&serde_json::value::ToJson>::new(&self.registered),
-             Box::<&serde_json::value::ToJson>::new(&self.private)]
-    }
-}
-
-impl<T> Deserialize for ClaimsSet<T> where T: Serialize + Deserialize {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: serde::Deserializer
-    {
-        use serde::de::Error;
-
-        let value: serde_json::value::Value = serde::Deserialize::deserialize(deserializer)?;
-        Ok(Self {
-            registered: serde_json::from_value(value.clone()).map_err(D::Error::custom)?,
-            private: serde_json::from_value(value.clone()).map_err(D::Error::custom)?,
-        })
-    }
-}
-
-impl<T> Serialize for ClaimsSet<T>
-    where T: Serialize + Deserialize + 'static
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: serde::Serializer
-    {
-        serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
-    }
-}
+impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+                            registered, private);
 
 impl<T> Clone for ClaimsSet<T>
     where T: Serialize + Deserialize + Clone
