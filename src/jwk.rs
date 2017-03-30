@@ -2,9 +2,11 @@
 //!
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
 use std::default::Default;
+use std::fmt;
 
 use num::BigUint;
-use serde::{self, Serialize, Deserialize};
+use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
+use serde::de;
 use serde_json;
 
 use serde_custom;
@@ -23,57 +25,135 @@ pub enum KeyType {
 }
 
 /// The intended usage of the public `KeyType`. This enum is serialized `untagged`
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum PublicKeyUse {
     /// Indicates a public key is meant for signature verification
-    #[serde(rename = "sig")]
     Signature,
     /// Indicates a public key is meant for encryption
-    #[serde(rename = "enc")]
     Encryption,
     /// Other usage
     Other(String),
 }
 
+impl Serialize for PublicKeyUse {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+
+        let string = match *self {
+            PublicKeyUse::Signature => "sig",
+            PublicKeyUse::Encryption => "enc",
+            PublicKeyUse::Other(ref other) => other,
+        };
+
+        serializer.serialize_str(string)
+    }
+}
+
+impl Deserialize for PublicKeyUse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+
+        struct PublicKeyUseVisitor;
+        impl de::Visitor for PublicKeyUseVisitor {
+            type Value = PublicKeyUse;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                write!(formatter, "a string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                Ok(match v {
+                       "sig" => PublicKeyUse::Signature,
+                       "enc" => PublicKeyUse::Encryption,
+                       other => PublicKeyUse::Other(other.to_string()),
+                   })
+            }
+        }
+
+        deserializer.deserialize_string(PublicKeyUseVisitor)
+    }
+}
+
 /// Operations that the key is intended to be used for. This enum is serialized `untagged`
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum KeyOperations {
     /// Computer digitial signature or MAC
-    #[serde(rename = "sign")]
     Sign,
-
     /// Verify digital signature or MAC
-    #[serde(rename = "verify")]
     Verify,
-
     /// Encrypt content
-    #[serde(rename = "encrypt")]
     Encrypt,
-
     /// Decrypt content and validate decryption, if applicable
-    #[serde(rename = "decrypt")]
     Decrypt,
-
     /// Encrypt key
-    #[serde(rename = "wrapKey")]
     WrapKey,
-
     /// Decrypt key and validate decryption, if applicable
-    #[serde(rename = "unwrapKey")]
     UnwrapKey,
-
     /// Derive key
-    #[serde(rename = "deriveKey")]
     DeriveKey,
-
     /// Derive bits not to be used as a key
-    #[serde(rename = "deriveBits")]
     DeriveBits,
-
     /// Other operation
     Other(String),
+}
+
+impl Serialize for KeyOperations {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+
+        let string = match *self {
+            KeyOperations::Sign => "sign",
+            KeyOperations::Verify => "verify",
+            KeyOperations::Encrypt => "encrypt",
+            KeyOperations::Decrypt => "decrypt",
+            KeyOperations::WrapKey => "wrapKey",
+            KeyOperations::UnwrapKey => "unwrapKey",
+            KeyOperations::DeriveKey => "deriveKey",
+            KeyOperations::DeriveBits => "deriveBits",
+            KeyOperations::Other(ref other) => other,
+        };
+
+        serializer.serialize_str(string)
+    }
+}
+
+impl Deserialize for KeyOperations {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+
+        struct KeyOperationsVisitor;
+        impl de::Visitor for KeyOperationsVisitor {
+            type Value = KeyOperations;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                write!(formatter, "a string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                Ok(match v {
+                       "sign" => KeyOperations::Sign,
+                       "verify" => KeyOperations::Verify,
+                       "encrypt" => KeyOperations::Encrypt,
+                       "decrypt" => KeyOperations::Decrypt,
+                       "wrapKey" => KeyOperations::WrapKey,
+                       "unwrapKey" => KeyOperations::UnwrapKey,
+                       "deriveKey" => KeyOperations::DeriveKey,
+                       "deriveBits" => KeyOperations::DeriveBits,
+                       other => KeyOperations::Other(other.to_string()),
+                   })
+            }
+        }
+
+        deserializer.deserialize_string(KeyOperationsVisitor)
+    }
 }
 
 /// Common JWK parameters
@@ -341,9 +421,180 @@ pub struct JWKSet<T: Serialize + Deserialize + 'static> {
 #[cfg(test)]
 mod tests {
     use std::default::Default;
-    use serde_json;
+    use std::str;
+
+    use serde_test::{Token, assert_tokens};
 
     use super::*;
+    use jwa;
+    use test::assert_serde_json;
+
+    #[test]
+    fn public_key_use_serde_token() {
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+        struct Test {
+            test: PublicKeyUse,
+        }
+
+        let test_value = Test { test: PublicKeyUse::Encryption };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("enc"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: PublicKeyUse::Encryption };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("enc"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: PublicKeyUse::Other("xxx".to_string()) };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("xxx"),
+                        Token::StructEnd]);
+    }
+
+    #[test]
+    fn public_key_use_json_serde() {
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+        struct Test {
+            test: PublicKeyUse,
+        }
+
+        let test_json = r#"{"test": "enc"}"#;
+        assert_serde_json(&Test { test: PublicKeyUse::Encryption }, Some(&test_json));
+
+        let test_json = r#"{"test": "sig"}"#;
+        assert_serde_json(&Test { test: PublicKeyUse::Signature }, Some(&test_json));
+
+        let test_json = r#"{"test": "xxx"}"#;
+        assert_serde_json(&Test { test: PublicKeyUse::Other("xxx".to_string()) },
+                          Some(&test_json));
+    }
+
+    #[test]
+    fn key_operations_serde_token() {
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+        struct Test {
+            test: KeyOperations,
+        }
+
+        let test_value = Test { test: KeyOperations::Sign };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("sign"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::Verify };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("verify"),
+                        Token::StructEnd]);
+
+
+        let test_value = Test { test: KeyOperations::Encrypt };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("encrypt"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::Decrypt };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("decrypt"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::WrapKey };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("wrapKey"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::UnwrapKey };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("unwrapKey"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::DeriveKey };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("deriveKey"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::DeriveBits };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("deriveBits"),
+                        Token::StructEnd]);
+
+        let test_value = Test { test: KeyOperations::Other("xxx".to_string()) };
+        assert_tokens(&test_value,
+                      &[Token::StructStart("Test", 1),
+                        Token::StructSep,
+                        Token::Str("test"),
+                        Token::Str("xxx"),
+                        Token::StructEnd]);
+    }
+
+    #[test]
+    fn key_operations_json_serde() {
+        #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+        struct Test {
+            test: KeyOperations,
+        }
+
+        let test_json = r#"{"test": "sign"}"#;
+        assert_serde_json(&Test { test: KeyOperations::Sign }, Some(&test_json));
+
+        let test_json = r#"{"test": "verify"}"#;
+        assert_serde_json(&Test { test: KeyOperations::Verify }, Some(&test_json));
+
+        let test_json = r#"{"test": "encrypt"}"#;
+        assert_serde_json(&Test { test: KeyOperations::Encrypt }, Some(&test_json));
+
+        let test_json = r#"{"test": "decrypt"}"#;
+        assert_serde_json(&Test { test: KeyOperations::Decrypt }, Some(&test_json));
+
+        let test_json = r#"{"test": "wrapKey"}"#;
+        assert_serde_json(&Test { test: KeyOperations::WrapKey }, Some(&test_json));
+
+        let test_json = r#"{"test": "unwrapKey"}"#;
+        assert_serde_json(&Test { test: KeyOperations::UnwrapKey }, Some(&test_json));
+
+        let test_json = r#"{"test": "deriveKey"}"#;
+        assert_serde_json(&Test { test: KeyOperations::DeriveKey }, Some(&test_json));
+
+        let test_json = r#"{"test": "deriveBits"}"#;
+        assert_serde_json(&Test { test: KeyOperations::DeriveBits }, Some(&test_json));
+
+        let test_json = r#"{"test": "xxx"}"#;
+        assert_serde_json(&Test { test: KeyOperations::Other("xxx".to_string()) },
+                          Some(&test_json));
+    }
 
     /// Serialize and deserialize example JWK given in the RFC
     #[test]
@@ -360,9 +611,9 @@ mod tests {
                         51, 53, 123, 233, 239, 19, 186, 207, 110, 60, 123, 209, 84, 69],
                 y: vec![199, 241, 68, 205, 27, 189, 155, 126, 135, 44, 223, 237, 185, 238, 185, 244, 179,
                         105, 93, 110, 169, 11, 36, 173, 138, 70, 35, 40, 133, 136, 229, 173],
-                d: None
+                d: None,
             },
-            additional: Default::default()
+            additional: Default::default(),
         };
         let expected_json = r#"{
   "kid": "Public key used in JWS spec Appendix A.3 example",
@@ -372,10 +623,60 @@ mod tests {
   "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
 }"#;
 
-        let serialized = not_err!(serde_json::to_string_pretty(&test_value));
-        assert_eq!(expected_json, serialized);
+        assert_serde_json(&test_value, Some(&expected_json));
+    }
 
-        let deserialized: JWK<::Empty> = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test_value);
+    /// Example public key set
+    #[test]
+    fn jwk_set_public_key_serde_test() {
+        let test_value: JWKSet<::Empty> = JWKSet {
+            keys: vec![
+                JWK {
+                    common: CommonParameters {
+                        public_key_use: Some(PublicKeyUse::Encryption),
+                        key_operations: None,
+                        algorithm: None,
+                        key_id: Some("1".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::EllipticCurve {
+                        key_type: Default::default(),
+                        curve: EllipticCurve::P256,
+                        x: vec![48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231,
+                                110, 162, 13, 159, 0, 137, 58, 59, 78, 238, 138, 60, 10, 175, 236, 62],
+                        y: vec![224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189, 251, 213,
+                                30, 232, 105, 239, 31, 15, 198, 91, 102, 89, 105, 91, 108, 206, 8, 23, 35],
+                        d: None },
+                    additional: Default::default()
+                },
+
+                JWK {
+                    common: CommonParameters {
+                        algorithm: Some(Algorithm::Signature(jwa::SignatureAlgorithm::RS256)),
+                        key_id: Some("2011-04-29".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::RSAPublicKey {
+                        key_type: Default::default(),
+                        n: BigUint::new(vec![2661337731, 446995658, 1209332140, 183172752, 955894533,
+                                            3140848734, 581365968, 3217299938, 3520742369, 1559833632, 1548159735,
+                                            2303031139, 1726816051, 92775838, 37272772, 1817499268, 2876656510,
+                                            1328166076, 2779910671,4258539214, 2834014041, 3172137349, 4008354576,
+                                            121660540, 1941402830, 1620936445, 993798294, 47616683, 272681116,
+                                            983097263, 225284287, 3494334405, 4005126248, 1126447551, 2189379704,
+                                            4098746126, 3730484719, 3232696701, 2583545877, 428738419,
+                                            2533069420, 2922211325, 2227907999, 4154608099, 679827337, 1165541732,
+                                            2407118218, 3485541440, 799756961, 1854157941, 3062830172, 3270332715,
+                                            1431293619, 3068067851, 2238478449, 2704523019, 2826966453, 1548381401,
+                                            3719104923, 2605577849, 2293389158, 273345423, 169765991, 3539762026]),
+                        e: BigUint::new(vec![65537]),
+                    },
+                    additional: Default::default()
+                }
+            ],
+        };
+
+        let expected_json = str::from_utf8(include_bytes!("../test/fixtures/jwk_public_key.json")).unwrap();
+        assert_serde_json(&test_value, Some(&expected_json));
     }
 }

@@ -404,7 +404,11 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(OuterNoDuplicates, DuplicateKeysBehaviour::RaiseError, one, two, three);
+    impl_flatten_serde!(OuterNoDuplicates,
+                        DuplicateKeysBehaviour::RaiseError,
+                        one,
+                        two,
+                        three);
 
     /// Will not deserialize due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
@@ -414,7 +418,11 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(OuterOverwrite, DuplicateKeysBehaviour::Overwrite, one, two, three);
+    impl_flatten_serde!(OuterOverwrite,
+                        DuplicateKeysBehaviour::Overwrite,
+                        one,
+                        two,
+                        three);
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct Outer {
