@@ -128,7 +128,7 @@ use errors::{Error, ValidationError};
 ///     },
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(Header {
+/// let expected_jwt = JWT::new_decoded(RegisteredHeader {
 ///                                         algorithm: SignatureAlgorithm::HS256,
 ///                                         ..Default::default()
 ///                                     },
@@ -179,7 +179,7 @@ pub type JWT<T> = jws::Compact<ClaimsSet<T>>;
 ///     private: Default::default(),
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(Header {
+/// let expected_jwt = JWT::new_decoded(RegisteredHeader {
 ///                                         algorithm: SignatureAlgorithm::HS256,
 ///                                         ..Default::default()
 ///                                     },

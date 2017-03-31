@@ -9,7 +9,7 @@ use std::str::FromStr;
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
 use biscuit::jwa::SignatureAlgorithm;
-use biscuit::jws::{Compact, Header, Secret};
+use biscuit::jws::{Compact, RegisteredHeader, Secret};
 use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -45,7 +45,7 @@ fn main() {
         },
     };
     let key = "secret";
-    let jwt = Compact::<ClaimsSet<PrivateClaims>>::new_decoded(Header::default(), my_claims);
+    let jwt = Compact::<ClaimsSet<PrivateClaims>>::new_decoded(RegisteredHeader::default(), my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error

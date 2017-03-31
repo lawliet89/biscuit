@@ -9,7 +9,7 @@ use std::str::FromStr;
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
 use biscuit::jwa::SignatureAlgorithm;
-use biscuit::jws::{Compact, Header, Secret};
+use biscuit::jws::{Compact, RegisteredHeader, Secret};
 use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -34,7 +34,7 @@ fn main() {
     };
     let key = "secret";
 
-    let mut header = Header::default();
+    let mut header = RegisteredHeader::default();
     header.key_id = Some("signing_key".to_string());
     header.algorithm = SignatureAlgorithm::HS512;
 
