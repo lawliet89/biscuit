@@ -75,6 +75,7 @@ pub mod errors;
 pub mod jwa;
 pub mod jws;
 pub mod jwk;
+pub mod jwe;
 
 use errors::{Error, ValidationError};
 
