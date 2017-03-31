@@ -89,7 +89,7 @@ use jwa::SignatureAlgorithm;
 /// ```
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: CompactJson> {
+pub enum Compact<T: CompactPart> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
@@ -116,7 +116,7 @@ macro_rules! expect_two {
     }}
 }
 
-impl<T: CompactJson> Compact<T> {
+impl<T: CompactPart> Compact<T> {
     /// New decoded JWT
     pub fn new_decoded(header: Header, payload: T) -> Self {
         Compact::Decoded {
@@ -222,7 +222,7 @@ impl<T: CompactJson> Compact<T> {
 }
 
 impl<T> Clone for Compact<T>
-    where T: CompactJson + Clone
+    where T: CompactPart + Clone
 {
     fn clone(&self) -> Self {
         match *self {
@@ -647,6 +647,32 @@ mod tests {
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
     }
+
+    #[test]
+    fn compact_jws_round_trip_hs256_for_bytes_payload() {
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
+                              eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
+                              xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
+        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10,
+                                    32, 34, 101, 120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56,
+                                    48, 44, 13, 10, 32, 34, 104, 116, 116, 112, 58, 47, 47, 101, 120, 97,
+                                    109, 112, 108, 101, 46, 99, 111, 109, 47, 105, 115, 95, 114, 111,
+                                    111, 116, 34, 58, 116, 114, 117, 101, 125];
+
+        let expected_jwt = Compact::new_decoded(Header {
+                                                    algorithm: SignatureAlgorithm::HS256,
+                                                    content_type: Some("Random bytes".to_string()),
+                                                    ..Default::default()
+                                                },
+                                                payload.clone());
+        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
+        assert_eq!(expected_token, not_err!(token.encoded()));
+
+        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+                                                  SignatureAlgorithm::HS256));
+        assert_eq!(payload, *not_err!(biscuit.payload()));
+    }
+
 
     #[test]
     fn header_serialization_round_trip_no_optional() {
