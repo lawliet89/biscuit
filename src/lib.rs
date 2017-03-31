@@ -69,7 +69,8 @@ pub use url::{Url, ParseError};
 mod test;
 
 #[macro_use]
-pub mod serde_custom;
+mod serde_custom;
+
 pub mod errors;
 pub mod jwa;
 pub mod jws;

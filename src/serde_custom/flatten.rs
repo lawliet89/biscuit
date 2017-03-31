@@ -6,7 +6,7 @@
 //! # Examples
 //! ## Non-generic
 //!
-//! ```
+//! ```rust,ignore
 //! #[macro_use]
 //! extern crate biscuit;
 //! extern crate serde;
@@ -71,7 +71,7 @@
 //!
 //! # Generics
 //!
-//! ```
+//! ```rust,ignore
 //! #[macro_use]
 //! extern crate biscuit;
 //! extern crate serde;
@@ -149,6 +149,7 @@ pub enum DuplicateKeysBehaviour {
     RaiseError,
     /// Overwrite the keys encountered earlier with the ones encountered later. If the types of the values of the
     /// duplicated keys differ, this type will probably fail deserialization
+    #[allow(dead_code)]
     Overwrite,
 }
 
@@ -237,7 +238,6 @@ impl Serialize for FlattenSerializable {
 /// followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
 // TODO: Procedural macro
-#[macro_export]
 macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
@@ -266,7 +266,6 @@ macro_rules! impl_flatten_serialize {
 /// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
 // TODO: Procedural macro
-#[macro_export]
 macro_rules! impl_flatten_deserialize {
     ($t:ty, $( $child:ident ),*) => {
         impl serde::Deserialize for $t {
@@ -290,7 +289,6 @@ macro_rules! impl_flatten_deserialize {
 /// Neither can we do the same for deserialization.
 /// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
-#[macro_export]
 macro_rules! impl_flatten_serde {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl_flatten_serialize!($t, $behaviour, $( $child ),*);
@@ -305,7 +303,6 @@ macro_rules! impl_flatten_serde {
 /// followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
 // TODO: Procedural macro
-#[macro_export]
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl<T: Serialize + Deserialize + 'static> $crate::serde_custom::flatten::FlattenSerializable for $t {
@@ -334,7 +331,6 @@ macro_rules! impl_flatten_serialize_generic {
 /// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
 // TODO: Procedural macro
-#[macro_export]
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
         impl<T: Serialize + Deserialize> serde::Deserialize for $t {
@@ -358,7 +354,6 @@ macro_rules! impl_flatten_deserialize_generic {
 /// Neither can we do the same for deserialization.
 /// The first parameter is the type of the struct you want to implement for, followed by the names of the children.
 /// See module level documentation for `serde_custom::flatten`.
-#[macro_export]
 macro_rules! impl_flatten_serde_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl_flatten_serialize_generic!($t, $behaviour, $( $child ),*);
