@@ -299,12 +299,12 @@ mod tests {
     #[test]
     fn sign_and_verify_hs256() {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
-        let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
+        let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_base64));
 
         let actual_signature =
             not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
                                                                        Secret::bytes_from_str("secret")));
-        assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
+        assert_eq!(&*not_err!(actual_signature.to_base64()), expected_base64);
 
         let valid = not_err!(SignatureAlgorithm::HS256.verify(expected_bytes.as_slice(),
                                                               "payload".to_string().as_bytes(),
@@ -330,10 +330,10 @@ mod tests {
                                   uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
                                   j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
                                   5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
-        let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_signature));
+        let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_signature));
 
         let actual_signature = not_err!(SignatureAlgorithm::RS256.sign(payload_bytes, private_key));
-        assert_eq!(not_err!(actual_signature.to_base64()), expected_signature);
+        assert_eq!(&*not_err!(actual_signature.to_base64()), expected_signature);
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let valid = not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(),
