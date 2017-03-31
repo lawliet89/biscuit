@@ -635,6 +635,53 @@ mod tests {
         assert_serde_json(&test_value, Some(&expected_json));
     }
 
+    #[test]
+    fn jwk_set_symmetric_key() {
+        let test_value: JWKSet<::Empty> = JWKSet {
+            keys: vec![
+                    JWK {
+                        common: CommonParameters {
+                            algorithm: Some(Algorithm::KeyManagement(jwa::KeyManagementAlgorithm::A128KW)),
+                            ..Default::default()
+                        },
+                        algorithm: AlgorithmParameters::OctectKey {
+                            key_type: Default::default(),
+                             value: vec![25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74, 82]
+                        },
+                        additional: Default::default()
+                    },
+                    JWK {
+                        common: CommonParameters {
+                            key_id: Some("HMAC key used in JWS spec Appendix A.1 example".to_string()),
+                            ..Default::default()
+                        },
+                        algorithm: AlgorithmParameters::OctectKey {
+                            key_type: Default::default(),
+                            value: vec![3, 35, 53, 75, 43, 15, 165, 188, 131, 126, 6, 101, 119, 123, 166, 143,
+                                        90, 179, 40, 230, 240, 84, 201, 40, 169, 15, 132, 178, 210, 80, 46, 191,
+                                        211, 251, 90, 146, 210, 6, 71, 239, 150, 138, 180, 195, 119, 98, 61,
+                                        34, 61, 46, 33, 114, 5, 46, 79, 8, 192, 205, 154, 245, 103, 208, 128, 163]
+                        },
+                        additional: Default::default()
+                    }
+            ],
+        };
+
+        let expected_json = r#"{"keys":
+       [
+         {"kty":"oct",
+          "alg":"A128KW",
+          "k":"GawgguFyGrWKav7AX4VKUg"},
+
+         {"kty":"oct",
+          "k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow",
+          "kid":"HMAC key used in JWS spec Appendix A.1 example"}
+       ]
+     }"#;
+
+        assert_serde_json(&test_value, Some(&expected_json));
+    }
+
     /// Example public key set
     #[test]
     fn jwk_set_public_key_serde_test() {

@@ -19,7 +19,7 @@ pub enum Algorithm {
     /// Algorithms meant for key management. The algorithms are either meant to
     /// encrypt a content encryption key or determine the content encryption key.
     /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
-    KeyManagement,
+    KeyManagement(KeyManagementAlgorithm),
     /// Algorithms meant for content encryption.
     /// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
     ContentEncryption,
@@ -61,6 +61,56 @@ pub enum SignatureAlgorithm {
     /// RSASSA-PSS using SHA-512 and MGF1 with SHA-512
     /// The size of the salt value is the same size as the hash function output.
     PS512,
+}
+
+/// Algorithms for key management as defined in [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+pub enum KeyManagementAlgorithm {
+    /// RSAES-PKCS1-v1_5
+    RSA1_5,
+    /// RSAES OAEP using default parameters
+    #[serde(rename = "RSA-OAEP")]
+    RSA_OAEP,
+    /// RSAES OAEP using SHA-256 and MGF1 with SHA-256
+    #[serde(rename = "RSA-OAEP-256")]
+    RSA_OAEP_256,
+    /// AES Key Wrap using 128-bit key
+    A128KW,
+    /// AES Key Wrap using 192-bit key
+    A192KW,
+    /// AES Key Wrap using 256-bit key
+    A256KW,
+    /// Direct use of a shared symmetric key
+    #[serde(rename = "dir")]
+    DirectSymmetricKey,
+    /// ECDH-ES using Concat KDF
+    #[serde(rename = "ECDH-ES")]
+    ECDH_ES,
+    /// ECDH-ES using Concat KDF and "A128KW" wrapping
+    #[serde(rename = "ECDH-ES+A128KW")]
+    ECDH_ES_A128KW,
+    /// ECDH-ES using Concat KDF and "A192KW" wrapping
+    #[serde(rename = "ECDH-ES+A192KW")]
+    ECDH_ES_A192KW,
+    /// ECDH-ES using Concat KDF and "A256KW" wrapping
+    #[serde(rename = "ECDH-ES+A256KW")]
+    ECDH_ES_A256KW,
+    /// Key wrapping with AES GCM using 128-bit key	alg
+    A128GCMKW,
+    /// Key wrapping with AES GCM using 192-bit key	alg
+    A192GCMKW,
+    /// Key wrapping with AES GCM using 256-bit key	alg
+    A256GCMKW,
+    /// PBES2 with HMAC SHA-256 and "A128KW" wrapping
+    #[serde(rename = "PBES2-HS256+A128KW")]
+    PBES2_HS256_A128KW,
+    /// PBES2 with HMAC SHA-384 and "A192KW" wrapping
+    #[serde(rename = "PBES2-HS384+A192KW")]
+    PBES2_HS384_A192KW,
+    /// PBES2 with HMAC SHA-512 and "A256KW" wrapping
+    #[serde(rename = "PBES2-HS512+A256KW")]
+    PBES2_HS512_A256KW,
 }
 
 impl Default for SignatureAlgorithm {
@@ -229,8 +279,7 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
 
-        let actual_signature =
-            not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
+        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
                                                                        Secret::bytes_from_str("secret")));
         assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
 
@@ -378,8 +427,7 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid =
-            not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
                                                               "payload".to_string().as_bytes(),
                                                               Secret::Bytes("secret".to_string().into_bytes())));
         assert!(!valid);
