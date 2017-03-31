@@ -79,7 +79,7 @@ pub mod jwk;
 use errors::{Error, ValidationError};
 
 /// A convenience type alias of the common "JWT" which is a secured/unsecured compact JWS.
-/// Type `T` is the type of the private claims.
+/// Type `T` is the type of the private claims, and type `H` is the type of private header fields
 ///
 /// # Examples
 /// ## Encoding and decoding with HS256
@@ -128,10 +128,11 @@ use errors::{Error, ValidationError};
 ///     },
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(RegisteredHeader {
-///                                         algorithm: SignatureAlgorithm::HS256,
-///                                         ..Default::default()
-///                                     },
+/// let expected_jwt = JWT::new_decoded(From::from(
+///                                         RegisteredHeader {
+///                                             algorithm: SignatureAlgorithm::HS256,
+///                                             ..Default::default()
+///                                         }),
 ///                                     expected_claims.clone());
 ///
 /// let token = expected_jwt
@@ -142,13 +143,13 @@ use errors::{Error, ValidationError};
 ///
 /// // ... some time later, we get token back!
 ///
-/// let token = serde_json::from_str::<JWT<PrivateClaims>>(&token).unwrap();
+/// let token = serde_json::from_str::<JWT<PrivateClaims, Empty>>(&token).unwrap();
 /// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
 ///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
 /// ```
-pub type JWT<T> = jws::Compact<ClaimsSet<T>>;
+pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 
 /// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
 /// for custom values (such as private claims in a `ClaimsSet`) is required but you have nothing to implement.
@@ -179,10 +180,11 @@ pub type JWT<T> = jws::Compact<ClaimsSet<T>>;
 ///     private: Default::default(),
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(RegisteredHeader {
-///                                         algorithm: SignatureAlgorithm::HS256,
-///                                         ..Default::default()
-///                                     },
+/// let expected_jwt = JWT::new_decoded(From::from(
+///                                         RegisteredHeader {
+///                                             algorithm: SignatureAlgorithm::HS256,
+///                                             ..Default::default()
+///                                     }),
 ///                                     claims_set);
 ///
 /// # }
@@ -662,7 +664,7 @@ impl RegisteredClaims {
 
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct ClaimsSet<T: Serialize + Deserialize> {
     /// Registered claims defined by the RFC
     pub registered: RegisteredClaims,
@@ -672,17 +674,6 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
 
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
-
-impl<T> Clone for ClaimsSet<T>
-    where T: Serialize + Deserialize + Clone
-{
-    fn clone(&self) -> Self {
-        ClaimsSet {
-            registered: self.registered.clone(),
-            private: self.private.clone(),
-        }
-    }
-}
 
 impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize + 'static {}
 
