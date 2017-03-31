@@ -7,8 +7,7 @@ use std::sync::Arc;
 use ring::signature;
 use untrusted;
 
-use CompactJson;
-use CompactPart;
+use {CompactJson, CompactPart, CompactParts};
 use errors::{Error, ValidationError};
 use jwa::SignatureAlgorithm;
 
@@ -172,28 +171,22 @@ impl<T: CompactPart> Compact<T> {
     /// Decode a token into the JWT struct and verify its signature
     /// If the token or its signature is invalid, it will return an error
     pub fn decode(&self, secret: Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
-        match *self {
-            Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
-            Compact::Encoded(ref token) => {
-                // Check that there are only two parts
-                let (signature, payload) = expect_two!(token.rsplitn(2, '.'))?;
-                let signature: Vec<u8> = CompactPart::from_base64(signature.as_bytes())?;
+        let parts = self.verify_len()?;
 
-                if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
-                    Err(ValidationError::InvalidSignature)?;
-                }
+        let signature: Vec<u8> = CompactPart::from_base64(&parts[2])?;
+        let payload: String = parts[0..2].join(".");
 
-                let (claims, header) = expect_two!(payload.rsplitn(2, '.'))?;
-
-                let header = Header::from_base64(header)?;
-                if header.algorithm != algorithm {
-                    Err(ValidationError::WrongAlgorithmHeader)?;
-                }
-                let decoded_claims: T = T::from_base64(claims)?;
-
-                Ok(Self::new_decoded(header, decoded_claims))
-            }
+        if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
+            Err(ValidationError::InvalidSignature)?;
         }
+
+        let header = Header::from_base64(&parts[0])?;
+        if header.algorithm != algorithm {
+            Err(ValidationError::WrongAlgorithmHeader)?;
+        }
+        let decoded_claims: T = T::from_base64(&parts[1])?;
+
+        Ok(Self::new_decoded(header, decoded_claims))
     }
 
     /// Convenience method to extract the encoded string from an encoded compact JWS
@@ -218,6 +211,20 @@ impl<T: CompactPart> Compact<T> {
             Compact::Decoded { ref header, .. } => Ok(header),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
+    }
+}
+
+impl<T> CompactParts for Compact<T>
+    where T: CompactPart
+{
+    type Encoded = String;
+
+    fn encoded(&self) -> Result<Self::Encoded, Error> {
+        self.encoded().map(|s| s.to_string())
+    }
+
+    fn expected_len() -> usize {
+        3
     }
 }
 
@@ -607,7 +614,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidToken")]
+    #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
         let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
@@ -653,11 +660,11 @@ mod tests {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
                               eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
                               xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
-        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10,
-                                    32, 34, 101, 120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56,
-                                    48, 44, 13, 10, 32, 34, 104, 116, 116, 112, 58, 47, 47, 101, 120, 97,
-                                    109, 112, 108, 101, 46, 99, 111, 109, 47, 105, 115, 95, 114, 111,
-                                    111, 116, 34, 58, 116, 114, 117, 101, 125];
+        let payload: Vec<u8> =
+            vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
+                                    120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104,
+                                    116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
+                                    105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];
 
         let expected_jwt = Compact::new_decoded(Header {
                                                     algorithm: SignatureAlgorithm::HS256,
@@ -672,7 +679,6 @@ mod tests {
                                                   SignatureAlgorithm::HS256));
         assert_eq!(payload, *not_err!(biscuit.payload()));
     }
-
 
     #[test]
     fn header_serialization_round_trip_no_optional() {

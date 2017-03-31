@@ -44,6 +44,13 @@ pub enum ValidationError {
     MissingRequired(String),
     /// The token has invalid temporal field values
     TemporalError(String),
+    /// The number of compact parts is incorrect
+    PartsLengthError {
+        /// Expected number of parts
+        expected: usize,
+        /// Actual number of parts
+        actual: usize,
+    },
 }
 
 macro_rules! impl_from_error {
@@ -127,6 +134,7 @@ impl error::Error for ValidationError {
             InvalidToken => "Invalid Token",
             InvalidSignature => "Invalid Signature",
             WrongAlgorithmHeader => "Wrong Algorithm Header",
+            PartsLengthError { .. } => "Unexpected number of parts in compact JSON representation",
             MissingRequired(_) => "Missing required field",
             TemporalError(_) => "Temporal validation failed",
         }
@@ -145,6 +153,12 @@ impl fmt::Display for ValidationError {
         match *self {
             MissingRequired(ref field) => write!(f, "{} is required but is missing", field),
             TemporalError(ref err) => write!(f, "{}: {}", self.description(), err),
+            PartsLengthError { expected, actual } => {
+                write!(f,
+                       "Expected {} parts in Compact JSON representation but got {}",
+                       expected,
+                       actual)
+            }
             _ => write!(f, "{}", error::Error::description(self)),
         }
 

@@ -54,6 +54,7 @@ extern crate serde_test;
 use std::borrow::Borrow;
 use std::convert::{From, Into};
 use std::fmt::{self, Debug};
+use std::iter::Iterator;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -202,7 +203,7 @@ pub trait CompactPart {
     type Encoded: AsRef<str>;
 
     /// Base64 decode `Encoded` and then deserialize it to `Self`.
-    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> where Self: Sized;
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> where Self: Sized;
     /// Serialize `Self` to some form and then base64 encode to `Encoded`
     fn to_base64(&self) -> Result<Self::Encoded, Error>;
 }
@@ -224,7 +225,7 @@ impl<T> CompactPart for T
     }
 
     /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> {
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
         let decoded = base64url::decode_nopad(encoded.as_ref())?;
         let s = String::from_utf8(decoded)?;
         Ok(serde_json::from_str(&s)?)
@@ -238,8 +239,46 @@ impl CompactPart for Vec<u8> {
         Ok(base64url::encode_nopad(self))
     }
 
-    fn from_base64<B: AsRef<[u8]>>(encoded: B) -> Result<Self, Error> {
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
         Ok(base64url::decode_nopad(encoded.as_ref())?)
+    }
+}
+
+/// A "collection" of `CompactPart`s
+pub trait CompactParts {
+    /// The type holding the base64 encoding
+    type Encoded: AsRef<str>;
+    /// Return the Encoded representation of the various parts
+    fn encoded(&self) -> Result<Self::Encoded, Error>;
+    /// The number of expected parts
+    fn expected_len() -> usize;
+
+    /// Split the encoded parts into its various parts
+    fn parts(&self) -> Result<Vec<String>, Error> {
+        let parts = self.encoded()?;
+        let parts = parts.as_ref().to_string();
+        Ok(parts.split('.').map(|s| s.to_string()).collect())
+    }
+
+    /// The number of parts
+    fn len(&self) -> Result<usize, Error> {
+        Ok(self.parts()?.len())
+    }
+
+    /// Verify that the number of parts is as expected
+    fn verify_len(&self) -> Result<Vec<String>, Error> {
+        let expected_len = Self::expected_len();
+        let parts = self.parts()?;
+        let actual_len = parts.len();
+
+        if expected_len != actual_len {
+            Err(ValidationError::PartsLengthError {
+                    actual: actual_len,
+                    expected: expected_len,
+                })?
+        } else {
+            Ok(parts)
+        }
     }
 }
 
