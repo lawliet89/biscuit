@@ -212,9 +212,7 @@ impl<T: CompactPart> Compact<T> {
 impl<T> CompactParts for Compact<T>
     where T: CompactPart
 {
-    type Encoded = String;
-
-    fn encoded(&self) -> Result<Self::Encoded, Error> {
+    fn encoded(&self) -> Result<String, Error> {
         self.encoded().map(|s| s.to_string())
     }
 
@@ -659,7 +657,8 @@ mod tests {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
                               eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
                               xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
-        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
+        let payload: Vec<u8> =
+            vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
                                     120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104,
                                     116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
                                     105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];

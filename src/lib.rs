@@ -273,17 +273,14 @@ impl FromStr for Base64Url {
 
 /// A "collection" of `CompactPart`s
 pub trait CompactParts {
-    /// The type holding the base64 encoding
-    type Encoded: AsRef<str>;
     /// Return the Encoded representation of the various parts
-    fn encoded(&self) -> Result<Self::Encoded, Error>;
+    fn encoded(&self) -> Result<String, Error>;
     /// The number of expected parts
     fn expected_len() -> usize;
 
     /// Split the encoded parts into its various parts
     fn parts(&self) -> Result<Vec<String>, Error> {
         let parts = self.encoded()?;
-        let parts = parts.as_ref().to_string();
         Ok(parts.split('.').map(|s| s.to_string()).collect())
     }
 
