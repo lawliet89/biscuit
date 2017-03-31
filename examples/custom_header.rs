@@ -45,9 +45,7 @@ fn main() {
             algorithm: SignatureAlgorithm::HS512,
             ..Default::default()
         },
-        private: PrivateHeader {
-            purpose: "Toilet cleaning".to_string()
-        }
+        private: PrivateHeader { purpose: "Toilet cleaning".to_string() },
     };
 
     let jwt = Compact::new_decoded(header, my_claims);
