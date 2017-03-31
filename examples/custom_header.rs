@@ -9,13 +9,18 @@ use std::str::FromStr;
 use chrono::UTC;
 use biscuit::{ClaimsSet, RegisteredClaims, SingleOrMultiple};
 use biscuit::jwa::SignatureAlgorithm;
-use biscuit::jws::{Compact, Header, Secret};
+use biscuit::jws::{Compact, Header, RegisteredHeader, Secret};
 use biscuit::errors::{Error, ValidationError};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PrivateClaims {
     company: String,
     department: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PrivateHeader {
+    purpose: String,
 }
 
 fn main() {
@@ -34,9 +39,14 @@ fn main() {
     };
     let key = "secret";
 
-    let mut header = Header::default();
-    header.key_id = Some("signing_key".to_string());
-    header.algorithm = SignatureAlgorithm::HS512;
+    let header = Header {
+        registered: RegisteredHeader {
+            key_id: Some("signing_key".to_string()),
+            algorithm: SignatureAlgorithm::HS512,
+            ..Default::default()
+        },
+        private: PrivateHeader { purpose: "Toilet cleaning".to_string() },
+    };
 
     let jwt = Compact::new_decoded(header, my_claims);
     let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {

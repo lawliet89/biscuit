@@ -5,16 +5,19 @@ use std::default::Default;
 use std::sync::Arc;
 
 use ring::signature;
+use serde::{self, Serialize, Deserialize};
+use serde_json;
 use untrusted;
 
-use {Base64Url, CompactJson, CompactPart, CompactParts};
+use {Base64Url, CompactJson, CompactPart, CompactParts, Empty};
 use errors::{Error, ValidationError};
 use jwa::SignatureAlgorithm;
+use serde_custom;
 
 /// Compact representation of a JWS
 ///
 /// This representation contains a payload (type `T`) (e.g. a claims set) and is (optionally) signed. This is the
-/// most common form of tokens used.
+/// most common form of tokens used. The JWS can contain additional header fields provided by type `H`.
 ///
 /// Serialization/deserialization is handled by serde. Before you transport the token, make sure you
 /// turn it into the encoded form first.
@@ -66,10 +69,11 @@ use jwa::SignatureAlgorithm;
 ///     },
 /// };
 ///
-/// let expected_jwt = Compact::new_decoded(Header {
-///                                         algorithm: SignatureAlgorithm::HS256,
-///                                         ..Default::default()
-///                                     },
+/// let expected_jwt = Compact::new_decoded(From::from(
+///                                             RegisteredHeader {
+///                                             algorithm: SignatureAlgorithm::HS256,
+///                                             ..Default::default()
+///                                         }),
 ///                                     expected_claims.clone());
 ///
 /// let token = expected_jwt
@@ -80,22 +84,22 @@ use jwa::SignatureAlgorithm;
 ///
 /// // ... some time later, we get token back!
 ///
-/// let token = serde_json::from_str::<Compact<ClaimsSet<PrivateClaims>>>(&token).unwrap();
+/// let token = serde_json::from_str::<Compact<ClaimsSet<PrivateClaims>, Empty>>(&token).unwrap();
 /// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
 ///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
 /// ```
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: CompactPart> {
+pub enum Compact<T: CompactPart, H: Serialize + Deserialize + 'static> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     Decoded {
         /// Embedded header
-        header: Header,
+        header: Header<H>,
         /// Payload, usually a claims set
         payload: T,
     },
@@ -103,9 +107,9 @@ pub enum Compact<T: CompactPart> {
     Encoded(Base64Url),
 }
 
-impl<T: CompactPart> Compact<T> {
+impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     /// New decoded JWT
-    pub fn new_decoded(header: Header, payload: T) -> Self {
+    pub fn new_decoded(header: Header<H>, payload: T) -> Self {
         Compact::Decoded {
             header: header,
             payload: payload,
@@ -133,7 +137,9 @@ impl<T: CompactPart> Compact<T> {
         match *self {
             Compact::Decoded { ref header, ref payload } => {
                 let encoded_payload = Self::encode_parts(&[header, payload])?;
-                let signature = header.algorithm.sign(encoded_payload.as_bytes(), secret)?;
+                let signature = header.registered
+                    .algorithm
+                    .sign(encoded_payload.as_bytes(), secret)?;
                 let encoded = Self::encode_parts(&[&encoded_payload, &signature])?;
                 Ok(Compact::Encoded(encoded))
             }
@@ -163,8 +169,8 @@ impl<T: CompactPart> Compact<T> {
             Err(ValidationError::InvalidSignature)?;
         }
 
-        let header = Header::from_base64(&parts[0])?;
-        if header.algorithm != algorithm {
+        let header = Header::<H>::from_base64(&parts[0])?;
+        if header.registered.algorithm != algorithm {
             Err(ValidationError::WrongAlgorithmHeader)?;
         }
         let decoded_claims: T = T::from_base64(&parts[1])?;
@@ -189,7 +195,7 @@ impl<T: CompactPart> Compact<T> {
     }
 
     /// Convenience method to extract the header from a decoded compact JWS
-    pub fn header(&self) -> Result<&Header, Error> {
+    pub fn header(&self) -> Result<&Header<H>, Error> {
         match *self {
             Compact::Decoded { ref header, .. } => Ok(header),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
@@ -197,7 +203,7 @@ impl<T: CompactPart> Compact<T> {
     }
 }
 
-impl<T> CompactParts for Compact<T>
+impl<T: CompactPart, H: Serialize + Deserialize + 'static> CompactParts for Compact<T, H>
     where T: CompactPart
 {
     fn encoded(&self) -> Result<String, Error> {
@@ -206,22 +212,6 @@ impl<T> CompactParts for Compact<T>
 
     fn expected_len() -> usize {
         3
-    }
-}
-
-impl<T> Clone for Compact<T>
-    where T: CompactPart + Clone
-{
-    fn clone(&self) -> Self {
-        match *self {
-            Compact::Decoded { ref header, ref payload } => {
-                Compact::Decoded {
-                    header: (*header).clone(),
-                    payload: (*payload).clone(),
-                }
-            }
-            Compact::Encoded(ref encoded) => Compact::Encoded((*encoded).clone()),
-        }
     }
 }
 
@@ -330,13 +320,41 @@ impl Secret {
     }
 }
 
+/// JWS Header, consisting of the registered fields and other custom fields
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
+pub struct Header<T: Serialize + Deserialize> {
+    /// Registered header fields
+    pub registered: RegisteredHeader,
+    /// Private header fields
+    pub private: T,
+}
+
+impl_flatten_serde_generic!(Header<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+                            registered, private);
+
+impl<T: Serialize + Deserialize + 'static> CompactJson for Header<T> {}
+
+impl Header<Empty> {
+    /// Convenience function to create a header with only registered headers
+    pub fn from_registered_header(registered: RegisteredHeader) -> Self {
+        Self { registered: registered, ..Default::default() }
+    }
+}
+
+impl From<RegisteredHeader> for Header<Empty> {
+    fn from(registered: RegisteredHeader) -> Self {
+        Self::from_registered_header(registered)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-/// A basic JWT header part, the alg defaults to HS256 and typ is automatically
+/// Registered JWS header fields.
+/// The alg defaults to HS256 and typ is automatically
 /// set to `JWT`. All the other fields are optional.
 /// The fields are defined by [RFC7519#5](https://tools.ietf.org/html/rfc7519#section-5) and additionally in
 /// [RFC7515#4.1](https://tools.ietf.org/html/rfc7515#section-4.1).
 // TODO: Implement verification for registered headers and support custom headers
-pub struct Header {
+pub struct RegisteredHeader {
     /// Algorithms, as defined in [RFC 7518](https://tools.ietf.org/html/rfc7518), used to sign or encrypt the JWT
     /// Serialized to `alg`.
     /// Defined in [RFC7515#4.1.1](https://tools.ietf.org/html/rfc7515#section-4.1.1).
@@ -403,9 +421,9 @@ pub struct Header {
     pub critical: Option<Vec<String>>,
 }
 
-impl Default for Header {
-    fn default() -> Header {
-        Header {
+impl Default for RegisteredHeader {
+    fn default() -> RegisteredHeader {
+        RegisteredHeader {
             algorithm: SignatureAlgorithm::default(),
             media_type: Some("JWT".to_string()),
             content_type: None,
@@ -420,16 +438,14 @@ impl Default for Header {
     }
 }
 
-impl CompactJson for Header {}
-
 #[cfg(test)]
 mod tests {
     use std::str::{self, FromStr};
 
     use serde_json;
 
-    use {ClaimsSet, RegisteredClaims, SingleOrMultiple, CompactJson};
-    use super::{Secret, SignatureAlgorithm, Header, Compact};
+    use {Empty, ClaimsSet, RegisteredClaims, SingleOrMultiple, CompactJson};
+    use super::{Secret, SignatureAlgorithm, Header, RegisteredHeader, Compact};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct PrivateClaims {
@@ -456,7 +472,10 @@ mod tests {
             },
         };
 
-        let biscuit = Compact::new_decoded(Header { algorithm: SignatureAlgorithm::None, ..Default::default() },
+        let biscuit = Compact::new_decoded(From::from(RegisteredHeader {
+                                                          algorithm: SignatureAlgorithm::None,
+                                                          ..Default::default()
+                                                      }),
                                            expected_claims.clone());
         serde_json::to_string(&biscuit).unwrap();
     }
@@ -468,7 +487,7 @@ mod tests {
                        "payload":{"iss":"https://www.acme.com/","sub":"John Doe",
                                      "aud":"htts://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
-        serde_json::from_str::<Compact<PrivateClaims>>(json).unwrap();
+        serde_json::from_str::<Compact<PrivateClaims, Empty>>(json).unwrap();
     }
 
     #[test]
@@ -492,7 +511,10 @@ mod tests {
             },
         };
 
-        let expected_jwt = Compact::new_decoded(Header { algorithm: SignatureAlgorithm::None, ..Default::default() },
+        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
+                                                               algorithm: SignatureAlgorithm::None,
+                                                               ..Default::default()
+                                                           }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::None));
         assert_eq!(expected_token, not_err!(token.encoded()));
@@ -523,7 +545,10 @@ mod tests {
             },
         };
 
-        let expected_jwt = Compact::new_decoded(Header { algorithm: SignatureAlgorithm::HS256, ..Default::default() },
+        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
+                                                               algorithm: SignatureAlgorithm::HS256,
+                                                               ..Default::default()
+                                                           }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()));
@@ -558,7 +583,10 @@ mod tests {
         };
         let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
-        let expected_jwt = Compact::new_decoded(Header { algorithm: SignatureAlgorithm::RS256, ..Default::default() },
+        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
+                                                               algorithm: SignatureAlgorithm::RS256,
+                                                               ..Default::default()
+                                                           }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(private_key));
         assert_eq!(expected_token, not_err!(token.encoded()));
@@ -570,6 +598,11 @@ mod tests {
 
     #[test]
     fn compact_jws_encode_with_additional_header_fields() {
+        #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+        struct CustomHeader {
+            something: String,
+        }
+
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
@@ -584,8 +617,10 @@ mod tests {
             },
         };
 
-        let mut header = Header::default();
-        header.key_id = Some("kid".to_string());
+        let header = Header {
+            registered: Default::default(),
+            private: CustomHeader { something: "foobar".to_string() },
+        };
 
         let expected_jwt = Compact::new_decoded(header.clone(), expected_claims);
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
@@ -597,8 +632,9 @@ mod tests {
     #[test]
     #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
-        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
-                                                               .unwrap());
+        let token =
+            Compact::<PrivateClaims, Empty>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
+                                                              .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -607,10 +643,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_hs256() {
-        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let token =
+            Compact::<PrivateClaims, Empty>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                                     pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
-                                                                   .unwrap());
+                                                                  .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -619,10 +656,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_rs256() {
-        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let token =
+            Compact::<PrivateClaims, Empty>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                        pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
-                                                                   .unwrap());
+                                                                  .unwrap());
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(public_key, SignatureAlgorithm::RS256);
         claims.unwrap();
@@ -631,10 +669,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "WrongAlgorithmHeader")]
     fn compact_jws_decode_token_wrong_algorithm() {
-        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
+        let token =
+            Compact::<PrivateClaims, Empty>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                        pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
-                                                                   .unwrap());
+                                                                  .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -651,11 +690,11 @@ mod tests {
                                     116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
                                     105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];
 
-        let expected_jwt = Compact::new_decoded(Header {
-                                                    algorithm: SignatureAlgorithm::HS256,
-                                                    content_type: Some("Random bytes".to_string()),
-                                                    ..Default::default()
-                                                },
+        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
+                                                               algorithm: SignatureAlgorithm::HS256,
+                                                               content_type: Some("Random bytes".to_string()),
+                                                               ..Default::default()
+                                                           }),
                                                 payload.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()));
@@ -667,19 +706,19 @@ mod tests {
 
     #[test]
     fn header_serialization_round_trip_no_optional() {
-        let expected = Header::default();
+        let expected = RegisteredHeader::default();
         let expected_json = r#"{"alg":"HS256","typ":"JWT"}"#;
 
         let encoded = not_err!(serde_json::to_string(&expected));
         assert_eq!(expected_json, encoded);
 
-        let decoded: Header = not_err!(serde_json::from_str(&encoded));
+        let decoded: RegisteredHeader = not_err!(serde_json::from_str(&encoded));
         assert_eq!(decoded, expected);
     }
 
     #[test]
     fn header_serialization_round_trip_with_optional() {
-        let mut expected = Header::default();
+        let mut expected = RegisteredHeader::default();
         expected.key_id = Some("kid".to_string());
 
         let expected_json = r#"{"alg":"HS256","typ":"JWT","kid":"kid"}"#;
@@ -687,7 +726,7 @@ mod tests {
         let encoded = not_err!(serde_json::to_string(&expected));
         assert_eq!(expected_json, encoded);
 
-        let decoded: Header = not_err!(serde_json::from_str(&encoded));
+        let decoded: RegisteredHeader = not_err!(serde_json::from_str(&encoded));
         assert_eq!(decoded, expected);
     }
 }
