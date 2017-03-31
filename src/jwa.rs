@@ -22,7 +22,7 @@ pub enum Algorithm {
     KeyManagement(KeyManagementAlgorithm),
     /// Algorithms meant for content encryption.
     /// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
-    ContentEncryption,
+    ContentEncryption(ContentEncryptionAlgorithm),
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -111,6 +111,28 @@ pub enum KeyManagementAlgorithm {
     /// PBES2 with HMAC SHA-512 and "A256KW" wrapping
     #[serde(rename = "PBES2-HS512+A256KW")]
     PBES2_HS512_A256KW,
+}
+
+/// Algorithms meant for content encryption.
+/// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+pub enum ContentEncryptionAlgorithm {
+    /// AES_128_CBC_HMAC_SHA_256 authenticated encryption algorithm	enc
+    #[serde(rename = "A128CBC-HS256")]
+    A128CBC_HS256,
+    /// AES_192_CBC_HMAC_SHA_384 authenticated encryption algorithm	enc
+    #[serde(rename = "A192CBC-HS384")]
+    A192CBC_HS384,
+    /// AES_256_CBC_HMAC_SHA_512 authenticated encryption algorithm	enc
+    #[serde(rename = "A256CBC-HS512")]
+    A256CBC_HS512,
+    /// AES GCM using 128-bit key
+    A128GCM,
+    /// AES GCM using 192-bit key
+    A192GCM,
+    /// AES GCM using 256-bit key
+    A256GCM,
 }
 
 impl Default for SignatureAlgorithm {
@@ -279,7 +301,8 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(expected_base64));
 
-        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
+        let actual_signature =
+            not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
                                                                        Secret::bytes_from_str("secret")));
         assert_eq!(not_err!(actual_signature.to_base64()), expected_base64);
 
@@ -427,7 +450,8 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
+        let valid =
+            not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
                                                               "payload".to_string().as_bytes(),
                                                               Secret::Bytes("secret".to_string().into_bytes())));
         assert!(!valid);
