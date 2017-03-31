@@ -54,7 +54,6 @@ extern crate serde_test;
 use std::borrow::Borrow;
 use std::convert::{From, Into};
 use std::fmt::{self, Debug};
-use std::iter::Iterator;
 use std::ops::Deref;
 use std::str::FromStr;
 
