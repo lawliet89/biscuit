@@ -103,18 +103,6 @@ pub enum Compact<T: CompactPart> {
     Encoded(Base64Url),
 }
 
-/// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
-/// Errors if we don't
-macro_rules! expect_two {
-    ($iter:expr) => {{
-        let mut i = $iter; // evaluate the expr
-        match (i.next(), i.next(), i.next()) {
-            (Some(first), Some(second), None) => Ok((first, second)),
-            _ => Err(Error::ValidationError(ValidationError::InvalidToken))
-        }
-    }}
-}
-
 impl<T: CompactPart> Compact<T> {
     /// New decoded JWT
     pub fn new_decoded(header: Header, payload: T) -> Self {
