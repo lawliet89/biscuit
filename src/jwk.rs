@@ -738,7 +738,7 @@ mod tests {
             ],
         };
 
-        let expected_json = str::from_utf8(include_bytes!("../test/fixtures/jwk_public_key.json")).unwrap();
+        let expected_json = include_str!("../test/fixtures/jwk_public_key.json");
         assert_serde_json(&test_value, Some(&expected_json));
     }
 
@@ -855,7 +855,7 @@ mod tests {
             ],
         };
 
-        let expected_json = str::from_utf8(include_bytes!("../test/fixtures/jwk_private_key.json")).unwrap();
+        let expected_json = include_str!("../test/fixtures/jwk_private_key.json");
         assert_serde_json(&test_value, Some(&expected_json));
     }
 }
