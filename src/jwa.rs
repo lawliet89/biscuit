@@ -19,10 +19,10 @@ pub enum Algorithm {
     /// Algorithms meant for key management. The algorithms are either meant to
     /// encrypt a content encryption key or determine the content encryption key.
     /// See [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
-    KeyManagement,
+    KeyManagement(KeyManagementAlgorithm),
     /// Algorithms meant for content encryption.
     /// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
-    ContentEncryption,
+    ContentEncryption(ContentEncryptionAlgorithm),
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -61,6 +61,78 @@ pub enum SignatureAlgorithm {
     /// RSASSA-PSS using SHA-512 and MGF1 with SHA-512
     /// The size of the salt value is the same size as the hash function output.
     PS512,
+}
+
+/// Algorithms for key management as defined in [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+pub enum KeyManagementAlgorithm {
+    /// RSAES-PKCS1-v1_5
+    RSA1_5,
+    /// RSAES OAEP using default parameters
+    #[serde(rename = "RSA-OAEP")]
+    RSA_OAEP,
+    /// RSAES OAEP using SHA-256 and MGF1 with SHA-256
+    #[serde(rename = "RSA-OAEP-256")]
+    RSA_OAEP_256,
+    /// AES Key Wrap using 128-bit key
+    A128KW,
+    /// AES Key Wrap using 192-bit key
+    A192KW,
+    /// AES Key Wrap using 256-bit key
+    A256KW,
+    /// Direct use of a shared symmetric key
+    #[serde(rename = "dir")]
+    DirectSymmetricKey,
+    /// ECDH-ES using Concat KDF
+    #[serde(rename = "ECDH-ES")]
+    ECDH_ES,
+    /// ECDH-ES using Concat KDF and "A128KW" wrapping
+    #[serde(rename = "ECDH-ES+A128KW")]
+    ECDH_ES_A128KW,
+    /// ECDH-ES using Concat KDF and "A192KW" wrapping
+    #[serde(rename = "ECDH-ES+A192KW")]
+    ECDH_ES_A192KW,
+    /// ECDH-ES using Concat KDF and "A256KW" wrapping
+    #[serde(rename = "ECDH-ES+A256KW")]
+    ECDH_ES_A256KW,
+    /// Key wrapping with AES GCM using 128-bit key	alg
+    A128GCMKW,
+    /// Key wrapping with AES GCM using 192-bit key	alg
+    A192GCMKW,
+    /// Key wrapping with AES GCM using 256-bit key	alg
+    A256GCMKW,
+    /// PBES2 with HMAC SHA-256 and "A128KW" wrapping
+    #[serde(rename = "PBES2-HS256+A128KW")]
+    PBES2_HS256_A128KW,
+    /// PBES2 with HMAC SHA-384 and "A192KW" wrapping
+    #[serde(rename = "PBES2-HS384+A192KW")]
+    PBES2_HS384_A192KW,
+    /// PBES2 with HMAC SHA-512 and "A256KW" wrapping
+    #[serde(rename = "PBES2-HS512+A256KW")]
+    PBES2_HS512_A256KW,
+}
+
+/// Algorithms meant for content encryption.
+/// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
+pub enum ContentEncryptionAlgorithm {
+    /// AES_128_CBC_HMAC_SHA_256 authenticated encryption algorithm	enc
+    #[serde(rename = "A128CBC-HS256")]
+    A128CBC_HS256,
+    /// AES_192_CBC_HMAC_SHA_384 authenticated encryption algorithm	enc
+    #[serde(rename = "A192CBC-HS384")]
+    A192CBC_HS384,
+    /// AES_256_CBC_HMAC_SHA_512 authenticated encryption algorithm	enc
+    #[serde(rename = "A256CBC-HS512")]
+    A256CBC_HS512,
+    /// AES GCM using 128-bit key
+    A128GCM,
+    /// AES GCM using 192-bit key
+    A192GCM,
+    /// AES GCM using 256-bit key
+    A256GCM,
 }
 
 impl Default for SignatureAlgorithm {
