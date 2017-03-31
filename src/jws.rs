@@ -7,7 +7,7 @@ use std::sync::Arc;
 use ring::signature;
 use untrusted;
 
-use {CompactJson, CompactPart, CompactParts};
+use {Base64Url, CompactJson, CompactPart, CompactParts};
 use errors::{Error, ValidationError};
 use jwa::SignatureAlgorithm;
 
@@ -100,7 +100,7 @@ pub enum Compact<T: CompactPart> {
         payload: T,
     },
     /// Encoded and (optionally) signed JWT. Use this form to send to your clients
-    Encoded(String),
+    Encoded(Base64Url),
 }
 
 /// Used in decode: takes the result of a rsplit and ensure we only get 2 parts
@@ -125,8 +125,8 @@ impl<T: CompactPart> Compact<T> {
     }
 
     /// New encoded JWT
-    pub fn new_encoded(token: &str) -> Self {
-        Compact::Encoded(token.to_string())
+    pub fn new_encoded(token: &Base64Url) -> Self {
+        Compact::Encoded(token.clone())
     }
 
     /// Consumes self and convert into encoded form. If the token is already encoded,
@@ -144,22 +144,17 @@ impl<T: CompactPart> Compact<T> {
     pub fn encode(&self, secret: Secret) -> Result<Self, Error> {
         match *self {
             Compact::Decoded { ref header, ref payload } => {
-                let encoded_header = header.to_base64()?;
-                let encoded_claims = payload.to_base64()?;
-                let payload = [&*encoded_header, encoded_claims.as_ref()].join(".");
-                let signature = header.algorithm
-                    .sign(payload.as_bytes(), secret)?
-                    .to_base64()?;
-
-                Ok(Compact::Encoded([payload, signature].join(".")))
+                let encoded_payload = Self::encode_parts(&[header, payload])?;
+                let signature = header.algorithm.sign(encoded_payload.as_bytes(), secret)?;
+                let encoded = Self::encode_parts(&[&encoded_payload, &signature])?;
+                Ok(Compact::Encoded(encoded))
             }
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
 
-
     /// Consumes self and convert into decoded form, verifying the signature, if any.
-    /// If the token is already decoded, this is a no-op.AsMut
+    /// If the token is already decoded, this is a no-op
     // TODO: Is the no-op dangerous? What if the secret between the previous decode and this time is different?
     pub fn into_decoded(self, secret: Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
         match self {
@@ -616,7 +611,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
-        let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9")
+                                                               .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -625,9 +621,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_hs256() {
-        let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
+        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                                                                    eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+                                                                    pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
+                                                                   .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -636,9 +633,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_rs256() {
-        let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
+                                                                   .unwrap());
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(public_key, SignatureAlgorithm::RS256);
         claims.unwrap();
@@ -647,9 +645,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "WrongAlgorithmHeader")]
     fn compact_jws_decode_token_wrong_algorithm() {
-        let token = Compact::<PrivateClaims>::new_encoded("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
+        let token = Compact::<PrivateClaims>::new_encoded(&FromStr::from_str("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI")
+                                                                   .unwrap());
         let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
@@ -660,8 +659,7 @@ mod tests {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
                               eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
                               xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
-        let payload: Vec<u8> =
-            vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
+        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
                                     120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104,
                                     116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
                                     105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];

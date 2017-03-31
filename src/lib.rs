@@ -199,13 +199,10 @@ impl CompactJson for Empty {}
 /// An automatic implementation for any `T` that implements the marker trait `CompactJson` is provided.
 /// This implementation will serialize/deserialize `T` to JSON via serde.
 pub trait CompactPart {
-    /// The type holding the base64 encoding
-    type Encoded: AsRef<str>;
-
     /// Base64 decode `Encoded` and then deserialize it to `Self`.
     fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> where Self: Sized;
     /// Serialize `Self` to some form and then base64 encode to `Encoded`
-    fn to_base64(&self) -> Result<Self::Encoded, Error>;
+    fn to_base64(&self) -> Result<Base64Url, Error>;
 }
 
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
@@ -216,12 +213,10 @@ pub trait CompactJson: Serialize + Deserialize {}
 impl<T> CompactPart for T
     where T: CompactJson
 {
-    type Encoded = String;
-
     /// JSON serialize the part and then serialize into URL Safe base64
-    fn to_base64(&self) -> Result<Self::Encoded, Error> {
+    fn to_base64(&self) -> Result<Base64Url, Error> {
         let encoded = serde_json::to_string(&self)?;
-        Ok(base64url::encode_nopad(encoded.as_bytes()))
+        Ok(Base64Url(base64url::encode_nopad(encoded.as_bytes())))
     }
 
     /// From base64, deserialize the JSON representation and further deserialize into `T`
@@ -233,14 +228,46 @@ impl<T> CompactPart for T
 }
 
 impl CompactPart for Vec<u8> {
-    type Encoded = String;
-
-    fn to_base64(&self) -> Result<Self::Encoded, Error> {
-        Ok(base64url::encode_nopad(self))
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        Ok(Base64Url(base64url::encode_nopad(self)))
     }
 
     fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
         Ok(base64url::decode_nopad(encoded.as_ref())?)
+    }
+}
+
+impl CompactPart for Base64Url {
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        Ok((*self).clone())
+    }
+
+    /// From base64, deserialize the JSON representation and further deserialize into `T`
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
+        let bytes: Vec<u8> = encoded.as_ref().to_vec();
+        let string = String::from_utf8(bytes)?;
+        Ok(Base64Url(string))
+    }
+}
+
+/// A newtype wrapper around a string to indicate it's base64 URL encoded
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
+pub struct Base64Url(String);
+
+impl Deref for Base64Url {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for Base64Url {
+    type Err = Error;
+
+    /// This never fails
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Base64Url(s.to_string()))
     }
 }
 
@@ -279,6 +306,16 @@ pub trait CompactParts {
         } else {
             Ok(parts)
         }
+    }
+
+    /// Convenience function to created an encoded representation
+    fn encode_parts(parts: &[&CompactPart]) -> Result<Base64Url, Error> {
+        let encoded_parts = parts.iter()
+            .map(|part| part.to_base64())
+            .collect::<Result<Vec<Base64Url>, Error>>()?;
+
+        let strings: Vec<&str> = encoded_parts.iter().map(|s| s.deref()).collect();
+        Ok(Base64Url(strings.join(".")))
     }
 }
 
