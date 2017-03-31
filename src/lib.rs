@@ -22,6 +22,18 @@
 //! ```
 //!
 //! See [`JWT`] for usage examples.
+//!
+//! ## References
+//! - [JWT Handbook](https://auth0.com/e-books/jwt-handbook) — great introduction to JWT
+//! - [IANA JOSE Registry](https://www.iana.org/assignments/jose/jose.xhtml)
+//!
+//! ### RFCs
+//! - [JSON Web Tokens RFC](https://tools.ietf.org/html/rfc7519)
+//! - [JSON Web Signature RFC](https://tools.ietf.org/html/rfc7515)
+//! - [JSON Web Algorithms RFC](https://tools.ietf.org/html/rfc7518)
+//! - [JSON Web Encryption RFC](https://tools.ietf.org/html/rfc7516)
+//! - [JSON Web Signature (JWS) Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
+//! - [CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JOSE](https://tools.ietf.org/html/rfc8037)
 #![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
