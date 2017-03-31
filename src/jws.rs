@@ -414,7 +414,6 @@ pub struct RegisteredHeader {
 
     /// List of critical extended headers.
     /// This is currently not implemented (correctly).
-    /// Also, private headers are not supported at the moment.
     /// Serialized to `crit`.
     /// Defined in [RFC7515#4.1.11](https://tools.ietf.org/html/rfc7515#section-4.1.11).
     #[serde(rename = "crit", skip_serializing_if = "Option::is_none")]

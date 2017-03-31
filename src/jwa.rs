@@ -141,6 +141,12 @@ impl Default for SignatureAlgorithm {
     }
 }
 
+impl Default for ContentEncryptionAlgorithm {
+    fn default() -> Self {
+        ContentEncryptionAlgorithm::A128GCM
+    }
+}
+
 impl SignatureAlgorithm {
     /// Take some bytes and sign it according to the algorithm and secret provided.
     pub fn sign(&self, data: &[u8], secret: Secret) -> Result<Vec<u8>, Error> {
