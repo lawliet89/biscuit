@@ -83,12 +83,12 @@ pub enum KeyManagementAlgorithm {
     /// RSAES OAEP using SHA-256 and MGF1 with SHA-256
     #[serde(rename = "RSA-OAEP-256")]
     RSA_OAEP_256,
-    /// AES Key Wrap using 128-bit key
+    /// AES Key Wrap using 128-bit key. _Unsupported_
     A128KW,
-    /// AES Key Wrap using 192-bit key.
+    /// AES Key Wrap using 192-bit key. _Unsupported_.
     /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192KW,
-    /// AES Key Wrap using 256-bit key
+    /// AES Key Wrap using 256-bit key. _Unsupported_
     A256KW,
     /// Direct use of a shared symmetric key
     #[serde(rename = "dir")]
@@ -107,7 +107,7 @@ pub enum KeyManagementAlgorithm {
     ECDH_ES_A256KW,
     /// Key wrapping with AES GCM using 128-bit key	alg
     A128GCMKW,
-    /// Key wrapping with AES GCM using 192-bit key	alg
+    /// Key wrapping with AES GCM using 192-bit key alg.
     /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192GCMKW,
     /// Key wrapping with AES GCM using 256-bit key	alg
@@ -343,16 +343,6 @@ impl KeyManagementAlgorithm {
             ECDH_ES_A128KW | ECDH_ES_A192KW | ECDH_ES_A256KW => KeyManagementAlgorithmType::KeyAgreementWithKeyWrapping,
         }
     }
-
-    // /// Wraps the key according to the key management algorithm
-    // pub fn wrap<T: Serialize + Deserialize>(&self, payload: &[u8], key: &jwk::JWK<T>) -> Result<Vec<u8>, Error> {
-    //     use self::KeyManagementAlgorithm::*;
-
-    //     match *self {
-    //         A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW => Self::aes_wrap(self, payload, key),
-    //         _ => Err(Error::UnsupportedOperation),
-    //     }
-    // }
 }
 
 /// Return a psuedo random number generator
