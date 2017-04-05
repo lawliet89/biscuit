@@ -52,7 +52,6 @@ extern crate url;
 extern crate serde_test;
 
 use std::borrow::Borrow;
-use std::convert::{From, Into};
 use std::fmt::{self, Debug};
 use std::ops::Deref;
 use std::str::FromStr;
@@ -161,7 +160,6 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// extern crate serde;
 /// extern crate serde_json;
 ///
-/// use std::default::Default;
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
@@ -680,7 +678,6 @@ impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize + 'static 
 
 #[cfg(test)]
 mod tests {
-    use std::default::Default;
     use std::str::{self, FromStr};
     use std::time::Duration;
 

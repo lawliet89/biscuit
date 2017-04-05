@@ -14,8 +14,6 @@
 //! #[macro_use]
 //! extern crate serde_derive;
 //!
-//! use std::default::Default;
-//!
 //! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
 //! struct InnerOne {
 //!     a: i32,
@@ -79,7 +77,6 @@
 //! #[macro_use]
 //! extern crate serde_derive;
 //!
-//! use std::default::Default;
 //! use serde::{Serialize, Deserialize};
 //!
 //! #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Default)]
@@ -197,7 +194,7 @@ impl Serialize for FlattenSerializable {
         // First, we serialize each of them into JSON Value enum
         let value_maps: Vec<Result<Value, String>> = self.yield_children()
             .iter()
-            .map(|child| child.to_json().map_err(|e| format!("{}", e)))
+            .map(|child| child.to_json().map_err(|e| e.to_string()))
             .collect();
 
         if value_maps.iter().any(|r| r.is_err()) {

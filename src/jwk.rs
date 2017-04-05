@@ -1,7 +1,6 @@
 //! JSON Web Key
 //!
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
-use std::default::Default;
 use std::fmt;
 
 use num::BigUint;
@@ -427,7 +426,6 @@ pub struct JWKSet<T: Serialize + Deserialize + 'static> {
 
 #[cfg(test)]
 mod tests {
-    use std::default::Default;
     use std::str;
 
     use serde_test::{Token, assert_tokens};
