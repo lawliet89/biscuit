@@ -3,6 +3,7 @@
 //! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518)
 use ring::{digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
+use ring::rand::SystemRandom;
 use untrusted;
 
 use errors::Error;
@@ -111,6 +112,22 @@ pub enum KeyManagementAlgorithm {
     /// PBES2 with HMAC SHA-512 and "A256KW" wrapping
     #[serde(rename = "PBES2-HS512+A256KW")]
     PBES2_HS512_A256KW,
+}
+
+/// Describes the type of operations that the key management algorithm
+/// supports with respect to a Content Encryption Key (CEK)
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
+pub enum KeyManagementAlgorithmType {
+    /// Wraps a CEK using a symmetric encryption algorithm
+    SymmetricKeyWrapping,
+    /// Wraps a CEK using an asymmetric encryption algorithm,
+    AsymmetricKeyWrapping,
+    /// A key agreement algorithm to pick a CEK
+    DirectKeyAgreement,
+    /// A key agreement algorithm used to pick a symmetric CEK using a symmetric encryption algorithm
+    KeyAgreementWithKeyWrapping,
+    /// A user defined symmetric shared key is the CEK
+    DirectEncryption,
 }
 
 /// Algorithms meant for content encryption.
@@ -285,6 +302,43 @@ impl SignatureAlgorithm {
     }
 }
 
+impl KeyManagementAlgorithm {
+    /// Returns the type of operations that the algorithm is intended to support
+    pub fn algorithm_type(&self) -> KeyManagementAlgorithmType {
+        use self::KeyManagementAlgorithm::*;
+
+        match *self {
+            A128KW |
+            A192KW |
+            A256KW |
+            A128GCMKW |
+            A192GCMKW |
+            A256GCMKW |
+            PBES2_HS256_A128KW |
+            PBES2_HS384_A192KW |
+            PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
+            RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyWrapping,
+            DirectSymmetricKey => KeyManagementAlgorithmType::DirectEncryption,
+            ECDH_ES => KeyManagementAlgorithmType::DirectKeyAgreement,
+            ECDH_ES_A128KW | ECDH_ES_A192KW | ECDH_ES_A256KW => KeyManagementAlgorithmType::KeyAgreementWithKeyWrapping,
+        }
+    }
+
+    /// Wraps the key according to the key management algorithm
+    pub fn wrap() {}
+}
+
+/// Return a psuedo random number generator
+fn rng() -> &'static SystemRandom {
+    use std::ops::Deref;
+
+    lazy_static! {
+        static ref RANDOM: SystemRandom = SystemRandom::new();
+    }
+
+    RANDOM.deref()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -307,8 +361,7 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_base64));
 
-        let actual_signature =
-            not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
+        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
                                                                        Secret::bytes_from_str("secret")));
         assert_eq!(&*not_err!(actual_signature.to_base64()), expected_base64);
 
@@ -394,7 +447,9 @@ mod tests {
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        SignatureAlgorithm::ES256.sign(payload_bytes, private_key).unwrap();
+        SignatureAlgorithm::ES256
+            .sign(payload_bytes, private_key)
+            .unwrap();
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L248
@@ -439,7 +494,9 @@ mod tests {
         let payload: Vec<u8> = vec![];
         let signature: Vec<u8> = vec![];
         let public_key = Secret::PublicKey(vec![]);
-        SignatureAlgorithm::ES512.verify(signature.as_slice(), payload.as_slice(), public_key).unwrap();
+        SignatureAlgorithm::ES512
+            .verify(signature.as_slice(), payload.as_slice(), public_key)
+            .unwrap();
     }
 
     #[test]
@@ -456,8 +513,7 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid =
-            not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
                                                               "payload".to_string().as_bytes(),
                                                               Secret::Bytes("secret".to_string().into_bytes())));
         assert!(!valid);
@@ -494,5 +550,12 @@ mod tests {
                                                               "payload".to_string().as_bytes(),
                                                               public_key));
         assert!(!valid);
+    }
+
+    #[test]
+    fn rng_is_created() {
+        let rng = rng();
+        let mut random: Vec<u8> = Vec::with_capacity(8);
+        rng.fill(&mut random).unwrap();
     }
 }

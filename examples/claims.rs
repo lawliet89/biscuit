@@ -54,7 +54,7 @@ fn main() {
     println!("{:?}", token);
 
     let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
-                       SignatureAlgorithm::HS256) {
+                                 SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {
@@ -65,9 +65,5 @@ fn main() {
         }
     };
     println!("{:?}", jwt);
-    println!("{:?}",
-             jwt.payload()
-                 .unwrap()
-                 .private
-                 .is_valid());
+    println!("{:?}", jwt.payload().unwrap().private.is_valid());
 }
