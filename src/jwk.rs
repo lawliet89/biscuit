@@ -8,19 +8,43 @@ use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
 use serde::de;
 use serde_json;
 
+use errors::Error;
 use serde_custom;
 use jwa::Algorithm;
 
+macro_rules! unexpected_key_type_error {
+    ($expected: path, $actual: expr) => {
+        Error::WrongKeyType { actual: $actual.to_string(), expected: $expected.to_string() }
+    }
+}
+
 /// Type of Key as specified in RFC 7518.
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
 pub enum KeyType {
     ///  Elliptic curve keys
-    EC,
+    EllipticCurve,
     /// RSA Key
     RSA,
     /// Octet sequence, representing symmetric keys
     #[serde(rename = "oct")]
     Octect,
+}
+
+impl KeyType {
+    /// Description of the type of key
+    pub fn description(&self) -> &'static str {
+        match *self {
+            KeyType::EllipticCurve => "Elliptic curve (EC) key",
+            KeyType::RSA => "RSA Key",
+            KeyType::Octect => "Key byte sequence",
+        }
+    }
+}
+
+impl fmt::Display for KeyType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
+    }
 }
 
 /// The intended usage of the public `KeyType`. This enum is serialized `untagged`
@@ -220,6 +244,25 @@ pub enum AlgorithmParameters {
     },
 }
 
+impl AlgorithmParameters {
+    /// Returns the type of key represented by this set of algorithm parameters
+    pub fn key_type(&self) -> KeyType {
+        match *self {
+            AlgorithmParameters::EllipticCurve(_) => KeyType::EllipticCurve,
+            AlgorithmParameters::RSA(_) => KeyType::RSA,
+            AlgorithmParameters::OctectKey { .. } => KeyType::Octect,
+        }
+    }
+
+    /// Return the byte sequence of an octect key
+    pub fn octect_key(&self) -> Result<&[u8], Error> {
+        match *self {
+            AlgorithmParameters::OctectKey { ref value, .. } => Ok(value),
+            _ => Err(unexpected_key_type_error!(KeyType::Octect, self.key_type())),
+        }
+    }
+}
+
 /// Parameters for an Elliptic Curve Key
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct EllipticCurveKeyParameters {
@@ -416,6 +459,13 @@ pub struct JWK<T: Serialize + Deserialize + 'static> {
 
 impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             common, algorithm, additional);
+
+impl<T: Serialize + Deserialize + 'static> JWK<T> {
+    /// Returns the type of key represented by this key
+    pub fn key_type(&self) -> KeyType {
+        self.algorithm.key_type()
+    }
+}
 
 /// A JSON object that represents a set of JWKs.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]

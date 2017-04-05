@@ -1,13 +1,20 @@
 //! JSON Web Algorithms
 //!
 //! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518)
-use ring::{digest, hmac, rand, signature};
+use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
+use serde::{Serialize, Deserialize};
 use untrusted;
 
 use errors::Error;
+use jwk;
 use jws::Secret;
+
+/// AES GCM Tag Size, in bytes
+const TAG_SIZE: usize = 128/8;
+/// AES GCM Nonce length, in bytes
+const NONCE_LENGTH: usize = 96/8;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 /// Algorithms described by [RFC 7518](https://tools.ietf.org/html/rfc7518).
@@ -78,7 +85,8 @@ pub enum KeyManagementAlgorithm {
     RSA_OAEP_256,
     /// AES Key Wrap using 128-bit key
     A128KW,
-    /// AES Key Wrap using 192-bit key
+    /// AES Key Wrap using 192-bit key.
+    /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192KW,
     /// AES Key Wrap using 256-bit key
     A256KW,
@@ -100,6 +108,7 @@ pub enum KeyManagementAlgorithm {
     /// Key wrapping with AES GCM using 128-bit key	alg
     A128GCMKW,
     /// Key wrapping with AES GCM using 192-bit key	alg
+    /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192GCMKW,
     /// Key wrapping with AES GCM using 256-bit key	alg
     A256GCMKW,
@@ -147,9 +156,21 @@ pub enum ContentEncryptionAlgorithm {
     /// AES GCM using 128-bit key
     A128GCM,
     /// AES GCM using 192-bit key
+    /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192GCM,
     /// AES GCM using 256-bit key
     A256GCM,
+}
+
+/// The result returned from an AES GCM encryption operation
+#[derive(Debug, Eq, PartialEq)]
+pub struct AesGcmEncryptionResult {
+    /// The initialization vector, or nonce used in the encryption
+    pub nonce: Vec<u8>,
+    /// The encrypted output
+    pub encrypted: Vec<u8>,
+    /// The authentication tag
+    pub tag: Vec<u8>,
 }
 
 impl Default for SignatureAlgorithm {
@@ -294,8 +315,7 @@ impl SignatureAlgorithm {
                                 message,
                                 expected_signature) {
             Ok(()) => Ok(true),
-            Err(e) => {
-                println!("{}", e);
+            Err(_) => {
                 Ok(false)
             }
         }
@@ -324,8 +344,15 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    /// Wraps the key according to the key management algorithm
-    pub fn wrap() {}
+    // /// Wraps the key according to the key management algorithm
+    // pub fn wrap<T: Serialize + Deserialize>(&self, payload: &[u8], key: &jwk::JWK<T>) -> Result<Vec<u8>, Error> {
+    //     use self::KeyManagementAlgorithm::*;
+
+    //     match *self {
+    //         A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW => Self::aes_wrap(self, payload, key),
+    //         _ => Err(Error::UnsupportedOperation),
+    //     }
+    // }
 }
 
 /// Return a psuedo random number generator
@@ -337,6 +364,54 @@ fn rng() -> &'static SystemRandom {
     }
 
     RANDOM.deref()
+}
+
+/// Encrypt a payload with AES GCM
+fn aes_gcm_encrypt<T: Serialize + Deserialize>(algorithm: &'static aead::Algorithm,
+                                               payload: &[u8],
+                                               key: &jwk::JWK<T>)
+                                               -> Result<AesGcmEncryptionResult, Error> {
+
+    // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
+    assert_eq!(algorithm.tag_len(), TAG_SIZE);
+    // Also the nonce (or initialization vector) needs to be 96 bits
+    assert_eq!(algorithm.nonce_len(), NONCE_LENGTH);
+
+    let key = key.algorithm.octect_key()?;
+    let sealing_key = aead::SealingKey::new(algorithm, key)?;
+
+    let mut in_out: Vec<u8> = payload.to_vec();
+    in_out.append(&mut vec![0; TAG_SIZE]);
+
+    let mut nonce: Vec<u8> = vec![0; NONCE_LENGTH];
+    rng().fill(&mut nonce)?;
+
+    let size = aead::seal_in_place(&sealing_key, &nonce, &vec![], &mut in_out, TAG_SIZE)?;
+    Ok(AesGcmEncryptionResult {
+           nonce: nonce,
+           encrypted: in_out[0..(size - TAG_SIZE)].to_vec(),
+           tag: in_out[(size - TAG_SIZE)..size].to_vec(),
+       })
+}
+
+/// Decrypts a payload with AES GCM
+fn aes_gcm_decrypt<T: Serialize + Deserialize>(algorithm: &'static aead::Algorithm,
+                                               encrypted: &AesGcmEncryptionResult,
+                                               key: &jwk::JWK<T>)
+                                               -> Result<Vec<u8>, Error> {
+    // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
+    assert_eq!(algorithm.tag_len(), TAG_SIZE);
+    // Also the nonce (or initialization vector) needs to be 96 bits
+    assert_eq!(algorithm.nonce_len(), NONCE_LENGTH);
+
+    let key = key.algorithm.octect_key()?;
+    let opening_key = aead::OpeningKey::new(algorithm, key)?;
+
+    let mut in_out = encrypted.encrypted.to_vec();
+    in_out.append(&mut encrypted.tag.to_vec());
+
+    let plaintext = aead::open_in_place(&opening_key, &encrypted.nonce, &vec![], 0, &mut in_out)?;
+    Ok(plaintext.to_vec())
 }
 
 #[cfg(test)]
@@ -555,7 +630,51 @@ mod tests {
     #[test]
     fn rng_is_created() {
         let rng = rng();
-        let mut random: Vec<u8> = Vec::with_capacity(8);
+        let mut random: Vec<u8> = vec![0; 8];
         rng.fill(&mut random).unwrap();
+    }
+
+    #[test]
+    fn aes_gcm_128_encryption_round_trip() {
+        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        let mut key: Vec<u8> = vec![0; 128/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key
+            }
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(&aead::AES_128_GCM, PAYLOAD.as_bytes(), &key));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
+    }
+
+    #[test]
+    fn aes_gcm_256_encryption_round_trip() {
+        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key
+            }
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(&aead::AES_256_GCM, PAYLOAD.as_bytes(), &key));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
     }
 }

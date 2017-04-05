@@ -25,6 +25,14 @@ pub enum Error {
     /// Errors related to URI parsing
     UriParseError(ParseError),
 
+    /// Wrong key type was provided for the cryptographic operation
+    WrongKeyType {
+        /// Expected type of key
+        expected: String,
+        /// Actual type of key
+        actual: String,
+    },
+
     /// An unknown cryptographic error
     UnspecifiedCryptographicError,
     /// An unsupported or invalid operation
@@ -40,6 +48,7 @@ pub enum ValidationError {
     InvalidSignature,
     /// Token was provided was signed with an unexpected algorithm
     WrongAlgorithmHeader,
+
     /// A field required is missing from the token
     MissingRequired(String),
     /// The token has invalid temporal field values
@@ -88,6 +97,7 @@ impl error::Error for Error {
             ValidationError(ref err) => err.description(),
             IOError(ref e) => e.description(),
             UriParseError(ref e) => e.description(),
+            WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
             UnsupportedOperation => "This operation is not supported",
         }
@@ -120,6 +130,15 @@ impl fmt::Display for Error {
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             IOError(ref err) => fmt::Display::fmt(err, f),
             UriParseError(ref err) => fmt::Display::fmt(err, f),
+            WrongKeyType {
+                ref actual,
+                ref expected,
+            } => {
+                write!(f,
+                       "{} was expected for this cryptographic operation but {} was provided",
+                       expected,
+                       actual)
+            }
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
             UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }
