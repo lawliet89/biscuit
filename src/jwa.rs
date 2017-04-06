@@ -129,8 +129,8 @@ pub enum KeyManagementAlgorithm {
 pub enum KeyManagementAlgorithmType {
     /// Wraps a CEK using a symmetric encryption algorithm
     SymmetricKeyWrapping,
-    /// Wraps a CEK using an asymmetric encryption algorithm,
-    AsymmetricKeyWrapping,
+    /// Encrypt a CEK using an asymmetric encryption algorithm,
+    AsymmetricKeyEncryption,
     /// A key agreement algorithm to pick a CEK
     DirectKeyAgreement,
     /// A key agreement algorithm used to pick a symmetric CEK using a symmetric encryption algorithm
@@ -337,7 +337,7 @@ impl KeyManagementAlgorithm {
             PBES2_HS256_A128KW |
             PBES2_HS384_A192KW |
             PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
-            RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyWrapping,
+            RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyEncryption,
             DirectSymmetricKey => KeyManagementAlgorithmType::DirectEncryption,
             ECDH_ES => KeyManagementAlgorithmType::DirectKeyAgreement,
             ECDH_ES_A128KW | ECDH_ES_A192KW | ECDH_ES_A256KW => KeyManagementAlgorithmType::KeyAgreementWithKeyWrapping,
