@@ -239,22 +239,17 @@ impl CompactPart for Vec<u8> {
     }
 }
 
-impl CompactPart for Base64Url {
-    fn to_base64(&self) -> Result<Base64Url, Error> {
-        Ok((*self).clone())
-    }
-
-    /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        let bytes: Vec<u8> = encoded.as_ref().to_vec();
-        let string = String::from_utf8(bytes)?;
-        Ok(Base64Url(string))
-    }
-}
-
 /// A newtype wrapper around a string to indicate it's base64 URL encoded
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Base64Url(String);
+
+impl Base64Url {
+    /// Unwrap the embedded string, consuming self in the process
+    pub fn unwrap(self) -> String {
+        let Base64Url(string) = self;
+        string
+    }
+}
 
 impl Deref for Base64Url {
     type Target = str;
@@ -273,48 +268,118 @@ impl FromStr for Base64Url {
     }
 }
 
-/// A "collection" of `CompactPart`s
-pub trait CompactParts {
-    /// Return the Encoded representation of the various parts
-    fn encoded(&self) -> Result<String, Error>;
-    /// The number of expected parts
-    fn expected_len() -> usize;
+impl Borrow<str> for Base64Url {
+    fn borrow(&self) -> &str {
+        self.0.borrow()
+    }
+}
 
-    /// Split the encoded parts into its various parts
-    fn parts(&self) -> Result<Vec<String>, Error> {
-        let parts = self.encoded()?;
-        Ok(parts.split('.').map(|s| s.to_string()).collect())
+impl CompactPart for Base64Url {
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        Ok((*self).clone())
     }
 
-    /// The number of parts
-    fn len(&self) -> Result<usize, Error> {
-        Ok(self.parts()?.len())
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
+        let bytes: Vec<u8> = encoded.as_ref().to_vec();
+        let string = String::from_utf8(bytes)?;
+        Ok(Base64Url(string))
+    }
+}
+
+impl AsRef<[u8]> for Base64Url {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+/// A collection of `CompactPart`s that have been converted to Base64Url
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Compact {
+    /// Parts of the compact representation
+    pub parts: Vec<Base64Url>,
+}
+
+impl Compact {
+    /// Create an empty struct
+    pub fn new() -> Self {
+        Self { parts: vec![] }
     }
 
-    /// Verify that the number of parts is as expected
-    fn verify_len(&self) -> Result<Vec<String>, Error> {
-        let expected_len = Self::expected_len();
-        let parts = self.parts()?;
-        let actual_len = parts.len();
+    /// Create an empty struct with some expected capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self { parts: Vec::with_capacity(capacity) }
+    }
 
-        if expected_len != actual_len {
-            Err(ValidationError::PartsLengthError {
-                    actual: actual_len,
-                    expected: expected_len,
-                })?
-        } else {
-            Ok(parts)
+    /// Push a `CompactPart` to the end
+    pub fn push(&mut self, part: &CompactPart) -> Result<(), Error> {
+        let base64 = part.to_base64()?;
+        self.parts.push(base64);
+        Ok(())
+    }
+
+    /// Returns the number of parts
+    pub fn len(&self) -> usize {
+        self.parts.len()
+    }
+
+    /// Encodes the various parts into Base64 URL encoding and then concatenates them with period '.'
+    /// This corresponds to the various `Compact` representation in JWE and JWS, for example
+    pub fn encode(&self) -> String {
+        let strings: Vec<&str> = self.parts.iter().map(|s| s.deref()).collect();
+        strings.join(".")
+    }
+
+    /// Convenience function to split an encoded compact representation into a list of `Base64Url`.
+    pub fn decode(encoded: &str) -> Self {
+        // Never fails
+        let parts = encoded
+            .split('.')
+            .map(|s| FromStr::from_str(s).unwrap())
+            .collect();
+        Self { parts: parts }
+    }
+
+    /// Convenience function to retrieve a part at a certain index and decode into the type desired
+    pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
+        let part = self.parts.get(index).ok_or_else(|| "Out of bounds".to_string())?;
+        CompactPart::from_base64(part)
+    }
+
+    /// Alias of `encode`
+    pub fn to_string(&self) -> String {
+        self.encode()
+    }
+}
+
+impl Serialize for Compact {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(&self.encode())
+    }
+}
+
+impl Deserialize for Compact {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer {
+
+        struct CompactVisitor;
+
+        impl de::Visitor for CompactVisitor {
+            type Value = Compact;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing a compact JOSE representation")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                Ok(Compact::decode(value))
+            }
         }
-    }
 
-    /// Convenience function to created an encoded representation
-    fn encode_parts(parts: &[&CompactPart]) -> Result<Base64Url, Error> {
-        let encoded_parts = parts.iter()
-            .map(|part| part.to_base64())
-            .collect::<Result<Vec<Base64Url>, Error>>()?;
-
-        let strings: Vec<&str> = encoded_parts.iter().map(|s| s.deref()).collect();
-        Ok(Base64Url(strings.join(".")))
+        deserializer.deserialize_str(CompactVisitor)
     }
 }
 

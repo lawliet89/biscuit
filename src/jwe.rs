@@ -7,7 +7,8 @@ use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
 use serde_json;
 use serde::de;
 
-use {Empty, CompactJson};
+use {Base64Url, CompactJson, CompactPart, Empty};
+use errors::Error;
 use jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm};
 use serde_custom;
 
@@ -165,6 +166,36 @@ impl Header<Empty> {
 impl From<RegisteredHeader> for Header<Empty> {
     fn from(registered: RegisteredHeader) -> Self {
         Self::from_registered_header(registered)
+    }
+}
+
+/// Compact representation of a JWE, or an encrypted JWT
+///
+/// This representation contains a payload of type `T` with custom headers provided by type `H`.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Compact<T: CompactPart, H: Serialize + Deserialize + 'static> {
+    /// Unencrypted form of the JWE.
+    /// This variant cannot be serialized or deserialized and will return an error.
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
+    Unencrypted {
+        /// Embedded header
+        header: Header<H>,
+        /// Payload, usually a signed/unsigned JWT
+        payload: T,
+    },
+    /// Encrypted JWT. Use this form to send to your clients
+    Encrypted(Base64Url),
+}
+
+impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
+    /// Convenience method to extract the encrypted payload
+    pub fn encrypted(&self) -> Result<&Base64Url, Error> {
+        match *self {
+            Compact::Unencrypted { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encrypted(ref encoded) => Ok(encoded),
+        }
     }
 }
 
