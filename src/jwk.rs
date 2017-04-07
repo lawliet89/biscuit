@@ -466,7 +466,7 @@ pub struct JWK<T: Serialize + Deserialize + 'static> {
 impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             common, algorithm, additional);
 
-impl<T: Serialize + Deserialize> JWK<T> {
+impl<T: Serialize + Deserialize + 'static> JWK<T> {
     /// Convenience to create a new bare-bones Octect key
     pub fn new_octect_key(key: &[u8], additional: T) -> Self {
         Self {
@@ -487,12 +487,15 @@ impl<T: Serialize + Deserialize> JWK<T> {
             additional: Default::default(),
         }
     }
-}
 
-impl<T: Serialize + Deserialize + 'static> JWK<T> {
     /// Returns the type of key represented by this key
     pub fn key_type(&self) -> KeyType {
         self.algorithm.key_type()
+    }
+
+    /// Return the byte sequence of an octect key
+    pub fn octect_key(&self) -> Result<&[u8], Error> {
+        self.algorithm.octect_key()
     }
 }
 

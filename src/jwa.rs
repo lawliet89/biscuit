@@ -609,8 +609,11 @@ fn aes_gcm_decrypt<T: Serialize + Deserialize>(algorithm: &'static aead::Algorit
 
 #[cfg(test)]
 mod tests {
+    use ring::constant_time::verify_slices_are_equal;
+
     use super::*;
     use CompactPart;
+    use jwa;
 
     #[test]
     fn sign_and_verify_none() {
@@ -869,5 +872,186 @@ mod tests {
 
         let payload = not_err!(String::from_utf8(decrypted));
         assert_eq!(payload, PAYLOAD);
+    }
+
+    /// `KeyManagementAlgorithm::DirectSymmetricKey` returns the same key when CEK is requested
+    #[test]
+    fn dir_cek_returns_provided_key() {
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let cek_alg = KeyManagementAlgorithm::DirectSymmetricKey;
+        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_ok());
+    }
+
+    /// `KeyManagementAlgorithm::A128GCMKW` returns a random key with the right length when CEK is requested
+    #[test]
+    fn cek_aes128gcmkw_returns_right_key_length() {
+        let mut key: Vec<u8> = vec![0; 128/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let cek_alg = KeyManagementAlgorithm::A128GCMKW;
+        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
+        assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+
+        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+        assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+    }
+
+    /// `KeyManagementAlgorithm::A256GCMKW` returns a random key with the right length when CEK is requested
+    #[test]
+    fn cek_aes256gcmkw_returns_right_key_length() {
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let cek_alg = KeyManagementAlgorithm::A256GCMKW;
+        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
+        assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+
+        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+        assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+    }
+
+    #[test]
+    fn aes128gcmkw_key_encryption_round_trip() {
+        let mut key: Vec<u8> = vec![0; 128/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let cek_alg = KeyManagementAlgorithm::A128GCMKW;
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
+        let cek = not_err!(cek_alg.cek(enc_alg, &key));
+
+        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
+        let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
+
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap()).is_ok());
+    }
+
+    #[test]
+    fn aes256gcmkw_key_encryption_round_trip() {
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let cek_alg = KeyManagementAlgorithm::A256GCMKW;
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
+        let cek = not_err!(cek_alg.cek(enc_alg, &key));
+
+        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
+        let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
+
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap()).is_ok());
+    }
+
+    /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
+    #[test]
+    fn aes128gcm_key_length() {
+       let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
+       let cek = not_err!(enc_alg.generate_key());
+       assert_eq!(cek.len(), 128/8);
+    }
+
+    /// `ContentEncryptionAlgorithm::A256GCM` generates CEK of the right length
+    #[test]
+    fn aes256gcm_key_length() {
+       let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
+       let cek = not_err!(enc_alg.generate_key());
+       assert_eq!(cek.len(), 256/8);
+    }
+
+    #[test]
+    fn aes128gcm_encryption_round_trip() {
+        let mut key: Vec<u8> = vec![0; 128/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let payload = "狼よ、我が敵を食らえ！";
+        let aad = "My servants never die!";
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
+        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key));
+
+        let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
+        assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
+    }
+
+    #[test]
+    fn aes1256gcm_encryption_round_trip() {
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let payload = "狼よ、我が敵を食らえ！";
+        let aad = "My servants never die!";
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
+        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key));
+
+        let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
+        assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
     }
 }
