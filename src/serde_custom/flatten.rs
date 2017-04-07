@@ -198,7 +198,8 @@ impl Serialize for FlattenSerializable {
             .collect();
 
         if value_maps.iter().any(|r| r.is_err()) {
-            let errors: Vec<String> = value_maps.iter()
+            let errors: Vec<String> = value_maps
+                .iter()
                 .cloned()
                 .filter(|r| r.is_err())
                 .map(|r| r.unwrap_err())
@@ -206,7 +207,8 @@ impl Serialize for FlattenSerializable {
             Err(S::Error::custom(errors.join("; ")))?;
         }
 
-        let value_maps: Vec<Map<String, Value>> = value_maps.into_iter()
+        let value_maps: Vec<Map<String, Value>> = value_maps
+            .into_iter()
             .filter(|r| r.is_ok())
             .map(|r| r.unwrap())
             .map(|value| match value {
@@ -217,13 +219,19 @@ impl Serialize for FlattenSerializable {
 
         if let DuplicateKeysBehaviour::RaiseError = self.duplicate_keys() {
             // We need to check for duplicate keys
-            let keys: Vec<HashSet<String>> = value_maps.iter().map(|k| k.keys().cloned().collect()).collect();
+            let keys: Vec<HashSet<String>> = value_maps
+                .iter()
+                .map(|k| k.keys().cloned().collect())
+                .collect();
             if pairwise_intersection(keys.as_slice()) {
                 Err(S::Error::custom("Structs have duplicate keys"))?
             }
         }
 
-        let map: Map<String, Value> = value_maps.into_iter().flat_map(|m| m.into_iter()).collect();
+        let map: Map<String, Value> = value_maps
+            .into_iter()
+            .flat_map(|m| m.into_iter())
+            .collect();
         map.serialize(serializer)
     }
 }

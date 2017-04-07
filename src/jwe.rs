@@ -155,7 +155,10 @@ impl<T: Serialize + Deserialize + 'static> CompactJson for Header<T> {}
 impl Header<Empty> {
     /// Convenience function to create a header with only registered headers
     pub fn from_registered_header(registered: RegisteredHeader) -> Self {
-        Self { registered: registered, ..Default::default() }
+        Self {
+            registered: registered,
+            ..Default::default()
+        }
     }
 }
 
