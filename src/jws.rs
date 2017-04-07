@@ -134,7 +134,10 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     /// The secret is dependent on the signing algorithm
     pub fn encode(&self, secret: Secret) -> Result<Self, Error> {
         match *self {
-            Compact::Decoded { ref header, ref payload } => {
+            Compact::Decoded {
+                ref header,
+                ref payload,
+            } => {
                 let encoded_payload = Self::encode_parts(&[header, payload])?;
                 let signature = header.registered
                     .algorithm
@@ -336,7 +339,10 @@ impl<T: Serialize + Deserialize + 'static> CompactJson for Header<T> {}
 impl Header<Empty> {
     /// Convenience function to create a header with only registered headers
     pub fn from_registered_header(registered: RegisteredHeader) -> Self {
-        Self { registered: registered, ..Default::default() }
+        Self {
+            registered: registered,
+            ..Default::default()
+        }
     }
 }
 

@@ -1071,7 +1071,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_iat() {
-        let options = TemporalValidationOptions { issued_at_required: true, ..Default::default() };
+        let options = TemporalValidationOptions {
+            issued_at_required: true,
+            ..Default::default()
+        };
 
         let registered_claims = RegisteredClaims {
             expiry: Some(1.into()),
@@ -1084,7 +1087,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_exp() {
-        let options = TemporalValidationOptions { expiry_required: true, ..Default::default() };
+        let options = TemporalValidationOptions {
+            expiry_required: true,
+            ..Default::default()
+        };
 
         let registered_claims = RegisteredClaims {
             not_before: Some(1.into()),
@@ -1097,7 +1103,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "MissingRequired")]
     fn validate_times_missing_nbf() {
-        let options = TemporalValidationOptions { not_before_required: true, ..Default::default() };
+        let options = TemporalValidationOptions {
+            not_before_required: true,
+            ..Default::default()
+        };
 
         let registered_claims = RegisteredClaims {
             expiry: Some(1.into()),
@@ -1110,33 +1119,54 @@ mod tests {
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_future_token() {
-        let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
+        let options = TemporalValidationOptions {
+            now: Some(UTC.timestamp(0, 0)),
+            ..Default::default()
+        };
 
-        let registered_claims = RegisteredClaims { issued_at: Some(10.into()), ..Default::default() };
+        let registered_claims = RegisteredClaims {
+            issued_at: Some(10.into()),
+            ..Default::default()
+        };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_expired_token() {
-        let options = TemporalValidationOptions { now: Some(UTC.timestamp(2, 0)), ..Default::default() };
+        let options = TemporalValidationOptions {
+            now: Some(UTC.timestamp(2, 0)),
+            ..Default::default()
+        };
 
-        let registered_claims = RegisteredClaims { expiry: Some(1.into()), ..Default::default() };
+        let registered_claims = RegisteredClaims {
+            expiry: Some(1.into()),
+            ..Default::default()
+        };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_early_token() {
-        let options = TemporalValidationOptions { now: Some(UTC.timestamp(0, 0)), ..Default::default() };
+        let options = TemporalValidationOptions {
+            now: Some(UTC.timestamp(0, 0)),
+            ..Default::default()
+        };
 
-        let registered_claims = RegisteredClaims { not_before: Some(1.into()), ..Default::default() };
+        let registered_claims = RegisteredClaims {
+            not_before: Some(1.into()),
+            ..Default::default()
+        };
         registered_claims.validate_times(Some(options)).unwrap();
     }
 
     #[test]
     fn validate_times_valid_token_with_default_options() {
-        let registered_claims = RegisteredClaims { not_before: Some(1.into()), ..Default::default() };
+        let registered_claims = RegisteredClaims {
+            not_before: Some(1.into()),
+            ..Default::default()
+        };
         not_err!(registered_claims.validate_times(None));
     }
 
