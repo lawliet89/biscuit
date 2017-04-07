@@ -2,6 +2,7 @@
 //!
 //! Defined in [RFC 7515](https://tools.ietf.org/html/rfc7515)
 use std::sync::Arc;
+use std::str;
 
 use ring::signature;
 use serde::{self, Serialize, Deserialize};
@@ -170,9 +171,9 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
             Compact::Encoded(ref encoded) => {
                 if encoded.len() != 3 {
                     Err(ValidationError::PartsLengthError {
-                        actual: encoded.len(),
-                        expected: 3,
-                    })?
+                            actual: encoded.len(),
+                            expected: 3,
+                        })?
                 }
 
                 let signature: Vec<u8> = encoded.part(2)?;
@@ -215,6 +216,20 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
             Compact::Decoded { ref header, .. } => Ok(header),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
+    }
+}
+
+/// Implementation for embedded inside a JWE.
+// FIXME: Maybe use a separate trait instead?
+impl<T: CompactPart, H: Serialize + Deserialize + 'static> CompactPart for Compact<T, H> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        let encoded = self.encoded()?;
+        Ok(encoded.into_bytes())
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let string = str::from_utf8(bytes)?;
+        Ok(Self::new_encoded(string))
     }
 }
 

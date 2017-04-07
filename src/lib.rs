@@ -56,7 +56,7 @@ extern crate serde_test;
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::ops::Deref;
-use std::str::FromStr;
+use std::str::{self, FromStr};
 
 use chrono::{DateTime, UTC, NaiveDateTime};
 use data_encoding::base64url;
@@ -71,6 +71,9 @@ mod test;
 
 #[macro_use]
 mod serde_custom;
+
+#[macro_use]
+mod macros;
 
 pub mod errors;
 pub mod jwa;
@@ -201,10 +204,25 @@ impl CompactJson for Empty {}
 /// An automatic implementation for any `T` that implements the marker trait `CompactJson` is provided.
 /// This implementation will serialize/deserialize `T` to JSON via serde.
 pub trait CompactPart {
-    /// Base64 decode `Encoded` and then deserialize it to `Self`.
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> where Self: Sized;
-    /// Serialize `Self` to some form and then base64 encode to `Encoded`
-    fn to_base64(&self) -> Result<Base64Url, Error>;
+    /// Convert this part into bytes
+    fn to_bytes(&self) -> Result<Vec<u8>, Error>;
+
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> where Self: Sized;
+
+    /// Base64 decode into Self
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error>
+        where Self: Sized
+    {
+        let decoded = base64url::decode_nopad(encoded.as_ref())?;
+        Self::from_bytes(&decoded)
+    }
+
+    /// Serialize `Self` to some form and then base64URL Encode
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        let bytes = self.to_bytes()?;
+        Ok(Base64Url(base64url::encode_nopad(bytes.as_ref())))
+    }
 }
 
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
@@ -215,27 +233,26 @@ pub trait CompactJson: Serialize + Deserialize {}
 impl<T> CompactPart for T
     where T: CompactJson
 {
-    /// JSON serialize the part and then serialize into URL Safe base64
-    fn to_base64(&self) -> Result<Base64Url, Error> {
+    /// JSON serialize the part and return the JSON string bytes
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let encoded = serde_json::to_string(&self)?;
-        Ok(Base64Url(base64url::encode_nopad(encoded.as_bytes())))
+        Ok(encoded.into_bytes())
     }
 
-    /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        let decoded = base64url::decode_nopad(encoded.as_ref())?;
-        let s = String::from_utf8(decoded)?;
-        Ok(serde_json::from_str(&s)?)
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let s = str::from_utf8(bytes)?;
+        Ok(serde_json::from_str(s)?)
     }
 }
 
 impl CompactPart for Vec<u8> {
-    fn to_base64(&self) -> Result<Base64Url, Error> {
-        Ok(Base64Url(base64url::encode_nopad(self)))
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        Ok(self.clone())
     }
 
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        Ok(base64url::decode_nopad(encoded.as_ref())?)
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        Ok(bytes.to_vec())
     }
 }
 
@@ -248,6 +265,11 @@ impl Base64Url {
     pub fn unwrap(self) -> String {
         let Base64Url(string) = self;
         string
+    }
+
+    /// "Borrow" the string
+    pub fn str(&self) -> &str {
+        &self.0
     }
 }
 
@@ -270,19 +292,27 @@ impl FromStr for Base64Url {
 
 impl Borrow<str> for Base64Url {
     fn borrow(&self) -> &str {
-        self.0.borrow()
+        self.str()
     }
 }
 
 impl CompactPart for Base64Url {
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        Ok(base64url::decode_nopad(self.as_ref())?)
+    }
+
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let string = str::from_utf8(bytes)?;
+        Ok(Base64Url(string.to_string()))
+    }
+
     fn to_base64(&self) -> Result<Base64Url, Error> {
         Ok((*self).clone())
     }
 
     fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        let bytes: Vec<u8> = encoded.as_ref().to_vec();
-        let string = String::from_utf8(bytes)?;
-        Ok(Base64Url(string))
+        Self::from_bytes(encoded.as_ref())
     }
 }
 
@@ -341,7 +371,9 @@ impl Compact {
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts.get(index).ok_or_else(|| "Out of bounds".to_string())?;
+        let part = self.parts
+            .get(index)
+            .ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
 
@@ -361,7 +393,8 @@ impl Serialize for Compact {
 
 impl Deserialize for Compact {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer {
+        where D: Deserializer
+    {
 
         struct CompactVisitor;
 
@@ -1271,5 +1304,44 @@ mod tests {
             ..Default::default()
         };
         not_err!(registered_claims.validate_times(Some(options)));
+    }
+
+    #[test]
+    fn compact_part_round_trip() {
+        let test_value = PrivateClaims {
+            department: "Toilet Cleaning".to_string(),
+            company: "ACME".to_string(),
+        };
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(PrivateClaims::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
+    }
+
+    #[test]
+    fn compact_part_vec_u8_round_trip() {
+        let test_value: Vec<u8> = vec![1, 2, 3, 4, 5];
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "AQIDBAU";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(Vec::<u8>::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
+    }
+
+    #[test]
+    fn compact_part_base64_url_round_trip() {
+        let test_value = Base64Url("AQIDBAU".to_string());
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "AQIDBAU";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(Base64Url::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
     }
 }

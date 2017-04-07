@@ -12,12 +12,6 @@ use errors::Error;
 use serde_custom;
 use jwa::Algorithm;
 
-macro_rules! unexpected_key_type_error {
-    ($expected: path, $actual: expr) => {
-        Error::WrongKeyType { actual: $actual.to_string(), expected: $expected.to_string() }
-    }
-}
-
 /// Type of Key as specified in RFC 7518.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
 pub enum KeyType {
@@ -48,7 +42,7 @@ impl fmt::Display for KeyType {
 }
 
 /// The intended usage of the public `KeyType`. This enum is serialized `untagged`
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PublicKeyUse {
     /// Indicates a public key is meant for signature verification
     Signature,
@@ -102,7 +96,7 @@ impl Deserialize for PublicKeyUse {
 }
 
 /// Operations that the key is intended to be used for. This enum is serialized `untagged`
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum KeyOperations {
     /// Computer digitial signature or MAC
     Sign,
@@ -180,7 +174,7 @@ impl Deserialize for KeyOperations {
 }
 
 /// Common JWK parameters
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct CommonParameters {
     /// The intended use of the public key. Should not be specified with `key_operations`.
     /// See sections 4.2 and 4.3 of [RFC7517](https://tools.ietf.org/html/rfc7517).
@@ -223,7 +217,7 @@ pub struct CommonParameters {
 }
 
 /// Algorithm specific parameters
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AlgorithmParameters {
     /// An Elliptic Curve key
@@ -243,6 +237,18 @@ pub enum AlgorithmParameters {
         value: Vec<u8>,
     },
 }
+
+impl fmt::Debug for AlgorithmParameters {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let algo_type = match *self {
+            AlgorithmParameters::EllipticCurve(_) => "EllipticCurve",
+            AlgorithmParameters::RSA(_) => "RSA",
+            AlgorithmParameters::OctectKey { .. } => "OctectKey",
+        };
+        write!(f, "{} {{ .. }}", algo_type)
+    }
+}
+
 
 impl AlgorithmParameters {
     /// Returns the type of key represented by this set of algorithm parameters
@@ -264,7 +270,7 @@ impl AlgorithmParameters {
 }
 
 /// Parameters for an Elliptic Curve Key
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct EllipticCurveKeyParameters {
     /// Key type value for an Elliptic Curve Key.
     #[serde(rename = "kty")]
@@ -288,7 +294,7 @@ pub struct EllipticCurveKeyParameters {
 }
 
 /// Parameters for a RSA Key
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RSAKeyParameters {
     /// Key type value for a RSA Key
     #[serde(rename = "kty")]
@@ -359,7 +365,7 @@ pub struct RSAKeyParameters {
 /// a JWK does not support private keys with more than two primes and it
 /// encounters a private key that includes the "oth" parameter, then it
 /// MUST NOT use the key.
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct OtherPrimesInfo {
     /// The "r" (prime factor) parameter
     /// represents the value of a subsequent prime factor.
@@ -425,7 +431,7 @@ impl Default for OctectKeyType {
 
 /// Type of cryptographic curve used by a key. This is defined in
 /// [RFC 7518 #7.6](https://tools.ietf.org/html/rfc7518#section-7.6)
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum EllipticCurve {
     /// P-256 curve
     #[serde(rename = "P-256")]
@@ -447,7 +453,7 @@ impl Default for EllipticCurve {
 /// A JSON object that represents a cryptographic key.
 /// The members of the object represent properties of the key, including its value.
 /// Type `T` is a struct representing additional JWK properties
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct JWK<T: Serialize + Deserialize + 'static> {
     /// Common JWK parameters
     pub common: CommonParameters,
@@ -459,6 +465,29 @@ pub struct JWK<T: Serialize + Deserialize + 'static> {
 
 impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             common, algorithm, additional);
+
+impl<T: Serialize + Deserialize> JWK<T> {
+    /// Convenience to create a new bare-bones Octect key
+    pub fn new_octect_key(key: &[u8], additional: T) -> Self {
+        Self {
+            algorithm: AlgorithmParameters::OctectKey {
+                value: key.to_vec(),
+                key_type: Default::default(),
+            },
+            common: Default::default(),
+            additional: additional,
+        }
+    }
+
+    /// Convenience function to strip out the additional fields
+    pub fn clone_without_additional(&self) -> JWK<::Empty> {
+        JWK {
+            common: self.common.clone(),
+            algorithm: self.algorithm.clone(),
+            additional: Default::default(),
+        }
+    }
+}
 
 impl<T: Serialize + Deserialize + 'static> JWK<T> {
     /// Returns the type of key represented by this key
