@@ -382,13 +382,20 @@ pub struct RegisteredHeader {
     #[serde(rename = "alg")]
     pub algorithm: SignatureAlgorithm,
 
-    /// Media type of the JWT. Serialized to `typ`.
+    /// Media type of the complete JWS. Serialized to `typ`.
     /// Defined in [RFC7519#5.1](https://tools.ietf.org/html/rfc7519#section-5.1) and additionally
     /// [RFC7515#4.1.9](https://tools.ietf.org/html/rfc7515#section-4.1.9).
+    /// The "typ" value "JOSE" can be used by applications to indicate that
+    /// this object is a JWS or JWE using the JWS Compact Serialization or
+    /// the JWE Compact Serialization.  The "typ" value "JOSE+JSON" can be
+    /// used by applications to indicate that this object is a JWS or JWE
+    /// using the JWS JSON Serialization or the JWE JSON Serialization.
+    /// Other type values can also be used by applications.
     #[serde(rename = "typ", skip_serializing_if = "Option::is_none")]
     pub media_type: Option<String>,
 
-    /// Content Type. Typically used to indicate the presence of a nested JWT which is signed or encrypted.
+    /// Content Type of the secured payload.
+    /// Typically used to indicate the presence of a nested JOSE object which is signed or encrypted.
     /// Serialized to `cty`.
     /// Defined in [RFC7519#5.2](https://tools.ietf.org/html/rfc7519#section-5.2) and additionally
     /// [RFC7515#4.1.10](https://tools.ietf.org/html/rfc7515#section-4.1.10).

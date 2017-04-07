@@ -1,6 +1,8 @@
 //! JSON Web Algorithms
 //!
-//! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518)
+//! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518).
+//!
+//! Typically, you will not use these directly, but as part of a JWS or JWE.
 use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;

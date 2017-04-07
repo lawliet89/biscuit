@@ -213,7 +213,6 @@ impl Serialize for FlattenSerializable {
             .map(|r| r.unwrap())
             .map(|value| match value {
                      Value::Object(map) => map,
-                     // Enums are currently not supported.
                      _ => unreachable!("Child was not a struct: {:?}", value),
                  })
             .collect();

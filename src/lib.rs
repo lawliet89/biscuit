@@ -156,6 +156,103 @@ use errors::{Error, ValidationError};
 /// ```
 pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 
+/// A convenience type alias of a "JWE" which is a compact JWE that contains a signed/unsigned compact JWS.
+///
+/// Type `T` is the type of private claims for the encapsulated JWT, and type `H` is the type of the private
+/// header fields of the encapsulated JWT. Type `I` is the private header fields fo the encapsulating JWE.
+///
+/// Usually, you would set `H` and `I` to `biscuit::Empty` because you usually do not need any private header fields.
+///
+/// In general, you should [sign a JWT claims set, then encrypt it](http://crypto.stackexchange.com/a/5466),
+/// although there is nothing stopping you from doing it the other way round.
+///
+/// # Examples
+/// ## Sign with HS256, then encrypt with A256GCMKW and A256GCM
+///
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use std::str::FromStr;
+/// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
+/// use biscuit::jwk::{JWK};
+/// use biscuit::jws::{self, Secret};
+/// use biscuit::jwe;
+/// use biscuit::jwa::{SignatureAlgorithm, KeyManagementAlgorithm, ContentEncryptionAlgorithm};
+///
+/// # fn main() {
+///
+/// // Define our own private claims
+/// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+/// struct PrivateClaims {
+///     company: String,
+///     department: String,
+/// }
+///
+/// // Craft our JWS
+/// let expected_claims = ClaimsSet::<PrivateClaims> {
+///     registered: RegisteredClaims {
+///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         audience:
+///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///         not_before: Some(1234.into()),
+///         ..Default::default()
+///     },
+///     private: PrivateClaims {
+///         department: "Toilet Cleaning".to_string(),
+///         company: "ACME".to_string(),
+///     },
+/// };
+///
+/// let expected_jwt = JWT::new_decoded(From::from(
+///                                         jws::RegisteredHeader {
+///                                             algorithm: SignatureAlgorithm::HS256,
+///                                             ..Default::default()
+///                                         }),
+///                                     expected_claims.clone());
+///
+/// let jws = expected_jwt
+///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///
+/// // Encrypt the token
+///
+/// // You would usually have your own AES key for this, but we will use a zeroed key as an example
+/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256/8], Default::default());
+///
+/// // Construct the JWE
+/// let jwe = JWE::new_decrypted(From::from(jwe::RegisteredHeader {
+///                                                 cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+///                                                 enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+///                                                 media_type: Some("JOSE".to_string()),
+///                                                 content_type: Some("JOSE".to_string()),
+///                                                 ..Default::default()
+///                                             }),
+///                              jws.clone());
+///
+/// // Encrypt
+/// let encrypted_jwe = jwe.encrypt(&key).unwrap();
+///
+/// let token = serde_json::to_string(&encrypted_jwe).unwrap();
+/// // Now, send `token` to your clients
+///
+/// // ... some time later, we get token back!
+/// let token: JWE<PrivateClaims, ::Empty, ::Empty> = serde_json::from_str(&token).unwrap();
+///
+/// // Decrypt
+/// let decrypted_jwe = token.into_decrypted(&key,
+///                                          KeyManagementAlgorithm::A256GCMKW,
+///                                          ContentEncryptionAlgorithm::A256GCM)
+///                           .unwrap();
+///
+/// let decrypted_jws = decrypted_jwe.payload().unwrap();
+/// assert_eq!(jws, *decrypted_jws);
+/// # }
+pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
+
 /// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
 /// for custom values (such as private claims in a `ClaimsSet`) is required but you have nothing to implement.
 ///

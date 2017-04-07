@@ -14,7 +14,7 @@ use jwk;
 use serde_custom;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-/// Compression algorithm applied to plaintext before encryption
+/// Compression algorithm applied to plaintext before encryption.
 pub enum CompressionAlgorithm {
     /// DEFLATE algorithm defined in [RFC 1951](https://tools.ietf.org/html/rfc1951)
     Deflate,
@@ -85,10 +85,17 @@ pub struct RegisteredHeader {
     /// Media type of the complete JWE. Serialized to `typ`.
     /// Defined in [RFC7519#5.1](https://tools.ietf.org/html/rfc7519#section-5.1) and additionally
     /// [RFC7515#4.1.9](https://tools.ietf.org/html/rfc7515#section-4.1.9).
+    /// The "typ" value "JOSE" can be used by applications to indicate that
+    /// this object is a JWS or JWE using the JWS Compact Serialization or
+    /// the JWE Compact Serialization.  The "typ" value "JOSE+JSON" can be
+    /// used by applications to indicate that this object is a JWS or JWE
+    /// using the JWS JSON Serialization or the JWE JSON Serialization.
+    /// Other type values can also be used by applications.
     #[serde(rename = "typ", skip_serializing_if = "Option::is_none")]
     pub media_type: Option<String>,
 
-    /// Content Type of the secured content.
+    /// Content Type of the secured payload.
+    /// Typically used to indicate the presence of a nested JOSE object which is signed or encrypted.
     /// Serialized to `cty`.
     /// Defined in [RFC7519#5.2](https://tools.ietf.org/html/rfc7519#section-5.2) and additionally
     /// [RFC7515#4.1.10](https://tools.ietf.org/html/rfc7515#section-4.1.10).
@@ -188,8 +195,14 @@ impl<T: Serialize + Deserialize + 'static> Header<T> {
     fn extract_cek_encryption_result(&mut self, encrypted_payload: &[u8]) -> EncryptionResult {
         let result = EncryptionResult {
             encrypted: encrypted_payload.to_vec(),
-            nonce: self.cek_algorithm.nonce.clone().unwrap_or_else(|| vec![]),
-            tag: self.cek_algorithm.tag.clone().unwrap_or_else(|| vec![]),
+            nonce: self.cek_algorithm
+                .nonce
+                .clone()
+                .unwrap_or_else(|| vec![]),
+            tag: self.cek_algorithm
+                .tag
+                .clone()
+                .unwrap_or_else(|| vec![]),
             ..Default::default()
         };
 
@@ -217,6 +230,48 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// Compact representation of a JWE, or an encrypted JWT
 ///
 /// This representation contains a payload of type `T` with custom headers provided by type `H`.
+///
+/// # Examples
+/// ## Encrypting a JWS/JWT
+/// See the example code in the [`biscuit::JWE`](../type.JWE.html) type alias.
+///
+/// ## Encrypting a string payload with A256GCMKW and A256GCM
+/// ```
+/// extern crate biscuit;
+///
+/// use std::str;
+/// use biscuit::Empty;
+/// use biscuit::jwk::{JWK};
+/// use biscuit::jwe;
+/// use biscuit::jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm};
+///
+/// # fn main() {
+///
+/// let payload = "The true sign of intelligence is not knowledge but imagination.";
+/// // You would usually have your own AES key for this, but we will use a zeroed key as an example
+/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256/8], Default::default());
+///
+/// // Construct the JWE
+/// let jwe = jwe::Compact::new_decrypted(From::from(jwe::RegisteredHeader {
+///                                                 cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+///                                                 enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+///                                                 ..Default::default()
+///                                             }),
+///                                       payload.as_bytes().to_vec());
+///
+/// // Encrypt
+/// let encrypted_jwe = jwe.encrypt(&key).unwrap();
+///
+/// // Decrypt
+/// let decrypted_jwe = encrypted_jwe.decrypt(&key,
+///                                           KeyManagementAlgorithm::A256GCMKW,
+///                                           ContentEncryptionAlgorithm::A256GCM)
+///                                   .unwrap();
+///
+/// let decrypted_payload: &Vec<u8> = decrypted_jwe.payload().unwrap();
+/// let decrypted_str = str::from_utf8(&*decrypted_payload).unwrap();
+/// assert_eq!(decrypted_str, payload);
+/// # }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Compact<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> {
@@ -248,9 +303,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
         Compact::Encrypted(::Compact::decode(token))
     }
 
-    /// Consumes self and convert into encoded form. If the token is already encoded,
+    /// Consumes self and encrypt it. If the token is already encrypted,
     /// this is a no-op.
-    // TODO: Is the no-op dangerous? What if the secret between the previous encode and this time is different?
     pub fn into_encrypted<K: Serialize + Deserialize>(self, key: &jwk::JWK<K>) -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => Ok(self),
@@ -307,7 +361,21 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
         }
     }
 
-    /// Decrypt an encrypted JWE
+    /// Consumes self and decrypt it. If the token is already decrypted,
+    /// this is a no-op.
+    pub fn into_decrypted<K: Serialize + Deserialize>(self,
+                                                      key: &jwk::JWK<K>,
+                                                      cek_alg: KeyManagementAlgorithm,
+                                                      enc_alg: ContentEncryptionAlgorithm)
+                                                      -> Result<Self, Error> {
+        match self {
+            Compact::Encrypted(_) => self.decrypt(key, cek_alg, enc_alg),
+            Compact::Decrypted { .. } => Ok(self),
+        }
+    }
+
+    /// Decrypt an encrypted JWE. Provide the expected algorithms to mitigate an attacker modifying the
+    /// fields
     pub fn decrypt<K: Serialize + Deserialize>(&self,
                                                key: &jwk::JWK<K>,
                                                cek_alg: KeyManagementAlgorithm,
@@ -394,10 +462,14 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use serde_test::{Token, assert_tokens};
 
+    use JWE;
     use super::*;
-    use jwa::rng;
+    use jwa::{self, rng};
+    use jws;
     use test::assert_serde_json;
 
     #[test]
@@ -488,7 +560,10 @@ mod tests {
     }
 
     #[test]
-    fn jwe_aes256kw_aes256_gcm_round_trip() {
+    fn jwe_a256gcmkw_a256gcm_string_round_trip() {
+        use std::str;
+
+        // Construct the encryption key
         let mut key: Vec<u8> = vec![0; 256/8];
         not_err!(rng().fill(&mut key));
         let key = jwk::JWK::<::Empty> {
@@ -499,6 +574,8 @@ mod tests {
                 value: key,
             },
         };
+
+        // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
         let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
                                                         cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
@@ -507,15 +584,83 @@ mod tests {
                                                     }),
                                          payload.as_bytes().to_vec());
 
+        // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
 
+        // Serde test
         let json = not_err!(serde_json::to_string(&encrypted_jwe));
         let deserialized_json: Compact<Vec<u8>, ::Empty> = not_err!(serde_json::from_str(&json));
         assert_eq!(deserialized_json, encrypted_jwe);
 
-        let decrypted_jwe = not_err!(encrypted_jwe.decrypt(&key,
+        // Decrypt
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
                                                            KeyManagementAlgorithm::A256GCMKW,
                                                            ContentEncryptionAlgorithm::A256GCM));
         assert_eq!(jwe, decrypted_jwe);
+
+        let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
+        let decrypted_str = not_err!(str::from_utf8(&*decrypted_payload));
+        assert_eq!(decrypted_str, payload);
     }
+
+    #[test]
+    fn jwe_a256gcmkw_a256gcm_jws_round_trip() {
+        // Construct the JWS
+        let claims = ::ClaimsSet::<::Empty> {
+            registered: ::RegisteredClaims {
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(::SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: Default::default(),
+        };
+        let jws = jws::Compact::new_decoded(From::from(jws::RegisteredHeader {
+                                                           algorithm: jwa::SignatureAlgorithm::HS256,
+                                                           ..Default::default()
+                                                       }),
+                                            claims.clone());
+        let jws = not_err!(jws.into_encoded(jws::Secret::Bytes("secret".to_string().into_bytes())));
+
+        // Construct the encryption key
+        let mut key: Vec<u8> = vec![0; 256/8];
+        not_err!(rng().fill(&mut key));
+        let key = jwk::JWK::<::Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        // Construct the JWE
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        media_type: Some("JOSE".to_string()),
+                                                        content_type: Some("JOSE".to_string()),
+                                                        ..Default::default()
+                                                    }),
+                                         jws.clone());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        // Serde test
+        let json = not_err!(serde_json::to_string(&encrypted_jwe));
+        let deserialized_json: JWE<::Empty, ::Empty, ::Empty> = not_err!(serde_json::from_str(&json));
+        assert_eq!(deserialized_json, encrypted_jwe);
+
+        // Decrypt
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
+                                                           KeyManagementAlgorithm::A256GCMKW,
+                                                           ContentEncryptionAlgorithm::A256GCM));
+        assert_eq!(jwe, decrypted_jwe);
+
+        let decrypted_jws = not_err!(decrypted_jwe.payload());
+        assert_eq!(jws, *decrypted_jws);
+    }
+
 }
