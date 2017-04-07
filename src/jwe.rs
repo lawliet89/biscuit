@@ -182,11 +182,11 @@ impl<T: Serialize + Deserialize + 'static> CompactJson for Header<T> {}
 impl<T: Serialize + Deserialize + 'static> Header<T> {
     /// Update CEK algorithm specific header fields based on a CEK encryption result
     fn update_cek_algorithm(&mut self, encrypted: &EncryptionResult) {
-        if encrypted.nonce.len() > 0 {
+        if !encrypted.nonce.is_empty() {
             self.cek_algorithm.nonce = Some(encrypted.nonce.clone());
         }
 
-        if encrypted.tag.len() > 0 {
+        if !encrypted.tag.is_empty() {
             self.cek_algorithm.tag = Some(encrypted.tag.clone());
         }
     }
@@ -337,7 +337,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
 
                 // Step 11 involves compressing the payload, which we do not support at the moment
                 let payload = payload.to_bytes()?;
-                if let Some(_) = header.registered.compression_algorithm {
+                if header.registered.compression_algorithm.is_some() {
                     Err(Error::UnsupportedOperation)?
                 }
 
@@ -423,7 +423,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
                     .decrypt(&encrypted_payload_result, &cek)?;
 
                 // Decompression is not supported at the moment
-                if let Some(_) = header.registered.compression_algorithm {
+                if header.registered.compression_algorithm.is_some() {
                     Err(Error::UnsupportedOperation)?
                 }
 

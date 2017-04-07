@@ -428,11 +428,10 @@ impl KeyManagementAlgorithm {
 
         let algorithm = match *self {
             A128GCMKW => &aead::AES_128_GCM,
-            A192GCMKW => Err(Error::UnsupportedOperation)?,
             A256GCMKW => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };
-        aes_gcm_encrypt(algorithm, payload, &vec![], key)
+        aes_gcm_encrypt(algorithm, payload, &[], key)
     }
 
     fn aes_gcm_decrypt<T: Serialize + Deserialize>(&self,
@@ -444,7 +443,6 @@ impl KeyManagementAlgorithm {
 
         let algorithm = match *self {
             A128GCMKW => &aead::AES_128_GCM,
-            A192GCMKW => Err(Error::UnsupportedOperation)?,
             A256GCMKW => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };
@@ -518,7 +516,6 @@ impl ContentEncryptionAlgorithm {
 
         let algorithm = match *self {
             A128GCM => &aead::AES_128_GCM,
-            A192GCM => Err(Error::UnsupportedOperation)?,
             A256GCM => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };
@@ -533,7 +530,6 @@ impl ContentEncryptionAlgorithm {
 
         let algorithm = match *self {
             A128GCM => &aead::AES_128_GCM,
-            A192GCM => Err(Error::UnsupportedOperation)?,
             A256GCM => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };

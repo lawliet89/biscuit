@@ -419,7 +419,7 @@ impl AsRef<[u8]> for Base64Url {
     }
 }
 
-/// A collection of `CompactPart`s that have been converted to Base64Url
+/// A collection of `CompactPart`s that have been converted to `Base64Url`
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Compact {
     /// Parts of the compact representation
@@ -447,6 +447,11 @@ impl Compact {
     /// Returns the number of parts
     pub fn len(&self) -> usize {
         self.parts.len()
+    }
+
+    /// Returns whether there are no parts
+    pub fn is_empty(&self) -> bool {
+        self.parts.is_empty()
     }
 
     /// Encodes the various parts into Base64 URL encoding and then concatenates them with period '.'
@@ -477,6 +482,12 @@ impl Compact {
     /// Alias of `encode`
     pub fn to_string(&self) -> String {
         self.encode()
+    }
+}
+
+impl Default for Compact {
+    fn default() -> Self {
+        Compact::new()
     }
 }
 
