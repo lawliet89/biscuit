@@ -39,6 +39,8 @@
 
 extern crate chrono;
 extern crate data_encoding;
+#[macro_use]
+extern crate lazy_static;
 extern crate num;
 extern crate ring;
 extern crate serde;
@@ -54,7 +56,7 @@ extern crate serde_test;
 use std::borrow::Borrow;
 use std::fmt::{self, Debug};
 use std::ops::Deref;
-use std::str::FromStr;
+use std::str::{self, FromStr};
 
 use chrono::{DateTime, UTC, NaiveDateTime};
 use data_encoding::base64url;
@@ -69,6 +71,9 @@ mod test;
 
 #[macro_use]
 mod serde_custom;
+
+#[macro_use]
+mod macros;
 
 pub mod errors;
 pub mod jwa;
@@ -151,6 +156,103 @@ use errors::{Error, ValidationError};
 /// ```
 pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 
+/// A convenience type alias of a "JWE" which is a compact JWE that contains a signed/unsigned compact JWS.
+///
+/// Type `T` is the type of private claims for the encapsulated JWT, and type `H` is the type of the private
+/// header fields of the encapsulated JWT. Type `I` is the private header fields fo the encapsulating JWE.
+///
+/// Usually, you would set `H` and `I` to `biscuit::Empty` because you usually do not need any private header fields.
+///
+/// In general, you should [sign a JWT claims set, then encrypt it](http://crypto.stackexchange.com/a/5466),
+/// although there is nothing stopping you from doing it the other way round.
+///
+/// # Examples
+/// ## Sign with HS256, then encrypt with A256GCMKW and A256GCM
+///
+/// ```
+/// extern crate biscuit;
+/// extern crate serde;
+/// #[macro_use]
+/// extern crate serde_derive;
+/// extern crate serde_json;
+///
+/// use std::str::FromStr;
+/// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
+/// use biscuit::jwk::{JWK};
+/// use biscuit::jws::{self, Secret};
+/// use biscuit::jwe;
+/// use biscuit::jwa::{SignatureAlgorithm, KeyManagementAlgorithm, ContentEncryptionAlgorithm};
+///
+/// # fn main() {
+///
+/// // Define our own private claims
+/// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+/// struct PrivateClaims {
+///     company: String,
+///     department: String,
+/// }
+///
+/// // Craft our JWS
+/// let expected_claims = ClaimsSet::<PrivateClaims> {
+///     registered: RegisteredClaims {
+///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
+///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         audience:
+///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///         not_before: Some(1234.into()),
+///         ..Default::default()
+///     },
+///     private: PrivateClaims {
+///         department: "Toilet Cleaning".to_string(),
+///         company: "ACME".to_string(),
+///     },
+/// };
+///
+/// let expected_jwt = JWT::new_decoded(From::from(
+///                                         jws::RegisteredHeader {
+///                                             algorithm: SignatureAlgorithm::HS256,
+///                                             ..Default::default()
+///                                         }),
+///                                     expected_claims.clone());
+///
+/// let jws = expected_jwt
+///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///
+/// // Encrypt the token
+///
+/// // You would usually have your own AES key for this, but we will use a zeroed key as an example
+/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256/8], Default::default());
+///
+/// // Construct the JWE
+/// let jwe = JWE::new_decrypted(From::from(jwe::RegisteredHeader {
+///                                                 cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+///                                                 enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+///                                                 media_type: Some("JOSE".to_string()),
+///                                                 content_type: Some("JOSE".to_string()),
+///                                                 ..Default::default()
+///                                             }),
+///                              jws.clone());
+///
+/// // Encrypt
+/// let encrypted_jwe = jwe.encrypt(&key).unwrap();
+///
+/// let token = serde_json::to_string(&encrypted_jwe).unwrap();
+/// // Now, send `token` to your clients
+///
+/// // ... some time later, we get token back!
+/// let token: JWE<PrivateClaims, ::Empty, ::Empty> = serde_json::from_str(&token).unwrap();
+///
+/// // Decrypt
+/// let decrypted_jwe = token.into_decrypted(&key,
+///                                          KeyManagementAlgorithm::A256GCMKW,
+///                                          ContentEncryptionAlgorithm::A256GCM)
+///                           .unwrap();
+///
+/// let decrypted_jws = decrypted_jwe.payload().unwrap();
+/// assert_eq!(jws, *decrypted_jws);
+/// # }
+pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
+
 /// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
 /// for custom values (such as private claims in a `ClaimsSet`) is required but you have nothing to implement.
 ///
@@ -199,10 +301,25 @@ impl CompactJson for Empty {}
 /// An automatic implementation for any `T` that implements the marker trait `CompactJson` is provided.
 /// This implementation will serialize/deserialize `T` to JSON via serde.
 pub trait CompactPart {
-    /// Base64 decode `Encoded` and then deserialize it to `Self`.
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> where Self: Sized;
-    /// Serialize `Self` to some form and then base64 encode to `Encoded`
-    fn to_base64(&self) -> Result<Base64Url, Error>;
+    /// Convert this part into bytes
+    fn to_bytes(&self) -> Result<Vec<u8>, Error>;
+
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> where Self: Sized;
+
+    /// Base64 decode into Self
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error>
+        where Self: Sized
+    {
+        let decoded = base64url::decode_nopad(encoded.as_ref())?;
+        Self::from_bytes(&decoded)
+    }
+
+    /// Serialize `Self` to some form and then base64URL Encode
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        let bytes = self.to_bytes()?;
+        Ok(Base64Url(base64url::encode_nopad(bytes.as_ref())))
+    }
 }
 
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
@@ -213,46 +330,45 @@ pub trait CompactJson: Serialize + Deserialize {}
 impl<T> CompactPart for T
     where T: CompactJson
 {
-    /// JSON serialize the part and then serialize into URL Safe base64
-    fn to_base64(&self) -> Result<Base64Url, Error> {
+    /// JSON serialize the part and return the JSON string bytes
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let encoded = serde_json::to_string(&self)?;
-        Ok(Base64Url(base64url::encode_nopad(encoded.as_bytes())))
+        Ok(encoded.into_bytes())
     }
 
-    /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        let decoded = base64url::decode_nopad(encoded.as_ref())?;
-        let s = String::from_utf8(decoded)?;
-        Ok(serde_json::from_str(&s)?)
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let s = str::from_utf8(bytes)?;
+        Ok(serde_json::from_str(s)?)
     }
 }
 
 impl CompactPart for Vec<u8> {
-    fn to_base64(&self) -> Result<Base64Url, Error> {
-        Ok(Base64Url(base64url::encode_nopad(self)))
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        Ok(self.clone())
     }
 
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        Ok(base64url::decode_nopad(encoded.as_ref())?)
-    }
-}
-
-impl CompactPart for Base64Url {
-    fn to_base64(&self) -> Result<Base64Url, Error> {
-        Ok((*self).clone())
-    }
-
-    /// From base64, deserialize the JSON representation and further deserialize into `T`
-    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
-        let bytes: Vec<u8> = encoded.as_ref().to_vec();
-        let string = String::from_utf8(bytes)?;
-        Ok(Base64Url(string))
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        Ok(bytes.to_vec())
     }
 }
 
 /// A newtype wrapper around a string to indicate it's base64 URL encoded
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Base64Url(String);
+
+impl Base64Url {
+    /// Unwrap the embedded string, consuming self in the process
+    pub fn unwrap(self) -> String {
+        let Base64Url(string) = self;
+        string
+    }
+
+    /// "Borrow" the string
+    pub fn str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl Deref for Base64Url {
     type Target = str;
@@ -271,48 +387,140 @@ impl FromStr for Base64Url {
     }
 }
 
-/// A "collection" of `CompactPart`s
-pub trait CompactParts {
-    /// Return the Encoded representation of the various parts
-    fn encoded(&self) -> Result<String, Error>;
-    /// The number of expected parts
-    fn expected_len() -> usize;
+impl Borrow<str> for Base64Url {
+    fn borrow(&self) -> &str {
+        self.str()
+    }
+}
 
-    /// Split the encoded parts into its various parts
-    fn parts(&self) -> Result<Vec<String>, Error> {
-        let parts = self.encoded()?;
-        Ok(parts.split('.').map(|s| s.to_string()).collect())
+impl CompactPart for Base64Url {
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+        Ok(base64url::decode_nopad(self.as_ref())?)
     }
 
-    /// The number of parts
-    fn len(&self) -> Result<usize, Error> {
-        Ok(self.parts()?.len())
+    /// Convert a sequence of bytes into Self
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let string = str::from_utf8(bytes)?;
+        Ok(Base64Url(string.to_string()))
     }
 
-    /// Verify that the number of parts is as expected
-    fn verify_len(&self) -> Result<Vec<String>, Error> {
-        let expected_len = Self::expected_len();
-        let parts = self.parts()?;
-        let actual_len = parts.len();
+    fn to_base64(&self) -> Result<Base64Url, Error> {
+        Ok((*self).clone())
+    }
 
-        if expected_len != actual_len {
-            Err(ValidationError::PartsLengthError {
-                    actual: actual_len,
-                    expected: expected_len,
-                })?
-        } else {
-            Ok(parts)
+    fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error> {
+        Self::from_bytes(encoded.as_ref())
+    }
+}
+
+impl AsRef<[u8]> for Base64Url {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+/// A collection of `CompactPart`s that have been converted to `Base64Url`
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Compact {
+    /// Parts of the compact representation
+    pub parts: Vec<Base64Url>,
+}
+
+impl Compact {
+    /// Create an empty struct
+    pub fn new() -> Self {
+        Self { parts: vec![] }
+    }
+
+    /// Create an empty struct with some expected capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self { parts: Vec::with_capacity(capacity) }
+    }
+
+    /// Push a `CompactPart` to the end
+    pub fn push(&mut self, part: &CompactPart) -> Result<(), Error> {
+        let base64 = part.to_base64()?;
+        self.parts.push(base64);
+        Ok(())
+    }
+
+    /// Returns the number of parts
+    pub fn len(&self) -> usize {
+        self.parts.len()
+    }
+
+    /// Returns whether there are no parts
+    pub fn is_empty(&self) -> bool {
+        self.parts.is_empty()
+    }
+
+    /// Encodes the various parts into Base64 URL encoding and then concatenates them with period '.'
+    /// This corresponds to the various `Compact` representation in JWE and JWS, for example
+    pub fn encode(&self) -> String {
+        let strings: Vec<&str> = self.parts.iter().map(|s| s.deref()).collect();
+        strings.join(".")
+    }
+
+    /// Convenience function to split an encoded compact representation into a list of `Base64Url`.
+    pub fn decode(encoded: &str) -> Self {
+        // Never fails
+        let parts = encoded
+            .split('.')
+            .map(|s| FromStr::from_str(s).unwrap())
+            .collect();
+        Self { parts: parts }
+    }
+
+    /// Convenience function to retrieve a part at a certain index and decode into the type desired
+    pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
+        let part = self.parts
+            .get(index)
+            .ok_or_else(|| "Out of bounds".to_string())?;
+        CompactPart::from_base64(part)
+    }
+
+    /// Alias of `encode`
+    pub fn to_string(&self) -> String {
+        self.encode()
+    }
+}
+
+impl Default for Compact {
+    fn default() -> Self {
+        Compact::new()
+    }
+}
+
+impl Serialize for Compact {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        serializer.serialize_str(&self.encode())
+    }
+}
+
+impl Deserialize for Compact {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where D: Deserializer
+    {
+
+        struct CompactVisitor;
+
+        impl de::Visitor for CompactVisitor {
+            type Value = Compact;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a string containing a compact JOSE representation")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                where E: de::Error
+            {
+                Ok(Compact::decode(value))
+            }
         }
-    }
 
-    /// Convenience function to created an encoded representation
-    fn encode_parts(parts: &[&CompactPart]) -> Result<Base64Url, Error> {
-        let encoded_parts = parts.iter()
-            .map(|part| part.to_base64())
-            .collect::<Result<Vec<Base64Url>, Error>>()?;
-
-        let strings: Vec<&str> = encoded_parts.iter().map(|s| s.deref()).collect();
-        Ok(Base64Url(strings.join(".")))
+        deserializer.deserialize_str(CompactVisitor)
     }
 }
 
@@ -1204,5 +1412,44 @@ mod tests {
             ..Default::default()
         };
         not_err!(registered_claims.validate_times(Some(options)));
+    }
+
+    #[test]
+    fn compact_part_round_trip() {
+        let test_value = PrivateClaims {
+            department: "Toilet Cleaning".to_string(),
+            company: "ACME".to_string(),
+        };
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(PrivateClaims::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
+    }
+
+    #[test]
+    fn compact_part_vec_u8_round_trip() {
+        let test_value: Vec<u8> = vec![1, 2, 3, 4, 5];
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "AQIDBAU";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(Vec::<u8>::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
+    }
+
+    #[test]
+    fn compact_part_base64_url_round_trip() {
+        let test_value = Base64Url("AQIDBAU".to_string());
+
+        let base64 = not_err!(test_value.to_base64());
+        let expected_base64 = "AQIDBAU";
+        assert_eq!(base64.str(), expected_base64);
+
+        let actual_value = not_err!(Base64Url::from_base64(&base64));
+        assert_eq!(actual_value, test_value);
     }
 }

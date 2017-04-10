@@ -213,7 +213,7 @@ impl Serialize for FlattenSerializable {
             .map(|r| r.unwrap())
             .map(|value| match value {
                      Value::Object(map) => map,
-                     _ => unreachable!("Child was not a struct"),
+                     _ => unreachable!("Child was not a struct: {:?}", value),
                  })
             .collect();
 
