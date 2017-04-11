@@ -194,15 +194,23 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
         }
     }
 
-    /// Convenience method to extract the encoded string from an encoded compact JWS
-    pub fn encoded(&self) -> Result<String, Error> {
+    /// Convenience method to get a reference to the encoded string from an encoded compact JWS
+    pub fn encoded(&self) -> Result<&::Compact, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
-            Compact::Encoded(ref encoded) => Ok(encoded.to_string()),
+            Compact::Encoded(ref encoded) => Ok(encoded),
         }
     }
 
-    /// Convenience method to extract the claims set from a decoded compact JWS
+    /// Convenience method to get a mutable reference to the encoded string from an encoded compact JWS
+    pub fn encoded_mut(&mut self) -> Result<&mut ::Compact, Error> {
+        match *self {
+            Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encoded(ref mut encoded) => Ok(encoded),
+        }
+    }
+
+    /// Convenience method to get a reference to the claims set from a decoded compact JWS
     pub fn payload(&self) -> Result<&T, Error> {
         match *self {
             Compact::Decoded { ref payload, .. } => Ok(payload),
@@ -210,10 +218,26 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
         }
     }
 
-    /// Convenience method to extract the header from a decoded compact JWS
+    /// Convenience method to get a reference to the claims set from a decoded compact JWS
+    pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
+        match *self {
+            Compact::Decoded { ref mut payload, .. } => Ok(payload),
+            Compact::Encoded(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+    /// Convenience method to get a reference to the header from a decoded compact JWS
     pub fn header(&self) -> Result<&Header<H>, Error> {
         match *self {
             Compact::Decoded { ref header, .. } => Ok(header),
+            Compact::Encoded(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+    /// Convenience method to get a reference to the header from a decoded compact JWS
+    pub fn header_mut(&mut self) -> Result<&mut Header<H>, Error> {
+        match *self {
+            Compact::Decoded { ref mut header, .. } => Ok(header),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -224,7 +248,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
 impl<T: CompactPart, H: Serialize + Deserialize + 'static> CompactPart for Compact<T, H> {
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let encoded = self.encoded()?;
-        Ok(encoded.into_bytes())
+        Ok(encoded.to_string().into_bytes())
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
@@ -544,7 +568,7 @@ mod tests {
                                                            }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::None));
-        assert_eq!(expected_token, not_err!(token.encoded()));
+        assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(Secret::None, SignatureAlgorithm::None));
         let actual_claims = not_err!(biscuit.payload());
@@ -578,7 +602,7 @@ mod tests {
                                                            }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
-        assert_eq!(expected_token, not_err!(token.encoded()));
+        assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
                                                   SignatureAlgorithm::HS256));
@@ -616,7 +640,7 @@ mod tests {
                                                            }),
                                                 expected_claims.clone());
         let token = not_err!(expected_jwt.into_encoded(private_key));
-        assert_eq!(expected_token, not_err!(token.encoded()));
+        assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let biscuit = not_err!(token.into_decoded(public_key, SignatureAlgorithm::RS256));
@@ -716,7 +740,7 @@ mod tests {
                                                            }),
                                                 payload.clone());
         let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
-        assert_eq!(expected_token, not_err!(token.encoded()));
+        assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
                                                   SignatureAlgorithm::HS256));

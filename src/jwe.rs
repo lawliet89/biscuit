@@ -435,15 +435,23 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
         }
     }
 
-    /// Convenience method to extract the encrypted payload
-    pub fn encrypted(&self) -> Result<String, Error> {
+    /// Convenience method to get a reference to the encrypted payload
+    pub fn encrypted(&self) -> Result<&::Compact, Error> {
         match *self {
             Compact::Decrypted { .. } => Err(Error::UnsupportedOperation),
-            Compact::Encrypted(ref encoded) => Ok(encoded.to_string()),
+            Compact::Encrypted(ref encoded) => Ok(encoded),
         }
     }
 
-    /// Convenience method to extract the payload from an Decrypted JWE
+    /// Convenience method to get a mutable reference to the encrypted payload
+    pub fn encrypted_mut(&mut self) -> Result<&mut ::Compact, Error> {
+        match *self {
+            Compact::Decrypted { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encrypted(ref mut encoded) => Ok(encoded),
+        }
+    }
+
+    /// Convenience method to get a reference to the payload from an Decrypted JWE
     pub fn payload(&self) -> Result<&T, Error> {
         match *self {
             Compact::Decrypted { ref payload, .. } => Ok(payload),
@@ -451,10 +459,26 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
         }
     }
 
-    /// Convenience method to extract the header from an Decrypted JWE
+    /// Convenience method to get a mutable reference to the payload from an Decrypted JWE
+    pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
+        match *self {
+            Compact::Decrypted { ref mut payload, .. } => Ok(payload),
+            Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+    /// Convenience method to get a reference to the header from an Decrypted JWE
     pub fn header(&self) -> Result<&Header<H>, Error> {
         match *self {
             Compact::Decrypted { ref header, .. } => Ok(header),
+            Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
+        }
+    }
+
+    /// Convenience method to get a reference to the header from an Decrypted JWE
+    pub fn header_mut(&mut self) -> Result<&mut Header<H>, Error> {
+        match *self {
+            Compact::Decrypted { ref mut header, .. } => Ok(header),
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
         }
     }
