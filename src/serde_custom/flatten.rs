@@ -197,19 +197,15 @@ impl Serialize for FlattenSerializable {
             .map(|child| child.to_json().map_err(|e| e.to_string()))
             .collect();
 
-        if value_maps.iter().any(|r| r.is_err()) {
-            let errors: Vec<String> = value_maps
-                .iter()
-                .cloned()
-                .filter(|r| r.is_err())
-                .map(|r| r.unwrap_err())
-                .collect();
+        let (value_maps, errors): (Vec<_>, Vec<_>) = value_maps.into_iter().partition(Result::is_ok);
+
+        if !errors.is_empty() {
+            let errors: Vec<String> = errors.into_iter().map(|r| r.unwrap_err()).collect();
             Err(S::Error::custom(errors.join("; ")))?;
         }
 
         let value_maps: Vec<Map<String, Value>> = value_maps
             .into_iter()
-            .filter(|r| r.is_ok())
             .map(|r| r.unwrap())
             .map(|value| match value {
                      Value::Object(map) => map,
