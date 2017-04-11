@@ -143,7 +143,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
-                let signature = header.registered
+                let signature = header
+                    .registered
                     .algorithm
                     .sign(encoded_payload.as_bytes(), secret)?;
                 compact.push(&signature)?;
@@ -179,7 +180,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
                 let signature: Vec<u8> = encoded.part(2)?;
                 let payload = &encoded.parts[0..2].join(".").to_string();
 
-                if !algorithm.verify(signature.as_ref(), payload.as_ref(), secret)? {
+                if !algorithm
+                        .verify(signature.as_ref(), payload.as_ref(), secret)? {
                     Err(ValidationError::InvalidSignature)?;
                 }
 

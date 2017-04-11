@@ -850,7 +850,8 @@ impl RegisteredClaims {
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        let e = chrono::Duration::from_std(e)
+            .map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
         Ok(a.signed_duration_since(b) >= -e)
     }
 
@@ -864,7 +865,8 @@ impl RegisteredClaims {
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        let e = chrono::Duration::from_std(e)
+            .map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
         Ok(a.signed_duration_since(b) <= e)
     }
 }

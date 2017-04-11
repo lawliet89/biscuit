@@ -33,7 +33,8 @@ pub fn deserialize<D>(deserializer: D) -> Result<BigUint, D::Error>
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where E: de::Error
         {
-            let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
+            let bytes = base64url::decode_nopad(value.as_bytes())
+                .map_err(E::custom)?;
             Ok(BigUint::from_bytes_be(&bytes))
         }
     }

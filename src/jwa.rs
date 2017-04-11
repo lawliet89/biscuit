@@ -265,7 +265,8 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
-        signing_state.sign(padding_algorithm, &rng, data, &mut signature)?;
+        signing_state
+            .sign(padding_algorithm, &rng, data, &mut signature)?;
         Ok(signature)
     }
 
@@ -962,7 +963,9 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap()).is_ok());
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(),
+                                        decrypted_cek.octect_key().unwrap())
+                        .is_ok());
     }
 
     #[test]
@@ -986,23 +989,25 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap()).is_ok());
+        assert!(verify_slices_are_equal(cek.octect_key().unwrap(),
+                                        decrypted_cek.octect_key().unwrap())
+                        .is_ok());
     }
 
     /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
     #[test]
     fn aes128gcm_key_length() {
-       let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
-       let cek = not_err!(enc_alg.generate_key());
-       assert_eq!(cek.len(), 128/8);
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
+        let cek = not_err!(enc_alg.generate_key());
+        assert_eq!(cek.len(), 128 / 8);
     }
 
     /// `ContentEncryptionAlgorithm::A256GCM` generates CEK of the right length
     #[test]
     fn aes256gcm_key_length() {
-       let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
-       let cek = not_err!(enc_alg.generate_key());
-       assert_eq!(cek.len(), 256/8);
+        let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
+        let cek = not_err!(enc_alg.generate_key());
+        assert_eq!(cek.len(), 256 / 8);
     }
 
     #[test]

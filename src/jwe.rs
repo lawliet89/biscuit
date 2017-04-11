@@ -322,10 +322,12 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
             } => {
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
-                let cek = header.registered
+                let cek = header
+                    .registered
                     .cek_algorithm
                     .cek(header.registered.enc_algorithm, key)?;
-                let encrypted_cek = header.registered
+                let encrypted_cek = header
+                    .registered
                     .cek_algorithm
                     .encrypt(cek.algorithm.octect_key()?, key)?;
                 // Update header
@@ -344,7 +346,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
                 // Steps 12 to 14 involves the calculation of `Additional Authenticated Data` for encryption. In
                 // our compact example, our header is the AAD.
                 // Step 15 involves the actual encryption.
-                let encrypted_payload = header.registered
+                let encrypted_payload = header
+                    .registered
                     .enc_algorithm
                     .encrypt(&payload, &header.to_bytes()?, &cek)?;
 
@@ -406,7 +409,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
 
                 // Steps 6-13 involve the computation of the cek
                 let cek_encryption_result = header.extract_cek_encryption_result(&encrypted_cek);
-                let cek = header.registered
+                let cek = header
+                    .registered
                     .cek_algorithm
                     .decrypt(&cek_encryption_result, header.registered.enc_algorithm, key)?;
 
@@ -418,7 +422,8 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
                     additional_data: encrypted.part(0)?,
                 };
 
-                let payload = header.registered
+                let payload = header
+                    .registered
                     .enc_algorithm
                     .decrypt(&encrypted_payload_result, &cek)?;
 
