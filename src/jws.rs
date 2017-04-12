@@ -245,6 +245,28 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
+
+    /// Consumes self, and move the payload and header out and return them as a tuple
+    ///
+    /// # Panics
+    /// Panics if the JWS is not decoded
+    pub fn unwrap_decoded(self) -> Result<(Header<H>, T), Error> {
+        match self {
+            Compact::Decoded { header, payload } => Ok((header, payload)),
+            Compact::Encoded(_) => panic!("JWS is encoded"),
+        }
+    }
+
+    /// Consumes self, and move the encoded Compact out and return it
+    ///
+    /// # Panics
+    /// Panics if the JWS is not encoded
+    pub fn unwrap_encoded(self) -> Result<::Compact, Error> {
+        match self {
+            Compact::Decoded { .. } => panic!("JWS is decoded"),
+            Compact::Encoded(encoded) => Ok(encoded),
+        }
+    }
 }
 
 /// Implementation for embedded inside a JWE.
