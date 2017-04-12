@@ -46,6 +46,8 @@ use serde_custom;
 ///     department: String,
 /// }
 ///
+/// let signing_secret = Secret::Bytes("secret".to_string().into_bytes());
+///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
 ///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
 ///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
@@ -77,7 +79,7 @@ use serde_custom;
 ///                                             expected_claims.clone());
 ///
 /// let token = expected_jwt
-///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///     .into_encoded(&signing_secret).unwrap();
 /// let token = serde_json::to_string(&token).unwrap();
 /// assert_eq!(format!("\"{}\"", expected_token), token);
 /// // Now, send `token` to your clients
@@ -85,7 +87,7 @@ use serde_custom;
 /// // ... some time later, we get token back!
 ///
 /// let token = serde_json::from_str::<jws::Compact<ClaimsSet<PrivateClaims>, Empty>>(&token).unwrap();
-/// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+/// let token = token.into_decoded(&signing_secret,
 ///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
@@ -124,7 +126,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     /// Consumes self and convert into encoded form. If the token is already encoded,
     /// this is a no-op.
     // TODO: Is the no-op dangerous? What if the secret between the previous encode and this time is different?
-    pub fn into_encoded(self, secret: Secret) -> Result<Self, Error> {
+    pub fn into_encoded(self, secret: &Secret) -> Result<Self, Error> {
         match self {
             Compact::Encoded(_) => Ok(self),
             Compact::Decoded { .. } => self.encode(secret),
@@ -133,7 +135,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
 
     /// Encode the JWT passed and sign the payload using the algorithm from the header and the secret
     /// The secret is dependent on the signing algorithm
-    pub fn encode(&self, secret: Secret) -> Result<Self, Error> {
+    pub fn encode(&self, secret: &Secret) -> Result<Self, Error> {
         match *self {
             Compact::Decoded {
                 ref header,
@@ -157,7 +159,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     /// Consumes self and convert into decoded form, verifying the signature, if any.
     /// If the token is already decoded, this is a no-op
     // TODO: Is the no-op dangerous? What if the secret between the previous decode and this time is different?
-    pub fn into_decoded(self, secret: Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
+    pub fn into_decoded(self, secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
         match self {
             Compact::Encoded(_) => self.decode(secret, algorithm),
             Compact::Decoded { .. } => Ok(self),
@@ -166,7 +168,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
 
     /// Decode a token into the JWT struct and verify its signature
     /// If the token or its signature is invalid, it will return an error
-    pub fn decode(&self, secret: Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
+    pub fn decode(&self, secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref encoded) => {
@@ -569,10 +571,10 @@ mod tests {
                                                                ..Default::default()
                                                            }),
                                                 expected_claims.clone());
-        let token = not_err!(expected_jwt.into_encoded(Secret::None));
+        let token = not_err!(expected_jwt.into_encoded(&Secret::None));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
-        let biscuit = not_err!(token.into_decoded(Secret::None, SignatureAlgorithm::None));
+        let biscuit = not_err!(token.into_decoded(&Secret::None, SignatureAlgorithm::None));
         let actual_claims = not_err!(biscuit.payload());
         assert_eq!(expected_claims, *actual_claims);
     }
@@ -603,10 +605,10 @@ mod tests {
                                                                ..Default::default()
                                                            }),
                                                 expected_claims.clone());
-        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
+        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
-        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
                                                   SignatureAlgorithm::HS256));
         assert_eq!(expected_claims, *not_err!(biscuit.payload()));
     }
@@ -641,11 +643,11 @@ mod tests {
                                                                ..Default::default()
                                                            }),
                                                 expected_claims.clone());
-        let token = not_err!(expected_jwt.into_encoded(private_key));
+        let token = not_err!(expected_jwt.into_encoded(&private_key));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let biscuit = not_err!(token.into_decoded(public_key, SignatureAlgorithm::RS256));
+        let biscuit = not_err!(token.into_decoded(&public_key, SignatureAlgorithm::RS256));
         assert_eq!(expected_claims, *not_err!(biscuit.payload()));
     }
 
@@ -676,8 +678,8 @@ mod tests {
         };
 
         let expected_jwt = Compact::new_decoded(header.clone(), expected_claims);
-        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
-        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
+        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
                                                   SignatureAlgorithm::HS256));
         assert_eq!(header, *not_err!(biscuit.header()));
     }
@@ -686,7 +688,7 @@ mod tests {
     #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
-        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
     }
@@ -697,7 +699,7 @@ mod tests {
         let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                                     pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
-        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
     }
@@ -709,7 +711,7 @@ mod tests {
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                        pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let claims = token.decode(public_key, SignatureAlgorithm::RS256);
+        let claims = token.decode(&public_key, SignatureAlgorithm::RS256);
         claims.unwrap();
     }
 
@@ -719,7 +721,7 @@ mod tests {
         let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
                                                        pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
-        let claims = token.decode(Secret::Bytes("secret".to_string().into_bytes()),
+        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
                                   SignatureAlgorithm::HS256);
         claims.unwrap();
     }
@@ -741,10 +743,10 @@ mod tests {
                                                                ..Default::default()
                                                            }),
                                                 payload.clone());
-        let token = not_err!(expected_jwt.into_encoded(Secret::Bytes("secret".to_string().into_bytes())));
+        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
-        let biscuit = not_err!(token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
                                                   SignatureAlgorithm::HS256));
         assert_eq!(payload, *not_err!(biscuit.payload()));
     }

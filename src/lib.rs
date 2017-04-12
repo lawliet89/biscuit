@@ -110,6 +110,8 @@ use errors::{Error, ValidationError};
 ///     department: String,
 /// }
 ///
+/// let signing_secret = Secret::Bytes("secret".to_string().into_bytes());
+///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
 ///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
 ///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
@@ -141,7 +143,7 @@ use errors::{Error, ValidationError};
 ///                                     expected_claims.clone());
 ///
 /// let token = expected_jwt
-///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///     .into_encoded(&signing_secret).unwrap();
 /// let token = serde_json::to_string(&token).unwrap();
 /// assert_eq!(format!("\"{}\"", expected_token), token);
 /// // Now, send `token` to your clients
@@ -149,7 +151,7 @@ use errors::{Error, ValidationError};
 /// // ... some time later, we get token back!
 ///
 /// let token = serde_json::from_str::<JWT<PrivateClaims, Empty>>(&token).unwrap();
-/// let token = token.into_decoded(Secret::Bytes("secret".to_string().into_bytes()),
+/// let token = token.into_decoded(&signing_secret,
 ///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
@@ -216,7 +218,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 ///                                     expected_claims.clone());
 ///
 /// let jws = expected_jwt
-///     .into_encoded(Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///     .into_encoded(&Secret::Bytes("secret".to_string().into_bytes())).unwrap();
 ///
 /// // Encrypt the token
 ///
