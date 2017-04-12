@@ -55,8 +55,7 @@ fn main() {
 
     println!("{:?}", token);
 
-    let jwt = match token.decode(&signing_secret,
-                                 SignatureAlgorithm::HS256) {
+    let jwt = match token.decode(&signing_secret, SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
             match err {

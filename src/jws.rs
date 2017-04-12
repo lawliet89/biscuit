@@ -250,9 +250,9 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     ///
     /// # Panics
     /// Panics if the JWS is not decoded
-    pub fn unwrap_decoded(self) -> Result<(Header<H>, T), Error> {
+    pub fn unwrap_decoded(self) -> (Header<H>, T) {
         match self {
-            Compact::Decoded { header, payload } => Ok((header, payload)),
+            Compact::Decoded { header, payload } => (header, payload),
             Compact::Encoded(_) => panic!("JWS is encoded"),
         }
     }
@@ -261,10 +261,10 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
     ///
     /// # Panics
     /// Panics if the JWS is not encoded
-    pub fn unwrap_encoded(self) -> Result<::Compact, Error> {
+    pub fn unwrap_encoded(self) -> ::Compact {
         match self {
             Compact::Decoded { .. } => panic!("JWS is decoded"),
-            Compact::Encoded(encoded) => Ok(encoded),
+            Compact::Encoded(encoded) => encoded,
         }
     }
 }

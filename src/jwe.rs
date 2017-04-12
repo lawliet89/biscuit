@@ -492,9 +492,9 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
     ///
     /// # Panics
     /// Panics if the JWE is not decrypted
-    pub fn unwrap_decoded(self) -> Result<(Header<H>, T), Error> {
+    pub fn unwrap_decoded(self) -> (Header<H>, T) {
         match self {
-            Compact::Decrypted { header, payload } => Ok((header, payload)),
+            Compact::Decrypted { header, payload } => (header, payload),
             Compact::Encrypted(_) => panic!("JWE is encrypted"),
         }
     }
@@ -503,10 +503,10 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
     ///
     /// # Panics
     /// Panics if the JWE is not encrypted
-    pub fn unwrap_encrypted(self) -> Result<::Compact, Error> {
+    pub fn unwrap_encrypted(self) -> ::Compact {
         match self {
             Compact::Decrypted { .. } => panic!("JWE is decrypted"),
-            Compact::Encrypted(compact) => Ok(compact),
+            Compact::Encrypted(compact) => compact,
         }
     }
 }
