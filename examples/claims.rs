@@ -45,15 +45,17 @@ fn main() {
         },
     };
     let key = "secret";
+    let signing_secret = Secret::Bytes(key.to_string().into_bytes());
+
     let jwt = JWT::<PrivateClaims, Empty>::new_decoded(Header::default(), my_claims);
-    let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
+    let token = match jwt.encode(&signing_secret) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
     };
 
     println!("{:?}", token);
 
-    let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
+    let jwt = match token.decode(&signing_secret,
                                  SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {

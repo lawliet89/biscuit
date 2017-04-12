@@ -650,7 +650,7 @@ mod tests {
                                                            ..Default::default()
                                                        }),
                                             claims.clone());
-        let jws = not_err!(jws.into_encoded(jws::Secret::Bytes("secret".to_string().into_bytes())));
+        let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
 
         // Construct the encryption key
         let mut key: Vec<u8> = vec![0; 256/8];

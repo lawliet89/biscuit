@@ -38,6 +38,7 @@ fn main() {
         },
     };
     let key = "secret";
+    let signing_secret = Secret::Bytes(key.to_string().into_bytes());
 
     let header = Header {
         registered: RegisteredHeader {
@@ -49,12 +50,12 @@ fn main() {
     };
 
     let jwt = Compact::new_decoded(header, my_claims);
-    let token = match jwt.encode(Secret::Bytes(key.to_string().into_bytes())) {
+    let token = match jwt.encode(&signing_secret) {
         Ok(t) => t,
         Err(_) => panic!(), // in practice you would return the error
     };
 
-    let jwt = match token.decode(Secret::Bytes(key.to_string().into_bytes()),
+    let jwt = match token.decode(&signing_secret,
                                  SignatureAlgorithm::HS256) {
         Ok(c) => c,
         Err(err) => {
