@@ -499,7 +499,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + Clone + 'static> Compact<T, H>
         }
     }
 
-    /// Consumes self, and move the encoded Compact out and return it
+    /// Consumes self, and move the encrypted Compact serialization out and return it
     ///
     /// # Panics
     /// Panics if the JWS is not encrypted
