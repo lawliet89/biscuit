@@ -644,7 +644,7 @@ impl<T> SingleOrMultiple<T>
 /// assert_eq!(deserialized, multiple);
 /// # }
 /// ```
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum StringOrUri {
     /// A generic string
     String(String),
