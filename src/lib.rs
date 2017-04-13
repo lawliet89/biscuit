@@ -55,6 +55,7 @@ extern crate serde_test;
 
 use std::borrow::Borrow;
 use std::fmt::{self, Display, Debug};
+use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
@@ -595,8 +596,15 @@ impl<T> SingleOrMultiple<T>
             SingleOrMultiple::Multiple(ref vector) => vector.iter().map(Borrow::borrow).any(|v| v == value),
         }
     }
-}
 
+    /// Yields an iterator for the single value or the list
+    pub fn iter<'a>(&'a self) -> Box<Iterator<Item = &'a T> + 'a> {
+        match *self {
+            SingleOrMultiple::Single(ref single) => Box::new(iter::once(single)),
+            SingleOrMultiple::Multiple(ref vector) => Box::new(vector.iter()),
+        }
+    }
+}
 /// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
 /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
 /// will be deserialized as a URL. Any invalid URLs will be treated as a deserialization failure.
