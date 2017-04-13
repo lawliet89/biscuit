@@ -54,7 +54,7 @@ extern crate url;
 extern crate serde_test;
 
 use std::borrow::Borrow;
-use std::fmt::{self, Debug};
+use std::fmt::{self, Display, Debug};
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
@@ -698,6 +698,15 @@ impl Deserialize for StringOrUri {
         }
 
         deserializer.deserialize_str(StringOrUriVisitor {})
+    }
+}
+
+impl Display for StringOrUri {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            StringOrUri::String(ref string) => write!(f, "{}", string),
+            StringOrUri::Uri(ref uri) => write!(f, "{}", uri),
+        }
     }
 }
 
