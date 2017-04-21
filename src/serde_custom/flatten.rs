@@ -136,8 +136,29 @@ use std::collections::HashSet;
 use std::hash::Hash;
 
 use serde::{Serialize, Serializer};
+use serde_json;
 use serde_json::map::Map;
-use serde_json::value::{Value, ToJson};
+use serde_json::value::{Value, to_value};
+
+/// Representation of any serializable data as a `serde_json::Value`.
+/// Stop gap trait since `serde_json` removed it: https://github.com/serde-rs/json/issues/294
+// FIXME: See if we can use something else
+pub trait ToJson {
+    /// Represent `self` as a `serde_json::Value`. Note that `Value` is not a
+    /// JSON string. If you need a string, use `serde_json::to_string` instead.
+    ///
+    /// This conversion can fail if `T`'s implementation of `Serialize` decides
+    /// to fail, or if `T` contains a map with non-string keys.
+    fn to_json(&self) -> Result<Value, serde_json::Error>;
+}
+
+impl<T: ?Sized> ToJson for T
+    where T: Serialize
+{
+    fn to_json(&self) -> Result<Value, serde_json::Error> {
+        to_value(self)
+    }
+}
 
 /// The behaviour the serializer should adopt when encountering duplicate keys
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -242,8 +263,8 @@ impl Serialize for FlattenSerializable {
 macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
-                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -269,9 +290,9 @@ macro_rules! impl_flatten_serialize {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize {
     ($t:ty, $( $child:ident ),*) => {
-        impl serde::Deserialize for $t {
+        impl<'de> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where D: serde::Deserializer
+                where D: serde::Deserializer<'de>
             {
                 use serde::de::Error;
 
@@ -307,8 +328,8 @@ macro_rules! impl_flatten_serde {
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl<T: Serialize + Deserialize + 'static> $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
-                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -334,9 +355,9 @@ macro_rules! impl_flatten_serialize_generic {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
-        impl<T: Serialize + Deserialize> serde::Deserialize for $t {
+        impl<'de, T: Serialize + Deserialize> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where D: serde::Deserializer
+                where D: serde::Deserializer<'de>
             {
                 use serde::de::Error;
 

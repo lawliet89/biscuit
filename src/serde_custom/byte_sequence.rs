@@ -14,12 +14,12 @@ pub fn serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
 }
 
 /// Deserialize a byte sequence from Base64 URL encoded string
-pub fn deserialize<D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where D: Deserializer
+pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where D: Deserializer<'de>
 {
     struct BytesVisitor;
 
-    impl de::Visitor for BytesVisitor {
+    impl<'de> de::Visitor<'de> for BytesVisitor {
         type Value = Vec<u8>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
