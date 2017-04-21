@@ -53,8 +53,10 @@ mod tests {
         let test_value = TestStruct { bytes: "hello world".to_string().into_bytes() };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
                         Token::Str("aGVsbG8gd29ybGQ"),
 

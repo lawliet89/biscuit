@@ -535,16 +535,20 @@ mod tests {
 
         let test_value = Test { test: CompressionAlgorithm::Deflate };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("DEF"),
                         Token::StructEnd]);
 
         let test_value = Test { test: CompressionAlgorithm::Other("xxx".to_string()) };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("xxx"),
                         Token::StructEnd]);

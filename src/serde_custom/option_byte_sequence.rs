@@ -73,10 +73,12 @@ mod tests {
         let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
-                        Token::Option(true),
+                        Token::Some,
                         Token::Str("aGVsbG8gd29ybGQ"),
 
                         Token::StructEnd]);
@@ -87,10 +89,12 @@ mod tests {
         let test_value = TestStruct { bytes: None };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
-                        Token::Option(false),
+                        Token::None,
 
                         Token::StructEnd]);
     }

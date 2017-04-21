@@ -59,8 +59,10 @@ mod tests {
         let test_value = TestStruct { bytes: BigUint::from_u64(12345).unwrap() };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
                         Token::Str("MDk"),
 

@@ -274,6 +274,8 @@ macro_rules! impl_flatten_serialize {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
+                use $crate::serde_custom::flatten::FlattenSerializable;
+
                 self.serialize_internal(serializer)
             }
         }
@@ -341,6 +343,8 @@ macro_rules! impl_flatten_serialize_generic {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
+                use $crate::serde_custom::flatten::FlattenSerializable;
+
                 self.serialize_internal(serializer)
             }
         }
@@ -387,7 +391,7 @@ macro_rules! impl_flatten_serde_generic {
 mod tests {
     use serde::{self, Serialize, Deserialize};
     use serde_json;
-    use serde_test::{self, Token, assert_tokens, assert_ser_tokens_error};
+    use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
     use super::*;
 
@@ -450,7 +454,7 @@ mod tests {
     impl_flatten_serde!(Outer, DuplicateKeysBehaviour::RaiseError, one, three);
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
-    struct OuterGeneric<T: Serialize + Deserialize> {
+    struct OuterGeneric<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
         one: InnerOne,
         generic: T,
     }
@@ -520,15 +524,13 @@ mod tests {
     #[should_panic(expected = "Structs have duplicate keys")]
     fn errors_on_duplicate_keys() {
         let test_value = OuterNoDuplicates::default();
-        serde_json::to_string(&test_value as &FlattenSerializable).unwrap();
+        serde_json::to_string(&test_value).unwrap();
     }
 
     #[test]
     fn duplicate_keys_serialization_token_error() {
         let test_value = OuterNoDuplicates::default();
-        assert_ser_tokens_error(&test_value,
-                                &[],
-                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
+        assert_ser_tokens_error(&test_value, &[], "Structs have duplicate keys");
     }
 
     #[test]
@@ -582,46 +584,38 @@ mod tests {
         let test_value = Outer::default();
 
         assert_tokens(&test_value,
-                      &[Token::MapStart(Some(7)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(7) },
+
                         Token::Str("a"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("b"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("c"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("d"),
 
                         // InnerTwo map
-                        Token::MapStart(Some(3)),
-                        Token::MapSep,
+                        Token::Map { len: Some(3) },
+
                         Token::Str("a"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("e"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("f"),
                         Token::U64(0),
                         Token::MapEnd,
                         // End InnerTwo map
-                        Token::MapSep,
                         Token::Str("g"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("h"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("i"),
                         Token::Bool(false),
                         Token::MapEnd]);
@@ -655,46 +649,38 @@ mod tests {
         let test_value = OuterGeneric::<InnerThree>::default();
 
         assert_tokens(&test_value,
-                      &[Token::MapStart(Some(7)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(7) },
+
                         Token::Str("a"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("b"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("c"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("d"),
 
                         // InnerTwo map
-                        Token::MapStart(Some(3)),
-                        Token::MapSep,
+                        Token::Map { len: Some(3) },
+
                         Token::Str("a"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("e"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("f"),
                         Token::U64(0),
                         Token::MapEnd,
                         // End InnerTwo map
-                        Token::MapSep,
                         Token::Str("g"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("h"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("i"),
                         Token::Bool(false),
                         Token::MapEnd]);

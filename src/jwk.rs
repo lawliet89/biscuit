@@ -526,24 +526,30 @@ mod tests {
 
         let test_value = Test { test: PublicKeyUse::Encryption };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("enc"),
                         Token::StructEnd]);
 
         let test_value = Test { test: PublicKeyUse::Encryption };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("enc"),
                         Token::StructEnd]);
 
         let test_value = Test { test: PublicKeyUse::Other("xxx".to_string()) };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("xxx"),
                         Token::StructEnd]);
@@ -576,16 +582,20 @@ mod tests {
 
         let test_value = Test { test: KeyOperations::Sign };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("sign"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Verify };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("verify"),
                         Token::StructEnd]);
@@ -593,56 +603,70 @@ mod tests {
 
         let test_value = Test { test: KeyOperations::Encrypt };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("encrypt"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Decrypt };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("decrypt"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::WrapKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("wrapKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::UnwrapKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("unwrapKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::DeriveKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("deriveKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::DeriveBits };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("deriveBits"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Other("xxx".to_string()) };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("xxx"),
                         Token::StructEnd]);

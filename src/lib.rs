@@ -959,8 +959,10 @@ mod tests {
         assert_eq!(deserialized, test);
 
         assert_tokens(&test,
-                      &[Token::StructStart("StringOrUriTest", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "StringOrUriTest",
+                            len: 1,
+                        },
                         Token::Str("string"),
                         Token::Str("Random"),
 
@@ -980,8 +982,10 @@ mod tests {
         assert_eq!(deserialized, test);
 
         assert_tokens(&test,
-                      &[Token::StructStart("StringOrUriTest", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "StringOrUriTest",
+                            len: 1,
+                        },
                         Token::Str("string"),
                         Token::Str("https://www.example.com/"),
 
@@ -1145,28 +1149,23 @@ mod tests {
         };
 
         assert_tokens(&claim,
-                      &[Token::MapStart(Some(6)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(6) },
+
                         Token::Str("iss"),
                         Token::Str("https://www.acme.com/"),
 
-                        Token::MapSep,
                         Token::Str("sub"),
                         Token::Str("John Doe"),
 
-                        Token::MapSep,
                         Token::Str("aud"),
                         Token::Str("htts://acme-customer.com/"),
 
-                        Token::MapSep,
                         Token::Str("nbf"),
                         Token::I64(-1234),
 
-                        Token::MapSep,
                         Token::Str("company"),
                         Token::Str("ACME"),
 
-                        Token::MapSep,
                         Token::Str("department"),
                         Token::Str("Toilet Cleaning"),
                         Token::MapEnd]);
@@ -1188,9 +1187,7 @@ mod tests {
             },
         };
 
-        assert_ser_tokens_error(&claim,
-                                &[],
-                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
+        assert_ser_tokens_error(&claim, &[], "Structs have duplicate keys");
     }
 
     #[test]

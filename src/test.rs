@@ -21,7 +21,7 @@ macro_rules! assert_matches {
 /// is equal to the provided `value`.
 /// If `expected_json` is provided, it will be deserialized to `T` and checked for equality with `value`.
 pub fn assert_serde_json<T>(value: &T, expected_json: Option<&str>)
-    where T: Serialize + Deserialize + Debug + PartialEq
+    where T: Serialize + for<'de> Deserialize<'de> + Debug + PartialEq
 {
     let serialized = not_err!(serde_json::to_string_pretty(value));
     let deserialized: T = not_err!(serde_json::from_str(&serialized));
