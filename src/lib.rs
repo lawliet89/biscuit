@@ -328,7 +328,7 @@ pub trait CompactPart {
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
 /// This is primarily used in conjunction with the `CompactPart` trait which will serialize structs to JSON before
 /// base64 encoding, and vice-versa.
-pub trait CompactJson: Serialize + Deserialize {}
+pub trait CompactJson: Serialize + for<'de> Deserialize<'de> {}
 
 impl<T> CompactPart for T
     where T: CompactJson
@@ -903,7 +903,7 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize + 'static {}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize {}
 
 #[cfg(test)]
 mod tests {

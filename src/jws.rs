@@ -94,7 +94,7 @@ use serde_custom;
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: CompactPart, H: Serialize + Deserialize + 'static> {
+pub enum Compact<T: CompactPart, H: Serialize + Deserialize> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
@@ -109,7 +109,7 @@ pub enum Compact<T: CompactPart, H: Serialize + Deserialize + 'static> {
     Encoded(::Compact),
 }
 
-impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
+impl<T: CompactPart, H: Serialize + Deserialize> Compact<T, H> {
     /// New decoded JWT
     pub fn new_decoded(header: Header<H>, payload: T) -> Self {
         Compact::Decoded {
@@ -271,7 +271,7 @@ impl<T: CompactPart, H: Serialize + Deserialize + 'static> Compact<T, H> {
 
 /// Implementation for embedded inside a JWE.
 // FIXME: Maybe use a separate trait instead?
-impl<T: CompactPart, H: Serialize + Deserialize + 'static> CompactPart for Compact<T, H> {
+impl<T: CompactPart, H: Serialize + Deserialize> CompactPart for Compact<T, H> {
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let encoded = self.encoded()?;
         Ok(encoded.to_string().into_bytes())
@@ -400,7 +400,7 @@ pub struct Header<T: Serialize + Deserialize> {
 impl_flatten_serde_generic!(Header<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T: Serialize + Deserialize + 'static> CompactJson for Header<T> {}
+impl<T: Serialize + Deserialize> CompactJson for Header<T> {}
 
 impl Header<Empty> {
     /// Convenience function to create a header with only registered headers
