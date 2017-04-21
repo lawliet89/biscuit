@@ -36,13 +36,13 @@ impl Serialize for CompressionAlgorithm {
     }
 }
 
-impl Deserialize for CompressionAlgorithm {
+impl<'de> Deserialize<'de> for CompressionAlgorithm {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct CompressionAlgorithmVisitor;
-        impl de::Visitor for CompressionAlgorithmVisitor {
+        impl<'de> de::Visitor<'de> for CompressionAlgorithmVisitor {
             type Value = CompressionAlgorithm;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

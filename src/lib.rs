@@ -502,14 +502,14 @@ impl Serialize for Compact {
     }
 }
 
-impl Deserialize for Compact {
+impl<'de> Deserialize<'de> for Compact {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct CompactVisitor;
 
-        impl de::Visitor for CompactVisitor {
+        impl<'de> de::Visitor<'de> for CompactVisitor {
             type Value = Compact;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -685,13 +685,13 @@ impl Serialize for StringOrUri {
     }
 }
 
-impl Deserialize for StringOrUri {
+impl<'de> Deserialize<'de> for StringOrUri {
     fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         struct StringOrUriVisitor {}
 
-        impl de::Visitor for StringOrUriVisitor {
+        impl<'de> de::Visitor<'de> for StringOrUriVisitor {
             type Value = StringOrUri;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -755,9 +755,9 @@ impl Serialize for Timestamp {
     }
 }
 
-impl Deserialize for Timestamp {
+impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         let timestamp = i64::deserialize(deserializer)?;
         Ok(Timestamp(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), UTC)))

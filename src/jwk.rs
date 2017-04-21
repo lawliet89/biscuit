@@ -67,13 +67,13 @@ impl Serialize for PublicKeyUse {
     }
 }
 
-impl Deserialize for PublicKeyUse {
+impl<'de> Deserialize<'de> for PublicKeyUse {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct PublicKeyUseVisitor;
-        impl de::Visitor for PublicKeyUseVisitor {
+        impl<'de> de::Visitor<'de> for PublicKeyUseVisitor {
             type Value = PublicKeyUse;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -139,13 +139,13 @@ impl Serialize for KeyOperations {
     }
 }
 
-impl Deserialize for KeyOperations {
+impl<'de> Deserialize<'de> for KeyOperations {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct KeyOperationsVisitor;
-        impl de::Visitor for KeyOperationsVisitor {
+        impl<'de> de::Visitor<'de> for KeyOperationsVisitor {
             type Value = KeyOperations;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
