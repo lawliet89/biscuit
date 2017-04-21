@@ -67,13 +67,13 @@ impl Serialize for PublicKeyUse {
     }
 }
 
-impl Deserialize for PublicKeyUse {
+impl<'de> Deserialize<'de> for PublicKeyUse {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct PublicKeyUseVisitor;
-        impl de::Visitor for PublicKeyUseVisitor {
+        impl<'de> de::Visitor<'de> for PublicKeyUseVisitor {
             type Value = PublicKeyUse;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -139,13 +139,13 @@ impl Serialize for KeyOperations {
     }
 }
 
-impl Deserialize for KeyOperations {
+impl<'de> Deserialize<'de> for KeyOperations {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct KeyOperationsVisitor;
-        impl de::Visitor for KeyOperationsVisitor {
+        impl<'de> de::Visitor<'de> for KeyOperationsVisitor {
             type Value = KeyOperations;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -454,7 +454,7 @@ impl Default for EllipticCurve {
 /// The members of the object represent properties of the key, including its value.
 /// Type `T` is a struct representing additional JWK properties
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct JWK<T: Serialize + Deserialize + 'static> {
+pub struct JWK<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
     /// Common JWK parameters
     pub common: CommonParameters,
     /// Key algorithm specific parameters
@@ -466,7 +466,7 @@ pub struct JWK<T: Serialize + Deserialize + 'static> {
 impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             common, algorithm, additional);
 
-impl<T: Serialize + Deserialize + 'static> JWK<T> {
+impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> JWK<T> {
     /// Convenience to create a new bare-bones Octect key
     pub fn new_octect_key(key: &[u8], additional: T) -> Self {
         Self {
@@ -501,8 +501,9 @@ impl<T: Serialize + Deserialize + 'static> JWK<T> {
 
 /// A JSON object that represents a set of JWKs.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct JWKSet<T: Serialize + Deserialize + 'static> {
+pub struct JWKSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
     /// Containted JWKs
+    #[serde(bound(deserialize = ""))]
     keys: Vec<JWK<T>>,
 }
 
@@ -525,24 +526,30 @@ mod tests {
 
         let test_value = Test { test: PublicKeyUse::Encryption };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("enc"),
                         Token::StructEnd]);
 
         let test_value = Test { test: PublicKeyUse::Encryption };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("enc"),
                         Token::StructEnd]);
 
         let test_value = Test { test: PublicKeyUse::Other("xxx".to_string()) };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("xxx"),
                         Token::StructEnd]);
@@ -575,16 +582,20 @@ mod tests {
 
         let test_value = Test { test: KeyOperations::Sign };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("sign"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Verify };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("verify"),
                         Token::StructEnd]);
@@ -592,56 +603,70 @@ mod tests {
 
         let test_value = Test { test: KeyOperations::Encrypt };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("encrypt"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Decrypt };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("decrypt"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::WrapKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("wrapKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::UnwrapKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("unwrapKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::DeriveKey };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("deriveKey"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::DeriveBits };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("deriveBits"),
                         Token::StructEnd]);
 
         let test_value = Test { test: KeyOperations::Other("xxx".to_string()) };
         assert_tokens(&test_value,
-                      &[Token::StructStart("Test", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "Test",
+                            len: 1,
+                        },
                         Token::Str("test"),
                         Token::Str("xxx"),
                         Token::StructEnd]);

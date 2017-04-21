@@ -14,12 +14,12 @@ pub fn serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
 }
 
 /// Deserialize a byte sequence from Base64 URL encoded string
-pub fn deserialize<D>(deserializer: D) -> Result<Vec<u8>, D::Error>
-    where D: Deserializer
+pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where D: Deserializer<'de>
 {
     struct BytesVisitor;
 
-    impl de::Visitor for BytesVisitor {
+    impl<'de> de::Visitor<'de> for BytesVisitor {
         type Value = Vec<u8>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -53,8 +53,10 @@ mod tests {
         let test_value = TestStruct { bytes: "hello world".to_string().into_bytes() };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
                         Token::Str("aGVsbG8gd29ybGQ"),
 

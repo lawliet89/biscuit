@@ -328,7 +328,7 @@ pub trait CompactPart {
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
 /// This is primarily used in conjunction with the `CompactPart` trait which will serialize structs to JSON before
 /// base64 encoding, and vice-versa.
-pub trait CompactJson: Serialize + Deserialize {}
+pub trait CompactJson: Serialize + for<'de_inner> Deserialize<'de_inner> {}
 
 impl<T> CompactPart for T
     where T: CompactJson
@@ -502,14 +502,14 @@ impl Serialize for Compact {
     }
 }
 
-impl Deserialize for Compact {
+impl<'de> Deserialize<'de> for Compact {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
 
         struct CompactVisitor;
 
-        impl de::Visitor for CompactVisitor {
+        impl<'de> de::Visitor<'de> for CompactVisitor {
             type Value = Compact;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -574,8 +574,9 @@ impl Deserialize for Compact {
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[serde(bound(deserialize = ""))]
 pub enum SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + Deserialize + Send + Sync
+    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
 {
     /// One single value
     Single(T),
@@ -584,7 +585,7 @@ pub enum SingleOrMultiple<T>
 }
 
 impl<T> SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + Deserialize + Send + Sync
+    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
@@ -685,13 +686,13 @@ impl Serialize for StringOrUri {
     }
 }
 
-impl Deserialize for StringOrUri {
+impl<'de> Deserialize<'de> for StringOrUri {
     fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         struct StringOrUriVisitor {}
 
-        impl de::Visitor for StringOrUriVisitor {
+        impl<'de> de::Visitor<'de> for StringOrUriVisitor {
             type Value = StringOrUri;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -755,9 +756,9 @@ impl Serialize for Timestamp {
     }
 }
 
-impl Deserialize for Timestamp {
+impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer
+        where D: Deserializer<'de>
     {
         let timestamp = i64::deserialize(deserializer)?;
         Ok(Timestamp(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), UTC)))
@@ -893,7 +894,7 @@ impl RegisteredClaims {
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct ClaimsSet<T: Serialize + Deserialize> {
+pub struct ClaimsSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
     /// Registered claims defined by the RFC
     pub registered: RegisteredClaims,
     /// Application specific claims
@@ -903,7 +904,7 @@ pub struct ClaimsSet<T: Serialize + Deserialize> {
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + Deserialize + 'static {}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + for<'de_inner> Deserialize<'de_inner> {}
 
 #[cfg(test)]
 mod tests {
@@ -958,8 +959,10 @@ mod tests {
         assert_eq!(deserialized, test);
 
         assert_tokens(&test,
-                      &[Token::StructStart("StringOrUriTest", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "StringOrUriTest",
+                            len: 1,
+                        },
                         Token::Str("string"),
                         Token::Str("Random"),
 
@@ -979,8 +982,10 @@ mod tests {
         assert_eq!(deserialized, test);
 
         assert_tokens(&test,
-                      &[Token::StructStart("StringOrUriTest", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "StringOrUriTest",
+                            len: 1,
+                        },
                         Token::Str("string"),
                         Token::Str("https://www.example.com/"),
 
@@ -1144,28 +1149,23 @@ mod tests {
         };
 
         assert_tokens(&claim,
-                      &[Token::MapStart(Some(6)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(6) },
+
                         Token::Str("iss"),
                         Token::Str("https://www.acme.com/"),
 
-                        Token::MapSep,
                         Token::Str("sub"),
                         Token::Str("John Doe"),
 
-                        Token::MapSep,
                         Token::Str("aud"),
                         Token::Str("htts://acme-customer.com/"),
 
-                        Token::MapSep,
                         Token::Str("nbf"),
                         Token::I64(-1234),
 
-                        Token::MapSep,
                         Token::Str("company"),
                         Token::Str("ACME"),
 
-                        Token::MapSep,
                         Token::Str("department"),
                         Token::Str("Toilet Cleaning"),
                         Token::MapEnd]);
@@ -1187,9 +1187,7 @@ mod tests {
             },
         };
 
-        assert_ser_tokens_error(&claim,
-                                &[],
-                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
+        assert_ser_tokens_error(&claim, &[], "Structs have duplicate keys");
     }
 
     #[test]

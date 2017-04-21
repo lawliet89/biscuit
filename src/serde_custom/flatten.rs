@@ -136,8 +136,29 @@ use std::collections::HashSet;
 use std::hash::Hash;
 
 use serde::{Serialize, Serializer};
+use serde_json;
 use serde_json::map::Map;
-use serde_json::value::{Value, ToJson};
+use serde_json::value::{Value, to_value};
+
+/// Representation of any serializable data as a `serde_json::Value`.
+/// Stop gap trait since `serde_json` removed it: https://github.com/serde-rs/json/issues/294
+// FIXME: See if we can use something else
+pub trait ToJson {
+    /// Represent `self` as a `serde_json::Value`. Note that `Value` is not a
+    /// JSON string. If you need a string, use `serde_json::to_string` instead.
+    ///
+    /// This conversion can fail if `T`'s implementation of `Serialize` decides
+    /// to fail, or if `T` contains a map with non-string keys.
+    fn to_json(&self) -> Result<Value, serde_json::Error>;
+}
+
+impl<T: ?Sized> ToJson for T
+    where T: Serialize
+{
+    fn to_json(&self) -> Result<Value, serde_json::Error> {
+        to_value(self)
+    }
+}
 
 /// The behaviour the serializer should adopt when encountering duplicate keys
 #[derive(Eq, PartialEq, Clone, Copy)]
@@ -161,31 +182,8 @@ pub trait FlattenSerializable {
     fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
         DuplicateKeysBehaviour::RaiseError
     }
-}
 
-/// Check if n sets have any pairwise intersection, at all
-///
-/// If n is less than two, this returns `false`. This operation should be O(n) where n is the total number of elements
-fn pairwise_intersection<T: Hash + Eq + Clone>(sets: &[HashSet<T>]) -> bool {
-    let sets: Vec<&HashSet<T>> = sets.iter().collect();
-    if sets.len() < 2 {
-        return false;
-    }
-    let size = sets.iter().fold(0, |acc, x| x.len() + acc);
-
-    let mut all: HashSet<T> = HashSet::with_capacity(size);
-    for set in sets {
-        for key in set {
-            if !all.insert(key.clone()) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-impl Serialize for FlattenSerializable {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
         use serde::ser::Error;
@@ -232,6 +230,27 @@ impl Serialize for FlattenSerializable {
     }
 }
 
+/// Check if n sets have any pairwise intersection, at all
+///
+/// If n is less than two, this returns `false`. This operation should be O(n) where n is the total number of elements
+fn pairwise_intersection<T: Hash + Eq + Clone>(sets: &[HashSet<T>]) -> bool {
+    let sets: Vec<&HashSet<T>> = sets.iter().collect();
+    if sets.len() < 2 {
+        return false;
+    }
+    let size = sets.iter().fold(0, |acc, x| x.len() + acc);
+
+    let mut all: HashSet<T> = HashSet::with_capacity(size);
+    for set in sets {
+        for key in set {
+            if !all.insert(key.clone()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Implement flatten serialization for a struct.
 /// Due to the way the type system is set up, we cannot do a blanket
 /// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
@@ -242,8 +261,8 @@ impl Serialize for FlattenSerializable {
 macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
-                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -255,7 +274,9 @@ macro_rules! impl_flatten_serialize {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
-                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
+                use $crate::serde_custom::flatten::FlattenSerializable;
+
+                self.serialize_internal(serializer)
             }
         }
     };
@@ -269,9 +290,9 @@ macro_rules! impl_flatten_serialize {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize {
     ($t:ty, $( $child:ident ),*) => {
-        impl serde::Deserialize for $t {
+        impl<'de> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where D: serde::Deserializer
+                where D: serde::Deserializer<'de>
             {
                 use serde::de::Error;
 
@@ -306,9 +327,11 @@ macro_rules! impl_flatten_serde {
 // TODO: Procedural macro
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
-        impl<T: Serialize + Deserialize + 'static> $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&serde_json::value::ToJson>> {
-                vec![$( Box::<&serde_json::value::ToJson>::new(&self.$child) ),*]
+        impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
+            where T: Serialize + for<'de_inner> Deserialize<'de_inner>
+        {
+            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -316,11 +339,13 @@ macro_rules! impl_flatten_serialize_generic {
             }
         }
 
-        impl<T: Serialize + Deserialize + 'static> serde::Serialize for $t {
+        impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
-                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
+                use $crate::serde_custom::flatten::FlattenSerializable;
+
+                self.serialize_internal(serializer)
             }
         }
     };
@@ -334,9 +359,9 @@ macro_rules! impl_flatten_serialize_generic {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
-        impl<T: Serialize + Deserialize> serde::Deserialize for $t {
+        impl<'de, T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where D: serde::Deserializer
+                where D: serde::Deserializer<'de>
             {
                 use serde::de::Error;
 
@@ -366,7 +391,7 @@ macro_rules! impl_flatten_serde_generic {
 mod tests {
     use serde::{self, Serialize, Deserialize};
     use serde_json;
-    use serde_test::{self, Token, assert_tokens, assert_ser_tokens_error};
+    use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
     use super::*;
 
@@ -429,7 +454,7 @@ mod tests {
     impl_flatten_serde!(Outer, DuplicateKeysBehaviour::RaiseError, one, three);
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
-    struct OuterGeneric<T: Serialize + Deserialize> {
+    struct OuterGeneric<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
         one: InnerOne,
         generic: T,
     }
@@ -499,15 +524,13 @@ mod tests {
     #[should_panic(expected = "Structs have duplicate keys")]
     fn errors_on_duplicate_keys() {
         let test_value = OuterNoDuplicates::default();
-        serde_json::to_string(&test_value as &FlattenSerializable).unwrap();
+        serde_json::to_string(&test_value).unwrap();
     }
 
     #[test]
     fn duplicate_keys_serialization_token_error() {
         let test_value = OuterNoDuplicates::default();
-        assert_ser_tokens_error(&test_value,
-                                &[],
-                                serde_test::Error::Message("Structs have duplicate keys".to_string()));
+        assert_ser_tokens_error(&test_value, &[], "Structs have duplicate keys");
     }
 
     #[test]
@@ -561,46 +584,38 @@ mod tests {
         let test_value = Outer::default();
 
         assert_tokens(&test_value,
-                      &[Token::MapStart(Some(7)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(7) },
+
                         Token::Str("a"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("b"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("c"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("d"),
 
                         // InnerTwo map
-                        Token::MapStart(Some(3)),
-                        Token::MapSep,
+                        Token::Map { len: Some(3) },
+
                         Token::Str("a"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("e"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("f"),
                         Token::U64(0),
                         Token::MapEnd,
                         // End InnerTwo map
-                        Token::MapSep,
                         Token::Str("g"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("h"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("i"),
                         Token::Bool(false),
                         Token::MapEnd]);
@@ -634,46 +649,38 @@ mod tests {
         let test_value = OuterGeneric::<InnerThree>::default();
 
         assert_tokens(&test_value,
-                      &[Token::MapStart(Some(7)),
-                        Token::MapSep,
+                      &[Token::Map { len: Some(7) },
+
                         Token::Str("a"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("b"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("c"),
                         Token::U64(0),
 
-                        Token::MapSep,
                         Token::Str("d"),
 
                         // InnerTwo map
-                        Token::MapStart(Some(3)),
-                        Token::MapSep,
+                        Token::Map { len: Some(3) },
+
                         Token::Str("a"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("e"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("f"),
                         Token::U64(0),
                         Token::MapEnd,
                         // End InnerTwo map
-                        Token::MapSep,
                         Token::Str("g"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("h"),
                         Token::Bool(false),
 
-                        Token::MapSep,
                         Token::Str("i"),
                         Token::Bool(false),
                         Token::MapEnd]);

@@ -18,12 +18,12 @@ pub fn serialize<S>(value: &BigUint, serializer: S) -> Result<S::Ok, S::Error>
 }
 
 /// Deserialize a `BigUint` from Base64 URL encoded big endian bytes
-pub fn deserialize<D>(deserializer: D) -> Result<BigUint, D::Error>
-    where D: Deserializer
+pub fn deserialize<'de, D>(deserializer: D) -> Result<BigUint, D::Error>
+    where D: Deserializer<'de>
 {
     struct BigUintVisitor;
 
-    impl de::Visitor for BigUintVisitor {
+    impl<'de> de::Visitor<'de> for BigUintVisitor {
         type Value = BigUint;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -59,8 +59,10 @@ mod tests {
         let test_value = TestStruct { bytes: BigUint::from_u64(12345).unwrap() };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
                         Token::Str("MDk"),
 

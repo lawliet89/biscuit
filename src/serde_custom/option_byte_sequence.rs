@@ -19,12 +19,12 @@ pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::
 }
 
 /// Deserialize a byte sequence from Base64 URL encoded string
-pub fn deserialize<D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
-    where D: Deserializer
+pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    where D: Deserializer<'de>
 {
     struct BytesVisitor;
 
-    impl de::Visitor for BytesVisitor {
+    impl<'de> de::Visitor<'de> for BytesVisitor {
         type Value = Option<Vec<u8>>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -39,7 +39,7 @@ pub fn deserialize<D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where D: Deserializer
+            where D: Deserializer<'de>
         {
 
             deserializer.deserialize_str(self)
@@ -73,10 +73,12 @@ mod tests {
         let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
-                        Token::Option(true),
+                        Token::Some,
                         Token::Str("aGVsbG8gd29ybGQ"),
 
                         Token::StructEnd]);
@@ -87,10 +89,12 @@ mod tests {
         let test_value = TestStruct { bytes: None };
 
         assert_tokens(&test_value,
-                      &[Token::StructStart("TestStruct", 1),
-                        Token::StructSep,
+                      &[Token::Struct {
+                            name: "TestStruct",
+                            len: 1,
+                        },
                         Token::Str("bytes"),
-                        Token::Option(false),
+                        Token::None,
 
                         Token::StructEnd]);
     }
