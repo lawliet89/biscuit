@@ -572,10 +572,7 @@ impl<'de> Deserialize<'de> for Compact {
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-#[serde(bound(deserialize = ""))]
-pub enum SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
-{
+pub enum SingleOrMultiple<T> {
     /// One single value
     Single(T),
     /// Multiple values
@@ -583,7 +580,7 @@ pub enum SingleOrMultiple<T>
 }
 
 impl<T> SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
+    where T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
@@ -892,7 +889,7 @@ impl RegisteredClaims {
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct ClaimsSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+pub struct ClaimsSet<T> {
     /// Registered claims defined by the RFC
     pub registered: RegisteredClaims,
     /// Application specific claims
@@ -902,7 +899,7 @@ pub struct ClaimsSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + for<'de_inner> Deserialize<'de_inner> {}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
 
 #[cfg(test)]
 mod tests {

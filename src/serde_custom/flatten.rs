@@ -183,6 +183,10 @@ pub trait FlattenSerializable {
         DuplicateKeysBehaviour::RaiseError
     }
 
+    /// Internal serializzation
+    ///
+    /// # Panics
+    /// Panics if any of the child yielded are not structs
     fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
@@ -328,7 +332,7 @@ macro_rules! impl_flatten_serde {
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
-            where T: Serialize + for<'de_inner> Deserialize<'de_inner>
+            where T: Serialize + serde::de::DeserializeOwned
         {
             fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
                 vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
@@ -339,7 +343,7 @@ macro_rules! impl_flatten_serialize_generic {
             }
         }
 
-        impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Serialize for $t {
+        impl<T: Serialize + serde::de::DeserializeOwned> serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
@@ -359,7 +363,7 @@ macro_rules! impl_flatten_serialize_generic {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
-        impl<'de, T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Deserialize<'de> for $t {
+        impl<'de, T: Serialize + serde::de::DeserializeOwned> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where D: serde::Deserializer<'de>
             {
@@ -389,7 +393,7 @@ macro_rules! impl_flatten_serde_generic {
 
 #[cfg(test)]
 mod tests {
-    use serde::{self, Serialize, Deserialize};
+    use serde::{self, Serialize};
     use serde_json;
     use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
@@ -454,7 +458,7 @@ mod tests {
     impl_flatten_serde!(Outer, DuplicateKeysBehaviour::RaiseError, one, three);
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
-    struct OuterGeneric<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+    struct OuterGeneric<T: Serialize + serde::de::DeserializeOwned> {
         one: InnerOne,
         generic: T,
     }

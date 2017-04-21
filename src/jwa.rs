@@ -6,7 +6,8 @@
 use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 use untrusted;
 
 use errors::Error;
@@ -355,7 +356,7 @@ impl KeyManagementAlgorithm {
 
     /// Retrieve the Content Encryption Key (CEK) based on the algorithm for encryption
     pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
-        where T: Serialize + for<'de> Deserialize<'de>
+        where T: Serialize + DeserializeOwned
     {
         use self::KeyManagementAlgorithm::*;
 
@@ -367,7 +368,7 @@ impl KeyManagementAlgorithm {
     }
 
     fn cek_direct<T>(&self, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
-        where T: Serialize + for<'de> Deserialize<'de>
+        where T: Serialize + DeserializeOwned
     {
         match key.key_type() {
             jwk::KeyType::Octect => Ok(key.clone_without_additional()),
@@ -392,10 +393,10 @@ impl KeyManagementAlgorithm {
     }
 
     /// Encrypt or wrap a key with the provided algorithm
-    pub fn encrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                             payload: &[u8],
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<EncryptionResult, Error> {
+    pub fn encrypt<T: Serialize + DeserializeOwned>(&self,
+                                                    payload: &[u8],
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
@@ -406,11 +407,11 @@ impl KeyManagementAlgorithm {
     }
 
     /// Decrypt or unwrap a CEK with the provided algorithm
-    pub fn decrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                             encrypted: &EncryptionResult,
-                                                             content_alg: ContentEncryptionAlgorithm,
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<jwk::JWK<::Empty>, Error> {
+    pub fn decrypt<T: Serialize + DeserializeOwned>(&self,
+                                                    encrypted: &EncryptionResult,
+                                                    content_alg: ContentEncryptionAlgorithm,
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<jwk::JWK<::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
@@ -420,10 +421,10 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn aes_gcm_encrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                                 payload: &[u8],
-                                                                 key: &jwk::JWK<T>)
-                                                                 -> Result<EncryptionResult, Error> {
+    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(&self,
+                                                        payload: &[u8],
+                                                        key: &jwk::JWK<T>)
+                                                        -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
         let algorithm = match *self {
@@ -434,11 +435,11 @@ impl KeyManagementAlgorithm {
         aes_gcm_encrypt(algorithm, payload, &[], key)
     }
 
-    fn aes_gcm_decrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                                 encrypted: &EncryptionResult,
-                                                                 content_alg: ContentEncryptionAlgorithm,
-                                                                 key: &jwk::JWK<T>)
-                                                                 -> Result<jwk::JWK<::Empty>, Error> {
+    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(&self,
+                                                        encrypted: &EncryptionResult,
+                                                        content_alg: ContentEncryptionAlgorithm,
+                                                        key: &jwk::JWK<T>)
+                                                        -> Result<jwk::JWK<::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         let algorithm = match *self {
@@ -480,11 +481,11 @@ impl ContentEncryptionAlgorithm {
     }
 
     /// Encrypt some payload with the provided algorith
-    pub fn encrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                             payload: &[u8],
-                                                             aad: &[u8],
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<EncryptionResult, Error> {
+    pub fn encrypt<T: Serialize + DeserializeOwned>(&self,
+                                                    payload: &[u8],
+                                                    aad: &[u8],
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         match *self {
@@ -495,10 +496,10 @@ impl ContentEncryptionAlgorithm {
     }
 
     /// Decrypt some payload with the provided algorith,
-    pub fn decrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                             encrypted: &EncryptionResult,
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<Vec<u8>, Error> {
+    pub fn decrypt<T: Serialize + DeserializeOwned>(&self,
+                                                    encrypted: &EncryptionResult,
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         match *self {
@@ -507,11 +508,11 @@ impl ContentEncryptionAlgorithm {
         }
     }
 
-    fn aes_gcm_encrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                                 payload: &[u8],
-                                                                 aad: &[u8],
-                                                                 key: &jwk::JWK<T>)
-                                                                 -> Result<EncryptionResult, Error> {
+    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(&self,
+                                                        payload: &[u8],
+                                                        aad: &[u8],
+                                                        key: &jwk::JWK<T>)
+                                                        -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         let algorithm = match *self {
@@ -522,10 +523,10 @@ impl ContentEncryptionAlgorithm {
         aes_gcm_encrypt(algorithm, payload, aad, key)
     }
 
-    fn aes_gcm_decrypt<T: Serialize + for<'de> Deserialize<'de>>(&self,
-                                                                 encrypted: &EncryptionResult,
-                                                                 key: &jwk::JWK<T>)
-                                                                 -> Result<Vec<u8>, Error> {
+    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(&self,
+                                                        encrypted: &EncryptionResult,
+                                                        key: &jwk::JWK<T>)
+                                                        -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         let algorithm = match *self {
@@ -550,11 +551,11 @@ pub fn rng() -> &'static SystemRandom {
 }
 
 /// Encrypt a payload with AES GCM
-fn aes_gcm_encrypt<T: Serialize + for<'de> Deserialize<'de>>(algorithm: &'static aead::Algorithm,
-                                                             payload: &[u8],
-                                                             aad: &[u8],
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<EncryptionResult, Error> {
+fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Algorithm,
+                                                    payload: &[u8],
+                                                    aad: &[u8],
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<EncryptionResult, Error> {
 
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
     assert_eq!(algorithm.tag_len(), TAG_SIZE);
@@ -580,10 +581,10 @@ fn aes_gcm_encrypt<T: Serialize + for<'de> Deserialize<'de>>(algorithm: &'static
 }
 
 /// Decrypts a payload with AES GCM
-fn aes_gcm_decrypt<T: Serialize + for<'de> Deserialize<'de>>(algorithm: &'static aead::Algorithm,
-                                                             encrypted: &EncryptionResult,
-                                                             key: &jwk::JWK<T>)
-                                                             -> Result<Vec<u8>, Error> {
+fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Algorithm,
+                                                    encrypted: &EncryptionResult,
+                                                    key: &jwk::JWK<T>)
+                                                    -> Result<Vec<u8>, Error> {
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
     assert_eq!(algorithm.tag_len(), TAG_SIZE);
     // Also the nonce (or initialization vector) needs to be 96 bits

@@ -4,8 +4,8 @@
 use std::fmt;
 
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
+use serde::de::{self, DeserializeOwned};
 use serde_json;
-use serde::de;
 
 use {CompactJson, CompactPart, Empty};
 use errors::{Error, ValidationError};
@@ -165,7 +165,7 @@ pub struct CekAlgorithmHeader {
 
 /// JWE Header, consisting of the registered fields and other custom fields
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct Header<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+pub struct Header<T> {
     /// Registered header fields
     pub registered: RegisteredHeader,
     /// Key management algorithm specific headers
@@ -177,9 +177,9 @@ pub struct Header<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
 impl_flatten_serde_generic!(Header<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, cek_algorithm, private);
 
-impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> CompactJson for Header<T> {}
+impl<T: Serialize + DeserializeOwned> CompactJson for Header<T> {}
 
-impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> Header<T> {
+impl<T: Serialize + DeserializeOwned> Header<T> {
     /// Update CEK algorithm specific header fields based on a CEK encryption result
     fn update_cek_algorithm(&mut self, encrypted: &EncryptionResult) {
         if !encrypted.nonce.is_empty() {
@@ -274,14 +274,13 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// # }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Compact<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clone> {
+pub enum Compact<T, H> {
     /// Decrypted form of the JWE.
     /// This variant cannot be serialized or deserialized and will return an error.
     #[serde(skip_serializing)]
     #[serde(skip_deserializing)]
     Decrypted {
         /// Embedded header
-        #[serde(bound(deserialize = ""))]
         header: Header<H>,
         /// Payload, usually a signed/unsigned JWT
         payload: T,
@@ -290,7 +289,7 @@ pub enum Compact<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_i
     Encrypted(::Compact),
 }
 
-impl<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clone> Compact<T, H> {
+impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
     /// Create a new encrypted JWE
     pub fn new_decrypted(header: Header<H>, payload: T) -> Self {
         Compact::Decrypted {
@@ -306,9 +305,7 @@ impl<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clon
 
     /// Consumes self and encrypt it. If the token is already encrypted,
     /// this is a no-op.
-    pub fn into_encrypted<K: Serialize + for<'de_key> Deserialize<'de_key>>(self,
-                                                                            key: &jwk::JWK<K>)
-                                                                            -> Result<Self, Error> {
+    pub fn into_encrypted<K: Serialize + DeserializeOwned>(self, key: &jwk::JWK<K>) -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => Ok(self),
             Compact::Decrypted { .. } => self.encrypt(key),
@@ -316,7 +313,7 @@ impl<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clon
     }
 
     /// Encrypt an Decrypted JWE
-    pub fn encrypt<K: Serialize + for<'de_key> Deserialize<'de_key>>(&self, key: &jwk::JWK<K>) -> Result<Self, Error> {
+    pub fn encrypt<K: Serialize + DeserializeOwned>(&self, key: &jwk::JWK<K>) -> Result<Self, Error> {
         match *self {
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
             Compact::Decrypted {
@@ -369,11 +366,11 @@ impl<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clon
 
     /// Consumes self and decrypt it. If the token is already decrypted,
     /// this is a no-op.
-    pub fn into_decrypted<K: Serialize + for<'de_key> Deserialize<'de_key>>(self,
-                                                                            key: &jwk::JWK<K>,
-                                                                            cek_alg: KeyManagementAlgorithm,
-                                                                            enc_alg: ContentEncryptionAlgorithm)
-                                                                            -> Result<Self, Error> {
+    pub fn into_decrypted<K: Serialize + DeserializeOwned>(self,
+                                                           key: &jwk::JWK<K>,
+                                                           cek_alg: KeyManagementAlgorithm,
+                                                           enc_alg: ContentEncryptionAlgorithm)
+                                                           -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => self.decrypt(key, cek_alg, enc_alg),
             Compact::Decrypted { .. } => Ok(self),
@@ -382,11 +379,11 @@ impl<T: CompactPart, H: Serialize + for<'de_inner> Deserialize<'de_inner> + Clon
 
     /// Decrypt an encrypted JWE. Provide the expected algorithms to mitigate an attacker modifying the
     /// fields
-    pub fn decrypt<K: Serialize + for<'de_key> Deserialize<'de_key>>(&self,
-                                                                     key: &jwk::JWK<K>,
-                                                                     cek_alg: KeyManagementAlgorithm,
-                                                                     enc_alg: ContentEncryptionAlgorithm)
-                                                                     -> Result<Self, Error> {
+    pub fn decrypt<K: Serialize + DeserializeOwned>(&self,
+                                                    key: &jwk::JWK<K>,
+                                                    cek_alg: KeyManagementAlgorithm,
+                                                    enc_alg: ContentEncryptionAlgorithm)
+                                                    -> Result<Self, Error> {
         match *self {
             Compact::Encrypted(ref encrypted) => {
                 if encrypted.len() != 5 {
