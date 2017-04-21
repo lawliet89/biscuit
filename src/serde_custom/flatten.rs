@@ -182,31 +182,8 @@ pub trait FlattenSerializable {
     fn duplicate_keys(&self) -> DuplicateKeysBehaviour {
         DuplicateKeysBehaviour::RaiseError
     }
-}
 
-/// Check if n sets have any pairwise intersection, at all
-///
-/// If n is less than two, this returns `false`. This operation should be O(n) where n is the total number of elements
-fn pairwise_intersection<T: Hash + Eq + Clone>(sets: &[HashSet<T>]) -> bool {
-    let sets: Vec<&HashSet<T>> = sets.iter().collect();
-    if sets.len() < 2 {
-        return false;
-    }
-    let size = sets.iter().fold(0, |acc, x| x.len() + acc);
-
-    let mut all: HashSet<T> = HashSet::with_capacity(size);
-    for set in sets {
-        for key in set {
-            if !all.insert(key.clone()) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-impl Serialize for FlattenSerializable {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer
     {
         use serde::ser::Error;
@@ -253,6 +230,27 @@ impl Serialize for FlattenSerializable {
     }
 }
 
+/// Check if n sets have any pairwise intersection, at all
+///
+/// If n is less than two, this returns `false`. This operation should be O(n) where n is the total number of elements
+fn pairwise_intersection<T: Hash + Eq + Clone>(sets: &[HashSet<T>]) -> bool {
+    let sets: Vec<&HashSet<T>> = sets.iter().collect();
+    if sets.len() < 2 {
+        return false;
+    }
+    let size = sets.iter().fold(0, |acc, x| x.len() + acc);
+
+    let mut all: HashSet<T> = HashSet::with_capacity(size);
+    for set in sets {
+        for key in set {
+            if !all.insert(key.clone()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Implement flatten serialization for a struct.
 /// Due to the way the type system is set up, we cannot do a blanket
 /// `impl <T: FlattenSerializable> Serialize for T`. This is just a wrapper to get around that problem.
@@ -276,7 +274,7 @@ macro_rules! impl_flatten_serialize {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
-                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
+                self.serialize_internal(serializer)
             }
         }
     };
@@ -327,7 +325,9 @@ macro_rules! impl_flatten_serde {
 // TODO: Procedural macro
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
-        impl<T: Serialize + Deserialize + 'static> $crate::serde_custom::flatten::FlattenSerializable for $t {
+        impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
+            where T: Serialize + for<'de_inner> Deserialize<'de_inner>
+        {
             fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
                 vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
@@ -337,11 +337,11 @@ macro_rules! impl_flatten_serialize_generic {
             }
         }
 
-        impl<T: Serialize + Deserialize + 'static> serde::Serialize for $t {
+        impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
             {
-                $crate::serde_custom::flatten::FlattenSerializable::serialize(self, serializer)
+                self.serialize_internal(serializer)
             }
         }
     };
@@ -355,7 +355,7 @@ macro_rules! impl_flatten_serialize_generic {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
-        impl<'de, T: Serialize + Deserialize> serde::Deserialize<'de> for $t {
+        impl<'de, T: Serialize + for<'de_inner> Deserialize<'de_inner>> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where D: serde::Deserializer<'de>
             {
