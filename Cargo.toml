@@ -27,11 +27,11 @@ data-encoding = "1.2.0"
 lazy_static = "0.2"
 num = "0.1.37"
 ring = { version = "0.7.5", features = ["rsa_signing"] }
-serde = "0.9"
-serde_derive = "0.9"
-serde_json = { version = "0.9", features = ["preserve_order"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
 untrusted = "0.3"
 url = "^1.0"
 
 [dev-dependencies]
-serde_test = "0.9"
+serde_test = "1.0"
