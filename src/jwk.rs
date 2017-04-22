@@ -5,7 +5,7 @@ use std::fmt;
 
 use num::BigUint;
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
-use serde::de;
+use serde::de::{self, DeserializeOwned};
 use serde_json;
 
 use errors::Error;
@@ -454,7 +454,7 @@ impl Default for EllipticCurve {
 /// The members of the object represent properties of the key, including its value.
 /// Type `T` is a struct representing additional JWK properties
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct JWK<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+pub struct JWK<T> {
     /// Common JWK parameters
     pub common: CommonParameters,
     /// Key algorithm specific parameters
@@ -466,7 +466,7 @@ pub struct JWK<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
 impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             common, algorithm, additional);
 
-impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> JWK<T> {
+impl<T: Serialize + DeserializeOwned> JWK<T> {
     /// Convenience to create a new bare-bones Octect key
     pub fn new_octect_key(key: &[u8], additional: T) -> Self {
         Self {
@@ -501,9 +501,8 @@ impl<T: Serialize + for<'de_inner> Deserialize<'de_inner>> JWK<T> {
 
 /// A JSON object that represents a set of JWKs.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct JWKSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+pub struct JWKSet<T> {
     /// Containted JWKs
-    #[serde(bound(deserialize = ""))]
     keys: Vec<JWK<T>>,
 }
 

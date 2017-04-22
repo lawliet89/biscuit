@@ -62,7 +62,7 @@ use std::str::{self, FromStr};
 use chrono::{DateTime, UTC, NaiveDateTime};
 use data_encoding::base64url;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de;
+use serde::de::{self, DeserializeOwned};
 
 pub use url::{Url, ParseError};
 
@@ -328,20 +328,18 @@ pub trait CompactPart {
 /// A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
 /// This is primarily used in conjunction with the `CompactPart` trait which will serialize structs to JSON before
 /// base64 encoding, and vice-versa.
-pub trait CompactJson: Serialize + for<'de_inner> Deserialize<'de_inner> {}
+pub trait CompactJson: Serialize + DeserializeOwned {}
 
 impl<T> CompactPart for T
     where T: CompactJson
 {
     /// JSON serialize the part and return the JSON string bytes
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        let encoded = serde_json::to_string(&self)?;
-        Ok(encoded.into_bytes())
+        Ok(serde_json::to_vec(&self)?)
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        let s = str::from_utf8(bytes)?;
-        Ok(serde_json::from_str(s)?)
+        Ok(serde_json::from_slice(bytes)?)
     }
 }
 
@@ -574,10 +572,7 @@ impl<'de> Deserialize<'de> for Compact {
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-#[serde(bound(deserialize = ""))]
-pub enum SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
-{
+pub enum SingleOrMultiple<T> {
     /// One single value
     Single(T),
     /// Multiple values
@@ -585,7 +580,7 @@ pub enum SingleOrMultiple<T>
 }
 
 impl<T> SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + for<'de_inner> Deserialize<'de_inner> + Send + Sync
+    where T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
@@ -894,7 +889,7 @@ impl RegisteredClaims {
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct ClaimsSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
+pub struct ClaimsSet<T> {
     /// Registered claims defined by the RFC
     pub registered: RegisteredClaims,
     /// Application specific claims
@@ -904,7 +899,7 @@ pub struct ClaimsSet<T: Serialize + for<'de_inner> Deserialize<'de_inner>> {
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + for<'de_inner> Deserialize<'de_inner> {}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
 
 #[cfg(test)]
 mod tests {
