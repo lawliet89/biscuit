@@ -274,23 +274,23 @@ impl AlgorithmParameters {
 pub struct EllipticCurveKeyParameters {
     /// Key type value for an Elliptic Curve Key.
     #[serde(rename = "kty")]
-    key_type: EllipticCurveKeyType,
+    pub key_type: EllipticCurveKeyType,
     /// The "crv" (curve) parameter identifies the cryptographic curve used
     /// with the key.
     #[serde(rename = "crv")]
-    curve: EllipticCurve,
+    pub curve: EllipticCurve,
     /// The "x" (x coordinate) parameter contains the x coordinate for the
     /// Elliptic Curve point. Serialized to base64 URL encoded
     #[serde(with = "serde_custom::byte_sequence")]
-    x: Vec<u8>,
+    pub x: Vec<u8>,
     /// The "y" (y coordinate) parameter contains the y coordinate for the
     /// Elliptic Curve point. Serialized to base64 URL encoded
     #[serde(with = "serde_custom::byte_sequence")]
-    y: Vec<u8>,
+    pub y: Vec<u8>,
     /// The "d" (ECC private key) parameter contains the Elliptic Curve
     /// private key value.
     #[serde(with = "serde_custom::option_byte_sequence", skip_serializing_if = "Option::is_none", default)]
-    d: Option<Vec<u8>>,
+    pub d: Option<Vec<u8>>,
 }
 
 /// Parameters for a RSA Key
@@ -298,60 +298,60 @@ pub struct EllipticCurveKeyParameters {
 pub struct RSAKeyParameters {
     /// Key type value for a RSA Key
     #[serde(rename = "kty")]
-    key_type: RSAKeyType,
+    pub key_type: RSAKeyType,
 
     /// The "n" (modulus) parameter contains the modulus value for the RSA
     /// public key.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::base64_url_uint")]
-    n: BigUint,
+    pub n: BigUint,
 
     /// The "e" (exponent) parameter contains the exponent value for the RSA
     /// public key.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::base64_url_uint")]
-    e: BigUint,
+    pub e: BigUint,
 
     /// The "d" (private exponent) parameter contains the private exponent
     /// value for the RSA private key.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    d: Option<BigUint>,
+    pub d: Option<BigUint>,
 
     /// The "p" (first prime factor) parameter contains the first prime
     /// factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    p: Option<BigUint>,
+    pub p: Option<BigUint>,
 
     /// The "q" (second prime factor) parameter contains the second prime
     /// factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    q: Option<BigUint>,
+    pub q: Option<BigUint>,
 
     /// The "dp" (first factor CRT exponent) parameter contains the Chinese
     /// Remainder Theorem (CRT) exponent of the first factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    dp: Option<BigUint>,
+    pub dp: Option<BigUint>,
 
     /// The "dq" (second factor CRT exponent) parameter contains the CRT
     /// exponent of the second factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    dq: Option<BigUint>,
+    pub dq: Option<BigUint>,
 
     /// The "qi" (first CRT coefficient) parameter contains the CRT
     /// coefficient of the second factor
     /// It is serialized as a `Base64urlUInt`-encoded value.
     #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
-    qi: Option<BigUint>,
+    pub qi: Option<BigUint>,
 
     /// The "oth" (other primes info) parameter contains an array of
     /// information about any third and subsequent primes, should they exist.
     #[serde(rename = "oth", skip_serializing_if = "Option::is_none", default)]
-    other_primes_info: Option<Vec<OtherPrimesInfo>>,
+    pub other_primes_info: Option<Vec<OtherPrimesInfo>>,
 }
 
 /// The "oth" (other primes info) parameter contains an array of
@@ -503,7 +503,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct JWKSet<T> {
     /// Containted JWKs
-    keys: Vec<JWK<T>>,
+    pub keys: Vec<JWK<T>>,
 }
 
 #[cfg(test)]
