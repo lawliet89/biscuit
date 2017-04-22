@@ -95,7 +95,6 @@ use errors::{Error, ValidationError};
 /// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
-/// extern crate serde_json;
 ///
 /// use std::str::FromStr;
 /// use biscuit::*;
@@ -145,13 +144,13 @@ use errors::{Error, ValidationError};
 ///
 /// let token = expected_jwt
 ///     .into_encoded(&signing_secret).unwrap();
-/// let token = serde_json::to_string(&token).unwrap();
-/// assert_eq!(format!("\"{}\"", expected_token), token);
+/// let token = token.unwrap_encoded().to_string();
+/// assert_eq!(expected_token, token);
 /// // Now, send `token` to your clients
 ///
 /// // ... some time later, we get token back!
 ///
-/// let token = serde_json::from_str::<JWT<PrivateClaims, Empty>>(&token).unwrap();
+/// let token = JWT::<_, biscuit::Empty>::new_encoded(&token);
 /// let token = token.into_decoded(&signing_secret,
 ///     SignatureAlgorithm::HS256).unwrap();
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
@@ -177,7 +176,6 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
-/// extern crate serde_json;
 ///
 /// use std::str::FromStr;
 /// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
@@ -239,11 +237,12 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// // Encrypt
 /// let encrypted_jwe = jwe.encrypt(&key).unwrap();
 ///
-/// let token = serde_json::to_string(&encrypted_jwe).unwrap();
+/// let token = encrypted_jwe.unwrap_encrypted().to_string();
+///
 /// // Now, send `token` to your clients
 ///
 /// // ... some time later, we get token back!
-/// let token: JWE<PrivateClaims, ::Empty, ::Empty> = serde_json::from_str(&token).unwrap();
+/// let token: JWE<PrivateClaims, ::Empty, ::Empty> = JWE::new_encrypted(&token);
 ///
 /// // Decrypt
 /// let decrypted_jwe = token.into_decrypted(&key,

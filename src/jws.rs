@@ -1,6 +1,7 @@
 //! JSON Web Signatures, including JWT signing and headers
 //!
-//! Defined in [RFC 7515](https://tools.ietf.org/html/rfc7515)
+//! Defined in [RFC 7515](https://tools.ietf.org/html/rfc7515). For most common use,
+//! you will want to look at the  [`Compact`](enum.Compact.html) enum.
 use std::sync::Arc;
 use std::str;
 
@@ -24,75 +25,8 @@ use serde_custom;
 /// turn it into the encoded form first.
 ///
 /// # Examples
-/// ## Encoding and decoding with HS256
-///
-/// ```
-/// extern crate biscuit;
-/// extern crate serde;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate serde_json;
-///
-/// use std::str::FromStr;
-/// use biscuit::*;
-/// use biscuit::jws::*;
-/// use biscuit::jwa::*;
-///
-/// # fn main() {
-///
-/// // Define our own private claims
-/// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-/// struct PrivateClaims {
-///     company: String,
-///     department: String,
-/// }
-///
-/// let signing_secret = Secret::Bytes("secret".to_string().into_bytes());
-///
-/// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
-///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
-///                         mh0dHM6Ly9hY21lLWN1c3RvbWVyLmNvbS8iLC\
-///                         JuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwi\
-///                         ZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-///                         VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
-///
-/// let expected_claims = ClaimsSet::<PrivateClaims> {
-///     registered: RegisteredClaims {
-///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
-///         subject: Some(FromStr::from_str("John Doe").unwrap()),
-///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
-///         not_before: Some(1234.into()),
-///         ..Default::default()
-///     },
-///     private: PrivateClaims {
-///         department: "Toilet Cleaning".to_string(),
-///         company: "ACME".to_string(),
-///     },
-/// };
-///
-/// let expected_jwt = jws::Compact::new_decoded(From::from(
-///                                                 RegisteredHeader {
-///                                                 algorithm: SignatureAlgorithm::HS256,
-///                                                 ..Default::default()
-///                                             }),
-///                                             expected_claims.clone());
-///
-/// let token = expected_jwt
-///     .into_encoded(&signing_secret).unwrap();
-/// let token = serde_json::to_string(&token).unwrap();
-/// assert_eq!(format!("\"{}\"", expected_token), token);
-/// // Now, send `token` to your clients
-///
-/// // ... some time later, we get token back!
-///
-/// let token = serde_json::from_str::<jws::Compact<ClaimsSet<PrivateClaims>, Empty>>(&token).unwrap();
-/// let token = token.into_decoded(&signing_secret,
-///     SignatureAlgorithm::HS256).unwrap();
-/// assert_eq!(*token.payload().unwrap(), expected_claims);
-/// # }
-/// ```
+/// ## Signing and verifying a JWT with HS256
+/// See an example in the [`biscuit::JWT`](../type.JWT.html) type alias.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Compact<T, H> {

@@ -1,6 +1,8 @@
 //! [JSON Web Encryption](https://tools.ietf.org/html/rfc7516)
 //!
-//! This module contains code to implement JWE.
+//! This module contains code to implement JWE, the JOSE standard to encrypt arbitrary payloads.
+//! Most commonly, JWE is used to encrypt a JWS payload, which is a signed JWT. For most common use,
+//! you will want to look at the  [`Compact`](enum.Compact.html) enum.
 use std::fmt;
 
 use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
