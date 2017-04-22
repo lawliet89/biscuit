@@ -31,6 +31,8 @@ JWT Registered Claims is defined in [Section 4 of RFC 7519](https://tools.ietf.o
 Optional private claims are supported as part of the [`biscuit::ClaimsSet`](https://lawliet89.github.io/biscuit/biscuit/struct.ClaimsSet.html)
 struct. (_as of v0.0.2_)
 
+## JSON Web Key (JWK)
+
 ## JSON Web Signature (JWS)
 
 JWS is defined in [RFC 7515](https://tools.ietf.org/html/rfc7515).
@@ -86,3 +88,5 @@ The algorithms are described [here](https://tools.ietf.org/html/rfc7518#section-
 | Compact        |    ✔    |         |
 | General JSON   |    ✘    |         |
 | Flattened JSON |    ✘    |         |
+
+## JSON Web Encryption (JWE)
