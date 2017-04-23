@@ -64,9 +64,20 @@ JWK is currently not used in signing JWS, pending features in `ring`. See this
 |    `x5t`   |    ✘    |      Can be (de)serialized; but no processing is handled at the moment.      |
 | `x5t#S256` |    ✘    |                           Cannot be (de)serialized.                          |
 
-### JWK Key Types
+#### JWK Key Types
 
-The key
+The list of key types can be found
+[here](https://www.iana.org/assignments/jose/jose.xhtml#web-key-types).
+
+_Support in the table below simply means that they can be (de)serialized from JSON input._ Support
+for their use with the various algorithms is listed in the relevant section on this page.
+
+| Key Type | Support | Remarks |
+|:--------:|:-------:|:-------:|
+|   `EC`   |    ✔    |         |
+|   `RSA`  |    ✔    |         |
+|   `oct`  |    ✔    |         |
+|   `OKP`  |    ✘    |         |
 
 ### JWK Parameters for Elliptic Curve Keys
 
@@ -75,6 +86,20 @@ The key
 |   `crv`   |    ✘    | Can be (de)serialized; but cannot be used in signing and verification yet pending support from `ring`. |
 |    `x`    |    ✘    | Can be (de)serialized; but cannot be used in signing and verification yet pending support from `ring`. |
 |    `y`    |    ✘    | Can be (de)serialized; but cannot be used in signing and verification yet pending support from `ring`. |
+
+#### JWK Elliptic Curve
+
+The list of key types can be found
+[here](https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve).
+
+_Support in the table below simply means that they can be (de)serialized from JSON input._ Support
+for their use with the various algorithms is listed in the relevant section on this page.
+
+| Key Type | Support |                                Remarks                               |
+|:--------:|:-------:|:--------------------------------------------------------------------:|
+|  `P-256` |    ✔    |                                                                      |
+|  `P-384` |    ✔    |                                                                      |
+|  `P-521` |    ✘    | [No plan to support.](https://github.com/briansmith/ring/issues/268) |
 
 ### JWK Parameters for RSA Keys
 
@@ -106,6 +131,21 @@ The key
 |   `crv`   |    ✘    |         |
 |    `x`    |    ✘    |         |
 |    `d`    |    ✘    |         |
+
+#### JWK Elliptic Curve
+
+The list of key types can be found
+[here](https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve).
+
+_Support in the table below simply means that they can be (de)serialized from JSON input._ Support
+for their use with the various algorithms is listed in the relevant section on this page.
+
+|  Key Type | Support | Remarks |
+|:---------:|:-------:|:-------:|
+| `Ed25519` |    ✘    |         |
+|  `Ed448`  |    ✘    |         |
+|  `X25519` |    ✘    |         |
+|   `X448`  |    ✘    |         |
 
 ## JSON Web Signature (JWS)
 

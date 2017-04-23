@@ -22,6 +22,9 @@ pub enum KeyType {
     /// Octet sequence, representing symmetric keys
     #[serde(rename = "oct")]
     Octect,
+    /// Octet string key pairs
+    #[serde(rename = "OKP")]
+    OctectKeyPair,
 }
 
 impl KeyType {
@@ -31,6 +34,7 @@ impl KeyType {
             KeyType::EllipticCurve => "Elliptic curve (EC) key",
             KeyType::RSA => "RSA Key",
             KeyType::Octect => "Key byte sequence",
+            KeyType::OctectKeyPair => "Octet string key pairs",
         }
     }
 }
