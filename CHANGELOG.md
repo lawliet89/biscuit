@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.0.3 (2017-04-23)
+
+Minor bug fix release. Fixed incorrect ECDSA signature verification.
+
+Thanks to @hobofan.
+
 ## Version 0.0.2 (2017-04-23)
 
 This is a major breaking release. Not all algorithms, verification, and features are
