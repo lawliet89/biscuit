@@ -42,6 +42,7 @@
 //! - [JSON Web Encryption RFC](https://tools.ietf.org/html/rfc7516)
 //! - [JSON Web Signature (JWS) Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
 //! - [CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JOSE](https://tools.ietf.org/html/rfc8037)
+//! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 #![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
