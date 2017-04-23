@@ -4,11 +4,12 @@ version = "0.0.2"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
-description = "A library to work with JSON Web Tokens (JWT)."
+description = """A library to work with Javascript Object Signing and Encryption(JOSE),
+including JSON Web Tokens (JWT), JSON Web Signature (JWS) and JSON Web Encryption (JWE)."""
 homepage = "https://github.com/lawliet89/biscuit"
 repository = "https://github.com/lawliet89/biscuit"
 documentation = "https://docs.rs/biscuit/"
-keywords = ["jwt", "web", "token", "json"]
+keywords = ["jwt", "web", "token", "json", "jose", "jwe", "jws"]
 categories = ["authentication", "web-programming"]
 
 [badges]

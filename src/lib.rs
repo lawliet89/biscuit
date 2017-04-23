@@ -6,8 +6,10 @@
 //! - Documentation:  [stable](https://docs.rs/biscuit/) | [master branch](https://lawliet89.github.io/biscuit)
 //! - Changelog: [Link](https://github.com/lawliet89/biscuit/blob/master/CHANGELOG.md)
 //!
-//! A library based off [`Keats/rust-jwt`](https://github.com/Keats/rust-jwt) that allows you create,
-//! parse, and verify JWT (JSON Web Tokens).
+//! A library to work with Javascript Object Signing and Encryption(JOSE),
+//! including JSON Web Tokens (JWT), JSON Web Signature (JWS) and JSON Web Encryption (JWE)
+//!
+//! This was based off [`Keats/rust-jwt`](https://github.com/Keats/rust-jwt).
 //!
 //! ## Installation
 //!
