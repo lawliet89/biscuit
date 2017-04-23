@@ -525,6 +525,20 @@ mod tests {
     use jws;
     use test::assert_serde_json;
 
+    fn cek_oct_key(len: usize) -> jwk::JWK<::Empty> {
+        // Construct the encryption key
+        let mut key: Vec<u8> = vec![0; len];
+        not_err!(rng().fill(&mut key));
+        jwk::JWK {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        }
+    }
+
     #[test]
     fn compression_algorithm_serde_token() {
         #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -621,16 +635,7 @@ mod tests {
         use std::str;
 
         // Construct the encryption key
-        let mut key: Vec<u8> = vec![0; 256/8];
-        not_err!(rng().fill(&mut key));
-        let key = jwk::JWK::<::Empty> {
-            common: Default::default(),
-            additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
-                key_type: Default::default(),
-                value: key,
-            },
-        };
+        let key = cek_oct_key(256 / 8);
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
@@ -643,6 +648,14 @@ mod tests {
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        {
+            // Check that new header values are added
+            let compact = not_err!(encrypted_jwe.encrypted());
+            let header: Header<::Empty> = not_err!(compact.part(0));
+            assert!(header.cek_algorithm.nonce.is_some());
+            assert!(header.cek_algorithm.tag.is_some());
+        }
 
         // Serde test
         let json = not_err!(serde_json::to_string(&encrypted_jwe));
@@ -681,16 +694,7 @@ mod tests {
         let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
 
         // Construct the encryption key
-        let mut key: Vec<u8> = vec![0; 256/8];
-        not_err!(rng().fill(&mut key));
-        let key = jwk::JWK::<::Empty> {
-            common: Default::default(),
-            additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
-                key_type: Default::default(),
-                value: key,
-            },
-        };
+        let key = cek_oct_key(256 / 8);
 
         // Construct the JWE
         let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
@@ -704,6 +708,14 @@ mod tests {
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        {
+            // Check that new header values are added
+            let compact = not_err!(encrypted_jwe.encrypted());
+            let header: Header<::Empty> = not_err!(compact.part(0));
+            assert!(header.cek_algorithm.nonce.is_some());
+            assert!(header.cek_algorithm.tag.is_some());
+        }
 
         // Serde test
         let json = not_err!(serde_json::to_string(&encrypted_jwe));
@@ -720,4 +732,192 @@ mod tests {
         assert_eq!(jws, *decrypted_jws);
     }
 
+    #[test]
+    #[should_panic(expected = "WrongAlgorithmHeader")]
+    fn decrypt_with_mismatch_cek_algorithm() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A128GCMKW,
+                            ContentEncryptionAlgorithm::A256GCM)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "WrongAlgorithmHeader")]
+    fn decrypt_with_mismatch_enc_algorithm() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A128GCM)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "PartsLengthError")]
+    fn decrypt_with_incorrect_length() {
+        let key = cek_oct_key(256 / 8);
+        let invalid = Compact::<::Empty, ::Empty>::new_encrypted("INVALID");
+        invalid
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A128GCM)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "UnspecifiedCryptographicError")]
+    fn invalid_nonce_for_aes256gcmkw() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        // Modify the JWE
+        let mut compact = encrypted_jwe.unwrap_encrypted();
+        let mut header: Header<::Empty> = not_err!(compact.part(0));
+        header.cek_algorithm.nonce = Some(vec![0; 96/8]);
+        compact.parts[0] = not_err!(header.to_base64());
+
+        let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A256GCM)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "UnspecifiedCryptographicError")]
+    fn invalid_tag_for_aes256gcmkw() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        // Modify the JWE
+        let mut compact = encrypted_jwe.unwrap_encrypted();
+        let mut header: Header<::Empty> = not_err!(compact.part(0));
+        header.cek_algorithm.tag = Some(vec![0; 96/8]);
+        compact.parts[0] = not_err!(header.to_base64());
+
+        let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A256GCM)
+            .unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "UnspecifiedCryptographicError")]
+    fn invalid_tag_for_aes256gcm() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        // Modify the JWE
+        let mut compact = encrypted_jwe.unwrap_encrypted();
+        compact.parts[4] = not_err!(vec![0u8; 1].to_base64());
+
+        let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A256GCM)
+            .unwrap();
+    }
+
+    /// This test modifies the header so the tag (aad for the AES GCM) included becomes incorrect
+    #[test]
+    #[should_panic(expected = "UnspecifiedCryptographicError")]
+    fn invalid_modified_header_for_aes256gcm() {
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let payload = "The true sign of intelligence is not knowledge but imagination.";
+        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
+                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                                                        ..Default::default()
+                                                    }),
+                                         payload.as_bytes().to_vec());
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+
+        // Modify the JWE
+        let mut compact = encrypted_jwe.unwrap_encrypted();
+        let mut header: Header<::Empty> = not_err!(compact.part(0));
+        header.registered.media_type = Some("JOSE+JSON".to_string());
+        compact.parts[0] = not_err!(header.to_base64());
+
+        let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
+        encrypted_jwe
+            .into_decrypted(&key,
+                            KeyManagementAlgorithm::A256GCMKW,
+                            ContentEncryptionAlgorithm::A256GCM)
+            .unwrap();
+    }
 }
