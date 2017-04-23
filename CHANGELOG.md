@@ -1,6 +1,6 @@
 # Changelog
 
-## Version 0.0.2 (unreleased)
+## Version 0.0.2 (2017-04-23)
 
 This is a major breaking release. Not all algorithms, verification, and features are
 supported yet.
