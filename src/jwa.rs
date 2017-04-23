@@ -314,8 +314,8 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
             SignatureAlgorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
             SignatureAlgorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
-            SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_ASN1,
-            SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_ASN1,
+            SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_FIXED,
+            SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED,
             SignatureAlgorithm::ES512 => Err(Error::UnsupportedOperation)?,
             _ => unreachable!("Should not happen"),
         };
