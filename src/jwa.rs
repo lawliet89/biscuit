@@ -720,39 +720,37 @@ mod tests {
             .unwrap();
     }
 
-    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L248
+    /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
     #[test]
     fn verify_es256() {
         use data_encoding::hex;
 
-        let payload = "sample".to_string();
-        let payload_bytes = payload.as_bytes();
-        let public_key = "0460FED4BA255A9D31C961EB74C6356D68C049B8923B61FA6CE669622E60F29FB67903FE1008B8BC99A41AE9E9562\
-                          8BC64F2F1B20C2D7E9F5177A3C294D4462299";
+        let payload_bytes = Vec::<u8>::new();
+        let public_key = "0430345FD47EA21A11129BE651B0884BFAC698377611ACC9F689458E13B9ED7D4B9D7599\
+                          A68DCF125E7F31055CCB374CD04F6D6FD2B217438A63F6F667D50EF2F0";
         let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
-        let signature = "3046022100EFD48B2AACB6A8FD1140DD9CD45E81D69D2C877B56AAF991C34D0EA84EAF3716022100F7CB1C942D657C\
-                         41D436C7A1B6E29F65F3E900DBB9AFF4064DC4AB2F843ACDA8";
+        let signature = "341F6779B75E98BB42E01095DD48356CBF9002DC704AC8BD2A8240B88D3796C6555843B1B\
+                         4E264FE6FFE6E2B705A376C05C09404303FFE5D2711F3E3B3A010A1";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), &payload_bytes, &public_key));
         assert!(valid);
     }
 
-    /// Test case from https://github.com/briansmith/ring/blob/c5b8113/src/ec/suite_b/ecdsa_verify_tests.txt#L283
+    /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
     #[test]
     fn verify_es384() {
         use data_encoding::hex;
 
-        let payload = "sample".to_string();
-        let payload_bytes = payload.as_bytes();
-        let public_key = "04EC3A4E415B4E19A4568618029F427FA5DA9A8BC4AE92E02E06AAE5286B300C64DEF8F0EA9055866064A25451548\
-                          0BC138015D9B72D7D57244EA8EF9AC0C621896708A59367F9DFB9F54CA84B3F1C9DB1288B231C3AE0D4FE7344FD25\
-                          33264720";
+        let payload_bytes = Vec::<u8>::new();
+        let public_key = "045C5E788A805C77D34128B8401CB59B2373B8B468336C9318252BF39FD31D2507557987\
+                          A5180A9435F9FB8EB971C426F1C485170DCB18FB688A257F89387A09FC4C5B8BD4B320616\
+                          B54A0A7B1D1D7C6A0C59F6DFF78C78AD4E3D6FCA9C9A17B96";
         let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
-        let signature = "306602310094EDBB92A5ECB8AAD4736E56C691916B3F88140666CE9FA73D64C4EA95AD133C81A648152E44ACF96E36\
-                         DD1E80FABE4602310099EF4AEB15F178CEA1FE40DB2603138F130E740A19624526203B6351D0A3A94FA329C145786E\
-                         679E7B82C71A38628AC8";
+        let signature = "85AC708D4B0126BAC1F5EEEBDF911409070A286FDDE5649582611B60046DE353761660DD0\
+                         3903F58B44148F25142EEF8183475EC1F1392F3D6838ABC0C01724709C446888BED7F2CE4\
+                         642C6839DC18044A2A6AB9DDC960BFAC79F6988E62D452";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), &payload_bytes, &public_key));
         assert!(valid);
     }
 
