@@ -9,7 +9,7 @@ including JSON Web Tokens (JWT), JSON Web Signature (JWS) and JSON Web Encryptio
 homepage = "https://github.com/lawliet89/biscuit"
 repository = "https://github.com/lawliet89/biscuit"
 documentation = "https://docs.rs/biscuit/"
-keywords = ["jwt", "web", "token", "json", "jose", "jwe", "jws"]
+keywords = ["jwt", "json", "jose", "jwe", "jws"]
 categories = ["authentication", "web-programming"]
 
 [badges]
