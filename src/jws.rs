@@ -609,6 +609,26 @@ mod tests {
     }
 
     #[test]
+    fn compact_jws_verify_es256() {
+        use data_encoding::hex;
+
+        // This is a ECDSA Public key in `SubjectPublicKey` form.
+        // Conversion is not available in `ring` yet.
+        // See https://github.com/lawliet89/biscuit/issues/71#issuecomment-296445140 for a
+        // way to retrieve it from `SubjectPublicKeyInfo`.
+        let public_key = "043727F96AAD416887DD75CC2E333C3D8E06DCDF968B6024579449A2B802EFC891F638C75\
+                          1CF687E6FF9A280E11B7036585E60CA32BB469C3E57998A289E0860A6";
+        let jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.\
+                   eyJ0b2tlbl90eXBlIjoic2VydmljZSIsImlhdCI6MTQ5MjkzODU4OH0.\
+                   do_XppIOFthPWlTXL95CIBfgRdyAxbcIsUfM0YxMjCjqvp4ehHFA3I-JasABKzC8CAy4ndhCHsZdpAtK\
+                   kqZMEA";
+        let signing_secret = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
+
+        let token = Compact::<ClaimsSet<serde_json::Value>, ::Empty>::new_encoded(jwt);
+        not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));
+    }
+
+    #[test]
     fn compact_jws_encode_with_additional_header_fields() {
         #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
         struct CustomHeader {
