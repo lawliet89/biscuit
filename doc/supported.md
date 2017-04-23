@@ -9,8 +9,8 @@ there might be caveats. Refer to the remark for the feature.
 A cross (✘) usually indicates that the feature is _not_ supported by the library. If there is no
 intention to ever support it, it will be noted in the remark.
 
-A field that can be serialized or deserialized by the library, but with no particular handling can
-either be supported, or unsuppported. See the remark for more details.
+A field that can be serialized or deserialized by the library, but with no particular handling will
+be listed as unsupported.
 
 ## JWT Registered Claims
 
