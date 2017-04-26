@@ -244,7 +244,7 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::HS512 => &digest::SHA512,
             _ => unreachable!("Should not happen"),
         };
-        let key = hmac::SigningKey::new(digest, &secret);
+        let key = hmac::SigningKey::new(digest, secret);
         Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
