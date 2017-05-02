@@ -5,7 +5,7 @@
 //! Typically, you will not use these directly, but as part of a JWS or JWE.
 use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
-use ring::rand::SystemRandom;
+use ring::rand::{SystemRandom, SecureRandom};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use untrusted;

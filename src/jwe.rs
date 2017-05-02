@@ -517,6 +517,7 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
 mod tests {
     use std::str::FromStr;
 
+    use ring::rand::SecureRandom;
     use serde_test::{Token, assert_tokens};
 
     use JWE;
