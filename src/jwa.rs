@@ -5,7 +5,7 @@
 //! Typically, you will not use these directly, but as part of a JWS or JWE.
 use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
-use ring::rand::{SystemRandom, SecureRandom};
+use ring::rand::SystemRandom;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use untrusted;
@@ -13,6 +13,8 @@ use untrusted;
 use errors::Error;
 use jwk;
 use jws::Secret;
+
+pub use ring::rand::SecureRandom;
 
 /// AES GCM Tag Size, in bytes
 const TAG_SIZE: usize = 128 / 8;
