@@ -1,4 +1,6 @@
 //! [![Build Status](https://travis-ci.org/lawliet89/biscuit.svg)](https://travis-ci.org/lawliet89/biscuit)
+//! [![Dependency Status](https://dependencyci.com/github/lawliet89/biscuit/badge)]
+//! (https://dependencyci.com/github/lawliet89/biscuit)
 //! [![Crates.io](https://img.shields.io/crates/v/biscuit.svg)](https://crates.io/crates/biscuit)
 //! [![Repository](https://img.shields.io/github/tag/lawliet89/biscuit.svg)](https://github.com/lawliet89/biscuit)
 //! [![Documentation](https://docs.rs/biscuit/badge.svg)](https://docs.rs/biscuit)
