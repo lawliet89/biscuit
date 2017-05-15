@@ -19,7 +19,7 @@ This was based off [`Keats/rust-jwt`](https://github.com/Keats/rust-jwt).
 Add the following to Cargo.toml:
 
 ```toml
-biscuit = "0.0.3"
+biscuit = "0.0.4"
 ```
 
 To use the latest `master` branch, for example:

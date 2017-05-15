@@ -1,6 +1,6 @@
 [package]
 name = "biscuit"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"

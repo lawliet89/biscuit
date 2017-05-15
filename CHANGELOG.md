@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.0.4 (2017-05-15)
+
+Update dependency to `ring` 0.9.4 so that different versions of `ring` can no longer be used in a Rust build.
+
+There are no new features or API change.
+
 ## Version 0.0.3 (2017-04-23)
 
 Minor bug fix release. Fixed incorrect ECDSA signature verification.
