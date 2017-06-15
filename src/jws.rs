@@ -80,10 +80,10 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned> Compact<T, H> {
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
-                let signature = header
-                    .registered
-                    .algorithm
-                    .sign(encoded_payload.as_bytes(), secret)?;
+                let signature = header.registered.algorithm.sign(
+                    encoded_payload.as_bytes(),
+                    secret,
+                )?;
                 compact.push(&signature)?;
                 Ok(Compact::Encoded(compact))
             }
@@ -109,16 +109,20 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned> Compact<T, H> {
             Compact::Encoded(ref encoded) => {
                 if encoded.len() != 3 {
                     Err(ValidationError::PartsLengthError {
-                            actual: encoded.len(),
-                            expected: 3,
-                        })?
+                        actual: encoded.len(),
+                        expected: 3,
+                    })?
                 }
 
                 let signature: Vec<u8> = encoded.part(2)?;
                 let payload = &encoded.parts[0..2].join(".").to_string();
 
-                if !algorithm
-                        .verify(signature.as_ref(), payload.as_ref(), secret)? {
+                if !algorithm.verify(
+                    signature.as_ref(),
+                    payload.as_ref(),
+                    secret,
+                )?
+                {
                     Err(ValidationError::InvalidSignature)?;
                 }
 
@@ -474,7 +478,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -484,11 +490,13 @@ mod tests {
             },
         };
 
-        let biscuit = Compact::new_decoded(From::from(RegisteredHeader {
-                                                          algorithm: SignatureAlgorithm::None,
-                                                          ..Default::default()
-                                                      }),
-                                           expected_claims.clone());
+        let biscuit = Compact::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::None,
+                ..Default::default()
+            }),
+            expected_claims.clone(),
+        );
         serde_json::to_string(&biscuit).unwrap();
     }
 
@@ -513,7 +521,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -523,11 +533,13 @@ mod tests {
             },
         };
 
-        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
-                                                               algorithm: SignatureAlgorithm::None,
-                                                               ..Default::default()
-                                                           }),
-                                                expected_claims.clone());
+        let expected_jwt = Compact::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::None,
+                ..Default::default()
+            }),
+            expected_claims.clone(),
+        );
         let token = not_err!(expected_jwt.into_encoded(&Secret::None));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
@@ -547,7 +559,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -557,11 +571,13 @@ mod tests {
             },
         };
 
-        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
-                                                               algorithm: SignatureAlgorithm::HS256,
-                                                               ..Default::default()
-                                                           }),
-                                                expected_claims.clone());
+        let expected_jwt = Compact::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::HS256,
+                ..Default::default()
+            }),
+            expected_claims.clone(),
+        );
         let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
@@ -584,7 +600,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -595,11 +613,13 @@ mod tests {
         };
         let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
-        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
-                                                               algorithm: SignatureAlgorithm::RS256,
-                                                               ..Default::default()
-                                                           }),
-                                                expected_claims.clone());
+        let expected_jwt = Compact::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::RS256,
+                ..Default::default()
+            }),
+            expected_claims.clone(),
+        );
         let token = not_err!(expected_jwt.into_encoded(&private_key));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
@@ -639,7 +659,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -665,28 +687,36 @@ mod tests {
     #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
-        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
-                                  SignatureAlgorithm::HS256);
+        let claims = token.decode(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256,
+        );
         claims.unwrap();
     }
 
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_hs256() {
-        let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                                     eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                                    pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
-        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
-                                  SignatureAlgorithm::HS256);
+                                                                    pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+        );
+        let claims = token.decode(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256,
+        );
         claims.unwrap();
     }
 
     #[test]
     #[should_panic(expected = "InvalidSignature")]
     fn compact_jws_decode_token_invalid_signature_rs256() {
-        let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+        );
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(&public_key, SignatureAlgorithm::RS256);
         claims.unwrap();
@@ -695,11 +725,15 @@ mod tests {
     #[test]
     #[should_panic(expected = "WrongAlgorithmHeader")]
     fn compact_jws_decode_token_wrong_algorithm() {
-        let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
                                                        eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI");
-        let claims = token.decode(&Secret::Bytes("secret".to_string().into_bytes()),
-                                  SignatureAlgorithm::HS256);
+                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+        );
+        let claims = token.decode(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256,
+        );
         claims.unwrap();
     }
 
@@ -708,18 +742,19 @@ mod tests {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
                               eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
                               xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
-        let payload: Vec<u8> =
-            vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
+        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
                                     120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104,
                                     116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
                                     105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];
 
-        let expected_jwt = Compact::new_decoded(From::from(RegisteredHeader {
-                                                               algorithm: SignatureAlgorithm::HS256,
-                                                               content_type: Some("Random bytes".to_string()),
-                                                               ..Default::default()
-                                                           }),
-                                                payload.clone());
+        let expected_jwt = Compact::new_decoded(
+            From::from(RegisteredHeader {
+                algorithm: SignatureAlgorithm::HS256,
+                content_type: Some("Random bytes".to_string()),
+                ..Default::default()
+            }),
+            payload.clone(),
+        );
         let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 

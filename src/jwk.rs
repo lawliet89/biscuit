@@ -58,7 +58,8 @@ pub enum PublicKeyUse {
 
 impl Serialize for PublicKeyUse {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
 
         let string = match *self {
@@ -73,7 +74,8 @@ impl Serialize for PublicKeyUse {
 
 impl<'de> Deserialize<'de> for PublicKeyUse {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
 
         struct PublicKeyUseVisitor;
@@ -85,13 +87,14 @@ impl<'de> Deserialize<'de> for PublicKeyUse {
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(match v {
-                       "sig" => PublicKeyUse::Signature,
-                       "enc" => PublicKeyUse::Encryption,
-                       other => PublicKeyUse::Other(other.to_string()),
-                   })
+                    "sig" => PublicKeyUse::Signature,
+                    "enc" => PublicKeyUse::Encryption,
+                    other => PublicKeyUse::Other(other.to_string()),
+                })
             }
         }
 
@@ -124,7 +127,8 @@ pub enum KeyOperations {
 
 impl Serialize for KeyOperations {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
 
         let string = match *self {
@@ -145,7 +149,8 @@ impl Serialize for KeyOperations {
 
 impl<'de> Deserialize<'de> for KeyOperations {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
 
         struct KeyOperationsVisitor;
@@ -157,19 +162,20 @@ impl<'de> Deserialize<'de> for KeyOperations {
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(match v {
-                       "sign" => KeyOperations::Sign,
-                       "verify" => KeyOperations::Verify,
-                       "encrypt" => KeyOperations::Encrypt,
-                       "decrypt" => KeyOperations::Decrypt,
-                       "wrapKey" => KeyOperations::WrapKey,
-                       "unwrapKey" => KeyOperations::UnwrapKey,
-                       "deriveKey" => KeyOperations::DeriveKey,
-                       "deriveBits" => KeyOperations::DeriveBits,
-                       other => KeyOperations::Other(other.to_string()),
-                   })
+                    "sign" => KeyOperations::Sign,
+                    "verify" => KeyOperations::Verify,
+                    "encrypt" => KeyOperations::Encrypt,
+                    "decrypt" => KeyOperations::Decrypt,
+                    "wrapKey" => KeyOperations::WrapKey,
+                    "unwrapKey" => KeyOperations::UnwrapKey,
+                    "deriveKey" => KeyOperations::DeriveKey,
+                    "deriveBits" => KeyOperations::DeriveBits,
+                    other => KeyOperations::Other(other.to_string()),
+                })
             }
         }
 
@@ -528,34 +534,46 @@ mod tests {
         }
 
         let test_value = Test { test: PublicKeyUse::Encryption };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("enc"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("enc"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: PublicKeyUse::Encryption };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("enc"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("enc"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: PublicKeyUse::Other("xxx".to_string()) };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("xxx"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("xxx"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
@@ -572,8 +590,10 @@ mod tests {
         assert_serde_json(&Test { test: PublicKeyUse::Signature }, Some(&test_json));
 
         let test_json = r#"{"test": "xxx"}"#;
-        assert_serde_json(&Test { test: PublicKeyUse::Other("xxx".to_string()) },
-                          Some(&test_json));
+        assert_serde_json(
+            &Test { test: PublicKeyUse::Other("xxx".to_string()) },
+            Some(&test_json),
+        );
     }
 
     #[test]
@@ -584,95 +604,131 @@ mod tests {
         }
 
         let test_value = Test { test: KeyOperations::Sign };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("sign"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("sign"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::Verify };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("verify"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("verify"),
+                Token::StructEnd,
+            ],
+        );
 
 
         let test_value = Test { test: KeyOperations::Encrypt };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("encrypt"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("encrypt"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::Decrypt };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("decrypt"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("decrypt"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::WrapKey };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("wrapKey"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("wrapKey"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::UnwrapKey };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("unwrapKey"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("unwrapKey"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::DeriveKey };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("deriveKey"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("deriveKey"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::DeriveBits };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("deriveBits"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("deriveBits"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: KeyOperations::Other("xxx".to_string()) };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("xxx"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("xxx"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
@@ -707,8 +763,10 @@ mod tests {
         assert_serde_json(&Test { test: KeyOperations::DeriveBits }, Some(&test_json));
 
         let test_json = r#"{"test": "xxx"}"#;
-        assert_serde_json(&Test { test: KeyOperations::Other("xxx".to_string()) },
-                          Some(&test_json));
+        assert_serde_json(
+            &Test { test: KeyOperations::Other("xxx".to_string()) },
+            Some(&test_json),
+        );
     }
 
     /// Serialize and deserialize example JWK given in the RFC
@@ -716,20 +774,20 @@ mod tests {
     fn jwk_serde_smoke_test() {
         let test_value: JWK<::Empty> = JWK {
             common: CommonParameters {
-                key_id: Some("Public key used in JWS spec Appendix A.3 example".to_string()),
+                key_id: Some(
+                    "Public key used in JWS spec Appendix A.3 example".to_string(),
+                ),
                 ..Default::default()
             },
-            algorithm: AlgorithmParameters::EllipticCurve(
-                EllipticCurveKeyParameters {
-                    key_type: Default::default(),
-                    curve: EllipticCurve::P256,
-                    x: vec![127, 205, 206, 39, 112, 246, 196, 93, 65, 131, 203, 238, 111, 219, 75, 123, 88, 7,
+            algorithm: AlgorithmParameters::EllipticCurve(EllipticCurveKeyParameters {
+                key_type: Default::default(),
+                curve: EllipticCurve::P256,
+                x: vec![127, 205, 206, 39, 112, 246, 196, 93, 65, 131, 203, 238, 111, 219, 75, 123, 88, 7,
                             51, 53, 123, 233, 239, 19, 186, 207, 110, 60, 123, 209, 84, 69],
-                    y: vec![199, 241, 68, 205, 27, 189, 155, 126, 135, 44, 223, 237, 185, 238, 185, 244, 179,
+                y: vec![199, 241, 68, 205, 27, 189, 155, 126, 135, 44, 223, 237, 185, 238, 185, 244, 179,
                             105, 93, 110, 169, 11, 36, 173, 138, 70, 35, 40, 133, 136, 229, 173],
-                    d: None,
-                }
-            ),
+                d: None,
+            }),
             additional: Default::default(),
         };
         let expected_json = r#"{

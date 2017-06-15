@@ -10,7 +10,8 @@ use serde::de;
 
 /// Serialize a `BigUint` into Base64 URL encoded big endian bytes
 pub fn serialize<S>(value: &BigUint, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer
+where
+    S: Serializer,
 {
     let bytes = value.to_bytes_be();
     let base64 = base64url::encode_nopad(bytes.as_slice());
@@ -19,7 +20,8 @@ pub fn serialize<S>(value: &BigUint, serializer: S) -> Result<S::Ok, S::Error>
 
 /// Deserialize a `BigUint` from Base64 URL encoded big endian bytes
 pub fn deserialize<'de, D>(deserializer: D) -> Result<BigUint, D::Error>
-    where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     struct BigUintVisitor;
 
@@ -31,10 +33,10 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<BigUint, D::Error>
         }
 
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where E: de::Error
+        where
+            E: de::Error,
         {
-            let bytes = base64url::decode_nopad(value.as_bytes())
-                .map_err(E::custom)?;
+            let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
             Ok(BigUint::from_bytes_be(&bytes))
         }
     }
@@ -58,14 +60,18 @@ mod tests {
     fn serialization_round_trip() {
         let test_value = TestStruct { bytes: BigUint::from_u64(12345).unwrap() };
 
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "TestStruct",
-                            len: 1,
-                        },
-                        Token::Str("bytes"),
-                        Token::Str("MDk"),
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "TestStruct",
+                    len: 1,
+                },
+                Token::Str("bytes"),
+                Token::Str("MDk"),
 
-                        Token::StructEnd]);
+                Token::StructEnd,
+            ],
+        );
     }
 }

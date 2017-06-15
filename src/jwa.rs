@@ -267,8 +267,12 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
-        signing_state
-            .sign(padding_algorithm, &rng, data, &mut signature)?;
+        signing_state.sign(
+            padding_algorithm,
+            &rng,
+            data,
+            &mut signature,
+        )?;
         Ok(signature)
     }
 
@@ -289,20 +293,24 @@ impl SignatureAlgorithm {
         Ok(expected_signature.is_empty())
     }
 
-    fn verify_hmac(expected_signature: &[u8],
-                   data: &[u8],
-                   secret: &Secret,
-                   algorithm: &SignatureAlgorithm)
-                   -> Result<bool, Error> {
+    fn verify_hmac(
+        expected_signature: &[u8],
+        data: &[u8],
+        secret: &Secret,
+        algorithm: &SignatureAlgorithm,
+    ) -> Result<bool, Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
-        Ok(verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref()).is_ok())
+        Ok(
+            verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref()).is_ok(),
+        )
     }
 
-    fn verify_public_key(expected_signature: &[u8],
-                         data: &[u8],
-                         secret: &Secret,
-                         algorithm: &SignatureAlgorithm)
-                         -> Result<bool, Error> {
+    fn verify_public_key(
+        expected_signature: &[u8],
+        data: &[u8],
+        secret: &Secret,
+        algorithm: &SignatureAlgorithm,
+    ) -> Result<bool, Error> {
         let public_key = match *secret {
             Secret::PublicKey(ref public_key) => public_key,
             _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
@@ -324,10 +332,12 @@ impl SignatureAlgorithm {
 
         let message = untrusted::Input::from(data);
         let expected_signature = untrusted::Input::from(expected_signature);
-        match signature::verify(verification_algorithm,
-                                public_key_der,
-                                message,
-                                expected_signature) {
+        match signature::verify(
+            verification_algorithm,
+            public_key_der,
+            message,
+            expected_signature,
+        ) {
             Ok(()) => Ok(true),
             Err(_) => Ok(false),
         }
@@ -358,7 +368,8 @@ impl KeyManagementAlgorithm {
 
     /// Retrieve the Content Encryption Key (CEK) based on the algorithm for encryption
     pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
-        where T: Serialize + DeserializeOwned
+    where
+        T: Serialize + DeserializeOwned,
     {
         use self::KeyManagementAlgorithm::*;
 
@@ -370,7 +381,8 @@ impl KeyManagementAlgorithm {
     }
 
     fn cek_direct<T>(&self, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
-        where T: Serialize + DeserializeOwned
+    where
+        T: Serialize + DeserializeOwned,
     {
         match key.key_type() {
             jwk::KeyType::Octect => Ok(key.clone_without_additional()),
@@ -381,24 +393,25 @@ impl KeyManagementAlgorithm {
     fn cek_aes_gcm(&self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<::Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
-               algorithm: jwk::AlgorithmParameters::OctectKey {
-                   value: key,
-                   key_type: Default::default(),
-               },
-               common: jwk::CommonParameters {
-                   public_key_use: Some(jwk::PublicKeyUse::Encryption),
-                   algorithm: Some(Algorithm::ContentEncryption(content_alg)),
-                   ..Default::default()
-               },
-               additional: Default::default(),
-           })
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                value: key,
+                key_type: Default::default(),
+            },
+            common: jwk::CommonParameters {
+                public_key_use: Some(jwk::PublicKeyUse::Encryption),
+                algorithm: Some(Algorithm::ContentEncryption(content_alg)),
+                ..Default::default()
+            },
+            additional: Default::default(),
+        })
     }
 
     /// Encrypt or wrap a key with the provided algorithm
-    pub fn encrypt<T: Serialize + DeserializeOwned>(&self,
-                                                    payload: &[u8],
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<EncryptionResult, Error> {
+    pub fn encrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        payload: &[u8],
+        key: &jwk::JWK<T>,
+    ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
@@ -409,11 +422,12 @@ impl KeyManagementAlgorithm {
     }
 
     /// Decrypt or unwrap a CEK with the provided algorithm
-    pub fn decrypt<T: Serialize + DeserializeOwned>(&self,
-                                                    encrypted: &EncryptionResult,
-                                                    content_alg: ContentEncryptionAlgorithm,
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<jwk::JWK<::Empty>, Error> {
+    pub fn decrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        encrypted: &EncryptionResult,
+        content_alg: ContentEncryptionAlgorithm,
+        key: &jwk::JWK<T>,
+    ) -> Result<jwk::JWK<::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
@@ -423,10 +437,11 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(&self,
-                                                        payload: &[u8],
-                                                        key: &jwk::JWK<T>)
-                                                        -> Result<EncryptionResult, Error> {
+    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        payload: &[u8],
+        key: &jwk::JWK<T>,
+    ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
         let algorithm = match *self {
@@ -437,11 +452,12 @@ impl KeyManagementAlgorithm {
         aes_gcm_encrypt(algorithm, payload, &[], key)
     }
 
-    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(&self,
-                                                        encrypted: &EncryptionResult,
-                                                        content_alg: ContentEncryptionAlgorithm,
-                                                        key: &jwk::JWK<T>)
-                                                        -> Result<jwk::JWK<::Empty>, Error> {
+    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        encrypted: &EncryptionResult,
+        content_alg: ContentEncryptionAlgorithm,
+        key: &jwk::JWK<T>,
+    ) -> Result<jwk::JWK<::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         let algorithm = match *self {
@@ -452,17 +468,17 @@ impl KeyManagementAlgorithm {
 
         let cek = aes_gcm_decrypt(algorithm, encrypted, key)?;
         Ok(jwk::JWK {
-               algorithm: jwk::AlgorithmParameters::OctectKey {
-                   value: cek,
-                   key_type: Default::default(),
-               },
-               common: jwk::CommonParameters {
-                   public_key_use: Some(jwk::PublicKeyUse::Encryption),
-                   algorithm: Some(Algorithm::ContentEncryption(content_alg)),
-                   ..Default::default()
-               },
-               additional: Default::default(),
-           })
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                value: cek,
+                key_type: Default::default(),
+            },
+            common: jwk::CommonParameters {
+                public_key_use: Some(jwk::PublicKeyUse::Encryption),
+                algorithm: Some(Algorithm::ContentEncryption(content_alg)),
+                ..Default::default()
+            },
+            additional: Default::default(),
+        })
     }
 }
 
@@ -483,11 +499,12 @@ impl ContentEncryptionAlgorithm {
     }
 
     /// Encrypt some payload with the provided algorith
-    pub fn encrypt<T: Serialize + DeserializeOwned>(&self,
-                                                    payload: &[u8],
-                                                    aad: &[u8],
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<EncryptionResult, Error> {
+    pub fn encrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        payload: &[u8],
+        aad: &[u8],
+        key: &jwk::JWK<T>,
+    ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         match *self {
@@ -498,10 +515,11 @@ impl ContentEncryptionAlgorithm {
     }
 
     /// Decrypt some payload with the provided algorith,
-    pub fn decrypt<T: Serialize + DeserializeOwned>(&self,
-                                                    encrypted: &EncryptionResult,
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<Vec<u8>, Error> {
+    pub fn decrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        encrypted: &EncryptionResult,
+        key: &jwk::JWK<T>,
+    ) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         match *self {
@@ -510,11 +528,12 @@ impl ContentEncryptionAlgorithm {
         }
     }
 
-    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(&self,
-                                                        payload: &[u8],
-                                                        aad: &[u8],
-                                                        key: &jwk::JWK<T>)
-                                                        -> Result<EncryptionResult, Error> {
+    fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        payload: &[u8],
+        aad: &[u8],
+        key: &jwk::JWK<T>,
+    ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         let algorithm = match *self {
@@ -525,10 +544,11 @@ impl ContentEncryptionAlgorithm {
         aes_gcm_encrypt(algorithm, payload, aad, key)
     }
 
-    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(&self,
-                                                        encrypted: &EncryptionResult,
-                                                        key: &jwk::JWK<T>)
-                                                        -> Result<Vec<u8>, Error> {
+    fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
+        &self,
+        encrypted: &EncryptionResult,
+        key: &jwk::JWK<T>,
+    ) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         let algorithm = match *self {
@@ -553,11 +573,12 @@ pub fn rng() -> &'static SystemRandom {
 }
 
 /// Encrypt a payload with AES GCM
-fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Algorithm,
-                                                    payload: &[u8],
-                                                    aad: &[u8],
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<EncryptionResult, Error> {
+fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
+    algorithm: &'static aead::Algorithm,
+    payload: &[u8],
+    aad: &[u8],
+    key: &jwk::JWK<T>,
+) -> Result<EncryptionResult, Error> {
 
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
     assert_eq!(algorithm.tag_len(), TAG_SIZE);
@@ -575,18 +596,19 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Al
 
     let size = aead::seal_in_place(&sealing_key, &nonce, aad, &mut in_out, TAG_SIZE)?;
     Ok(EncryptionResult {
-           nonce: nonce,
-           encrypted: in_out[0..(size - TAG_SIZE)].to_vec(),
-           tag: in_out[(size - TAG_SIZE)..size].to_vec(),
-           additional_data: aad.to_vec(),
-       })
+        nonce: nonce,
+        encrypted: in_out[0..(size - TAG_SIZE)].to_vec(),
+        tag: in_out[(size - TAG_SIZE)..size].to_vec(),
+        additional_data: aad.to_vec(),
+    })
 }
 
 /// Decrypts a payload with AES GCM
-fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Algorithm,
-                                                    encrypted: &EncryptionResult,
-                                                    key: &jwk::JWK<T>)
-                                                    -> Result<Vec<u8>, Error> {
+fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
+    algorithm: &'static aead::Algorithm,
+    encrypted: &EncryptionResult,
+    key: &jwk::JWK<T>,
+) -> Result<Vec<u8>, Error> {
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
     assert_eq!(algorithm.tag_len(), TAG_SIZE);
     // Also the nonce (or initialization vector) needs to be 96 bits
@@ -598,11 +620,13 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(algorithm: &'static aead::Al
     let mut in_out = encrypted.encrypted.to_vec();
     in_out.append(&mut encrypted.tag.to_vec());
 
-    let plaintext = aead::open_in_place(&opening_key,
-                                        &encrypted.nonce,
-                                        &encrypted.additional_data,
-                                        0,
-                                        &mut in_out)?;
+    let plaintext = aead::open_in_place(
+        &opening_key,
+        &encrypted.nonce,
+        &encrypted.additional_data,
+        0,
+        &mut in_out,
+    )?;
     Ok(plaintext.to_vec())
 }
 
@@ -617,12 +641,17 @@ mod tests {
     #[test]
     fn sign_and_verify_none() {
         let expected_signature: Vec<u8> = vec![];
-        let actual_signature = not_err!(SignatureAlgorithm::None.sign("payload".to_string().as_bytes(), &Secret::None));
+        let actual_signature = not_err!(SignatureAlgorithm::None.sign(
+            "payload".to_string().as_bytes(),
+            &Secret::None,
+        ));
         assert_eq!(expected_signature, actual_signature);
 
-        let valid = not_err!(SignatureAlgorithm::None.verify(vec![].as_slice(),
-                                                             "payload".to_string().as_bytes(),
-                                                             &Secret::None));
+        let valid = not_err!(SignatureAlgorithm::None.verify(
+            vec![].as_slice(),
+            "payload".to_string().as_bytes(),
+            &Secret::None,
+        ));
         assert!(valid);
     }
 
@@ -631,13 +660,17 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_base64));
 
-        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(),
-                                                                       &Secret::bytes_from_str("secret")));
+        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign(
+            "payload".to_string().as_bytes(),
+            &Secret::bytes_from_str("secret"),
+        ));
         assert_eq!(&*not_err!(actual_signature.to_base64()), expected_base64);
 
-        let valid = not_err!(SignatureAlgorithm::HS256.verify(expected_bytes.as_slice(),
-                                                              "payload".to_string().as_bytes(),
-                                                              &Secret::bytes_from_str("secret")));
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(
+            expected_bytes.as_slice(),
+            "payload".to_string().as_bytes(),
+            &Secret::bytes_from_str("secret"),
+        ));
         assert!(valid);
     }
 
@@ -665,9 +698,11 @@ mod tests {
         assert_eq!(&*not_err!(actual_signature.to_base64()), expected_signature);
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(),
-                                                              payload_bytes,
-                                                              &public_key));
+        let valid = not_err!(SignatureAlgorithm::RS256.verify(
+            expected_signature_bytes.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
         assert!(valid);
     }
 
@@ -681,7 +716,11 @@ mod tests {
         let actual_signature = not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, &private_key));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(SignatureAlgorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
         assert!(valid);
     }
 
@@ -706,7 +745,11 @@ mod tests {
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(base64::decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        let valid = not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(
+            signature_bytes.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
         assert!(valid);
     }
 
@@ -734,7 +777,11 @@ mod tests {
         let signature = "341F6779B75E98BB42E01095DD48356CBF9002DC704AC8BD2A8240B88D3796C6555843B1B\
                          4E264FE6FFE6E2B705A376C05C09404303FFE5D2711F3E3B3A010A1";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), &payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::ES256.verify(
+            signature_bytes.as_slice(),
+            &payload_bytes,
+            &public_key,
+        ));
         assert!(valid);
     }
 
@@ -752,7 +799,11 @@ mod tests {
                          3903F58B44148F25142EEF8183475EC1F1392F3D6838ABC0C01724709C446888BED7F2CE4\
                          642C6839DC18044A2A6AB9DDC960BFAC79F6988E62D452";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        let valid = not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), &payload_bytes, &public_key));
+        let valid = not_err!(SignatureAlgorithm::ES384.verify(
+            signature_bytes.as_slice(),
+            &payload_bytes,
+            &public_key,
+        ));
         assert!(valid);
     }
 
@@ -771,9 +822,11 @@ mod tests {
     fn invalid_none() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::None.verify(signature_bytes,
-                                                             "payload".to_string().as_bytes(),
-                                                             &Secret::None));
+        let valid = not_err!(SignatureAlgorithm::None.verify(
+            signature_bytes,
+            "payload".to_string().as_bytes(),
+            &Secret::None,
+        ));
         assert!(!valid);
     }
 
@@ -781,9 +834,13 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::HS256.verify(signature_bytes,
-                                                              "payload".to_string().as_bytes(),
-                                                              &Secret::Bytes("secret".to_string().into_bytes())));
+        let valid = not_err!(SignatureAlgorithm::HS256.verify(
+            signature_bytes,
+            "payload".to_string().as_bytes(),
+            &Secret::Bytes(
+                "secret".to_string().into_bytes(),
+            ),
+        ));
         assert!(!valid);
     }
 
@@ -792,9 +849,11 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::RS256.verify(signature_bytes,
-                                                              "payload".to_string().as_bytes(),
-                                                              &public_key));
+        let valid = not_err!(SignatureAlgorithm::RS256.verify(
+            signature_bytes,
+            "payload".to_string().as_bytes(),
+            &public_key,
+        ));
         assert!(!valid);
     }
 
@@ -803,9 +862,11 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::PS256.verify(signature_bytes,
-                                                              "payload".to_string().as_bytes(),
-                                                              &public_key));
+        let valid = not_err!(SignatureAlgorithm::PS256.verify(
+            signature_bytes,
+            "payload".to_string().as_bytes(),
+            &public_key,
+        ));
         assert!(!valid);
     }
 
@@ -814,9 +875,11 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let valid = not_err!(SignatureAlgorithm::ES256.verify(signature_bytes,
-                                                              "payload".to_string().as_bytes(),
-                                                              &public_key));
+        let valid = not_err!(SignatureAlgorithm::ES256.verify(
+            signature_bytes,
+            "payload".to_string().as_bytes(),
+            &public_key,
+        ));
         assert!(!valid);
     }
 
@@ -830,7 +893,7 @@ mod tests {
     #[test]
     fn aes_gcm_128_encryption_round_trip() {
         const PAYLOAD: &'static str = "这个世界值得我们奋战！";
-        let mut key: Vec<u8> = vec![0; 128/8];
+        let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -842,7 +905,12 @@ mod tests {
             },
         };
 
-        let encrypted = not_err!(aes_gcm_encrypt(&aead::AES_128_GCM, PAYLOAD.as_bytes(), &vec![], &key));
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_128_GCM,
+            PAYLOAD.as_bytes(),
+            &vec![],
+            &key,
+        ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
 
         let payload = not_err!(String::from_utf8(decrypted));
@@ -852,7 +920,7 @@ mod tests {
     #[test]
     fn aes_gcm_256_encryption_round_trip() {
         const PAYLOAD: &'static str = "这个世界值得我们奋战！";
-        let mut key: Vec<u8> = vec![0; 256/8];
+        let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -864,7 +932,12 @@ mod tests {
             },
         };
 
-        let encrypted = not_err!(aes_gcm_encrypt(&aead::AES_256_GCM, PAYLOAD.as_bytes(), &vec![], &key));
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_256_GCM,
+            PAYLOAD.as_bytes(),
+            &vec![],
+            &key,
+        ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
 
         let payload = not_err!(String::from_utf8(decrypted));
@@ -874,7 +947,7 @@ mod tests {
     /// `KeyManagementAlgorithm::DirectSymmetricKey` returns the same key when CEK is requested
     #[test]
     fn dir_cek_returns_provided_key() {
-        let mut key: Vec<u8> = vec![0; 256/8];
+        let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -895,7 +968,7 @@ mod tests {
     /// `KeyManagementAlgorithm::A128GCMKW` returns a random key with the right length when CEK is requested
     #[test]
     fn cek_aes128gcmkw_returns_right_key_length() {
-        let mut key: Vec<u8> = vec![0; 128/8];
+        let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -920,7 +993,7 @@ mod tests {
     /// `KeyManagementAlgorithm::A256GCMKW` returns a random key with the right length when CEK is requested
     #[test]
     fn cek_aes256gcmkw_returns_right_key_length() {
-        let mut key: Vec<u8> = vec![0; 256/8];
+        let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -944,7 +1017,7 @@ mod tests {
 
     #[test]
     fn aes128gcmkw_key_encryption_round_trip() {
-        let mut key: Vec<u8> = vec![0; 128/8];
+        let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -963,14 +1036,17 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(),
-                                        decrypted_cek.octect_key().unwrap())
-                        .is_ok());
+        assert!(
+            verify_slices_are_equal(
+                cek.octect_key().unwrap(),
+                decrypted_cek.octect_key().unwrap(),
+            ).is_ok()
+        );
     }
 
     #[test]
     fn aes256gcmkw_key_encryption_round_trip() {
-        let mut key: Vec<u8> = vec![0; 256/8];
+        let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -989,9 +1065,12 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(),
-                                        decrypted_cek.octect_key().unwrap())
-                        .is_ok());
+        assert!(
+            verify_slices_are_equal(
+                cek.octect_key().unwrap(),
+                decrypted_cek.octect_key().unwrap(),
+            ).is_ok()
+        );
     }
 
     /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
@@ -1012,7 +1091,7 @@ mod tests {
 
     #[test]
     fn aes128gcm_encryption_round_trip() {
-        let mut key: Vec<u8> = vec![0; 128/8];
+        let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {
@@ -1035,7 +1114,7 @@ mod tests {
 
     #[test]
     fn aes1256gcm_encryption_round_trip() {
-        let mut key: Vec<u8> = vec![0; 256/8];
+        let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
         let key = jwk::JWK::<::Empty> {

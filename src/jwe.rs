@@ -26,7 +26,8 @@ pub enum CompressionAlgorithm {
 
 impl Serialize for CompressionAlgorithm {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
 
         let string = match *self {
@@ -40,7 +41,8 @@ impl Serialize for CompressionAlgorithm {
 
 impl<'de> Deserialize<'de> for CompressionAlgorithm {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
 
         struct CompressionAlgorithmVisitor;
@@ -52,12 +54,13 @@ impl<'de> Deserialize<'de> for CompressionAlgorithm {
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(match v {
-                       "DEF" => CompressionAlgorithm::Deflate,
-                       other => CompressionAlgorithm::Other(other.to_string()),
-                   })
+                    "DEF" => CompressionAlgorithm::Deflate,
+                    other => CompressionAlgorithm::Other(other.to_string()),
+                })
             }
         }
 
@@ -197,14 +200,8 @@ impl<T: Serialize + DeserializeOwned> Header<T> {
     fn extract_cek_encryption_result(&mut self, encrypted_payload: &[u8]) -> EncryptionResult {
         let result = EncryptionResult {
             encrypted: encrypted_payload.to_vec(),
-            nonce: self.cek_algorithm
-                .nonce
-                .clone()
-                .unwrap_or_else(|| vec![]),
-            tag: self.cek_algorithm
-                .tag
-                .clone()
-                .unwrap_or_else(|| vec![]),
+            nonce: self.cek_algorithm.nonce.clone().unwrap_or_else(|| vec![]),
+            tag: self.cek_algorithm.tag.clone().unwrap_or_else(|| vec![]),
             ..Default::default()
         };
 
@@ -324,14 +321,16 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
             } => {
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
-                let cek = header
-                    .registered
-                    .cek_algorithm
-                    .cek(header.registered.enc_algorithm, key)?;
-                let encrypted_cek = header
-                    .registered
-                    .cek_algorithm
-                    .encrypt(cek.algorithm.octect_key()?, key)?;
+                let cek = header.registered.cek_algorithm.cek(
+                    header
+                        .registered
+                        .enc_algorithm,
+                    key,
+                )?;
+                let encrypted_cek = header.registered.cek_algorithm.encrypt(
+                    cek.algorithm.octect_key()?,
+                    key,
+                )?;
                 // Update header
                 let mut header = header.clone();
                 header.update_cek_algorithm(&encrypted_cek);
@@ -348,10 +347,11 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
                 // Steps 12 to 14 involves the calculation of `Additional Authenticated Data` for encryption. In
                 // our compact example, our header is the AAD.
                 // Step 15 involves the actual encryption.
-                let encrypted_payload = header
-                    .registered
-                    .enc_algorithm
-                    .encrypt(&payload, &header.to_bytes()?, &cek)?;
+                let encrypted_payload = header.registered.enc_algorithm.encrypt(
+                    &payload,
+                    &header.to_bytes()?,
+                    &cek,
+                )?;
 
                 // Finally create the JWE
                 let mut compact = ::Compact::with_capacity(5);
@@ -368,11 +368,12 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
 
     /// Consumes self and decrypt it. If the token is already decrypted,
     /// this is a no-op.
-    pub fn into_decrypted<K: Serialize + DeserializeOwned>(self,
-                                                           key: &jwk::JWK<K>,
-                                                           cek_alg: KeyManagementAlgorithm,
-                                                           enc_alg: ContentEncryptionAlgorithm)
-                                                           -> Result<Self, Error> {
+    pub fn into_decrypted<K: Serialize + DeserializeOwned>(
+        self,
+        key: &jwk::JWK<K>,
+        cek_alg: KeyManagementAlgorithm,
+        enc_alg: ContentEncryptionAlgorithm,
+    ) -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => self.decrypt(key, cek_alg, enc_alg),
             Compact::Decrypted { .. } => Ok(self),
@@ -381,18 +382,19 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
 
     /// Decrypt an encrypted JWE. Provide the expected algorithms to mitigate an attacker modifying the
     /// fields
-    pub fn decrypt<K: Serialize + DeserializeOwned>(&self,
-                                                    key: &jwk::JWK<K>,
-                                                    cek_alg: KeyManagementAlgorithm,
-                                                    enc_alg: ContentEncryptionAlgorithm)
-                                                    -> Result<Self, Error> {
+    pub fn decrypt<K: Serialize + DeserializeOwned>(
+        &self,
+        key: &jwk::JWK<K>,
+        cek_alg: KeyManagementAlgorithm,
+        enc_alg: ContentEncryptionAlgorithm,
+    ) -> Result<Self, Error> {
         match *self {
             Compact::Encrypted(ref encrypted) => {
                 if encrypted.len() != 5 {
                     Err(ValidationError::PartsLengthError {
-                            actual: encrypted.len(),
-                            expected: 5,
-                        })?
+                        actual: encrypted.len(),
+                        expected: 5,
+                    })?
                 }
                 // RFC 7516 Section 5.2 describes the steps involved in decryption.
                 // Steps 1-3
@@ -404,17 +406,22 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
 
                 // Verify that the algorithms are expected
                 if header.registered.cek_algorithm != cek_alg || header.registered.enc_algorithm != enc_alg {
-                    Err(Error::ValidationError(ValidationError::WrongAlgorithmHeader))?;
+                    Err(Error::ValidationError(
+                        ValidationError::WrongAlgorithmHeader,
+                    ))?;
                 }
 
                 // TODO: Steps 4-5 not implemented at the moment.
 
                 // Steps 6-13 involve the computation of the cek
                 let cek_encryption_result = header.extract_cek_encryption_result(&encrypted_cek);
-                let cek = header
-                    .registered
-                    .cek_algorithm
-                    .decrypt(&cek_encryption_result, header.registered.enc_algorithm, key)?;
+                let cek = header.registered.cek_algorithm.decrypt(
+                    &cek_encryption_result,
+                    header
+                        .registered
+                        .enc_algorithm,
+                    key,
+                )?;
 
                 // Build encryption result as per steps 14-15
                 let encrypted_payload_result = EncryptionResult {
@@ -424,10 +431,10 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
                     additional_data: encrypted.part(0)?,
                 };
 
-                let payload = header
-                    .registered
-                    .enc_algorithm
-                    .decrypt(&encrypted_payload_result, &cek)?;
+                let payload = header.registered.enc_algorithm.decrypt(
+                    &encrypted_payload_result,
+                    &cek,
+                )?;
 
                 // Decompression is not supported at the moment
                 if header.registered.compression_algorithm.is_some() {
@@ -548,24 +555,32 @@ mod tests {
         }
 
         let test_value = Test { test: CompressionAlgorithm::Deflate };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("DEF"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("DEF"),
+                Token::StructEnd,
+            ],
+        );
 
         let test_value = Test { test: CompressionAlgorithm::Other("xxx".to_string()) };
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "Test",
-                            len: 1,
-                        },
-                        Token::Str("test"),
-                        Token::Str("xxx"),
-                        Token::StructEnd]);
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
+                Token::Str("test"),
+                Token::Str("xxx"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
@@ -576,37 +591,41 @@ mod tests {
         }
 
         let test_json = r#"{"test": "DEF"}"#;
-        assert_serde_json(&Test { test: CompressionAlgorithm::Deflate },
-                          Some(&test_json));
+        assert_serde_json(
+            &Test { test: CompressionAlgorithm::Deflate },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "xxx"}"#;
-        assert_serde_json(&Test { test: CompressionAlgorithm::Other("xxx".to_string()) },
-                          Some(&test_json));
+        assert_serde_json(
+            &Test { test: CompressionAlgorithm::Other("xxx".to_string()) },
+            Some(&test_json),
+        );
     }
 
     #[test]
     fn jwe_header_round_trips() {
         let test_value: Header<Empty> = From::from(RegisteredHeader {
-                                                       cek_algorithm: KeyManagementAlgorithm::RSA_OAEP,
-                                                       enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                       ..Default::default()
-                                                   });
+            cek_algorithm: KeyManagementAlgorithm::RSA_OAEP,
+            enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+            ..Default::default()
+        });
         let test_json = r#"{"alg":"RSA-OAEP","enc":"A256GCM"}"#;
         assert_serde_json(&test_value, Some(&test_json));
 
         let test_value: Header<Empty> = From::from(RegisteredHeader {
-                                                       cek_algorithm: KeyManagementAlgorithm::RSA1_5,
-                                                       enc_algorithm: ContentEncryptionAlgorithm::A128CBC_HS256,
-                                                       ..Default::default()
-                                                   });
+            cek_algorithm: KeyManagementAlgorithm::RSA1_5,
+            enc_algorithm: ContentEncryptionAlgorithm::A128CBC_HS256,
+            ..Default::default()
+        });
         let test_json = r#"{"alg":"RSA1_5","enc":"A128CBC-HS256"}"#;
         assert_serde_json(&test_value, Some(&test_json));
 
         let test_value: Header<Empty> = From::from(RegisteredHeader {
-                                                       cek_algorithm: KeyManagementAlgorithm::A128KW,
-                                                       enc_algorithm: ContentEncryptionAlgorithm::A128CBC_HS256,
-                                                       ..Default::default()
-                                                   });
+            cek_algorithm: KeyManagementAlgorithm::A128KW,
+            enc_algorithm: ContentEncryptionAlgorithm::A128CBC_HS256,
+            ..Default::default()
+        });
         let test_json = r#"{"alg":"A128KW","enc":"A128CBC-HS256"}"#;
         assert_serde_json(&test_value, Some(&test_json));
     }
@@ -640,12 +659,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -681,31 +702,37 @@ mod tests {
             registered: ::RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(::SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(::SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
             private: Default::default(),
         };
-        let jws = jws::Compact::new_decoded(From::from(jws::RegisteredHeader {
-                                                           algorithm: jwa::SignatureAlgorithm::HS256,
-                                                           ..Default::default()
-                                                       }),
-                                            claims.clone());
+        let jws = jws::Compact::new_decoded(
+            From::from(jws::RegisteredHeader {
+                algorithm: jwa::SignatureAlgorithm::HS256,
+                ..Default::default()
+            }),
+            claims.clone(),
+        );
         let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
 
         // Construct the encryption key
         let key = cek_oct_key(256 / 8);
 
         // Construct the JWE
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        media_type: Some("JOSE".to_string()),
-                                                        content_type: Some("JOSE".to_string()),
-                                                        ..Default::default()
-                                                    }),
-                                         jws.clone());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                media_type: Some("JOSE".to_string()),
+                content_type: Some("JOSE".to_string()),
+                ..Default::default()
+            }),
+            jws.clone(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -741,20 +768,24 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
 
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A128GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A128GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -766,20 +797,24 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
 
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A128GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A128GCM,
+            )
             .unwrap();
     }
 
@@ -789,9 +824,11 @@ mod tests {
         let key = cek_oct_key(256 / 8);
         let invalid = Compact::<::Empty, ::Empty>::new_encrypted("INVALID");
         invalid
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A128GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A128GCM,
+            )
             .unwrap();
     }
 
@@ -803,12 +840,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -821,9 +860,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -835,12 +876,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -853,9 +896,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -867,12 +912,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -883,9 +930,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -898,12 +947,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -916,9 +967,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -931,12 +984,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -947,9 +1002,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -962,12 +1019,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -980,9 +1039,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 
@@ -995,12 +1056,14 @@ mod tests {
 
         // Construct the JWE
         let payload = "The true sign of intelligence is not knowledge but imagination.";
-        let jwe = Compact::new_decrypted(From::from(RegisteredHeader {
-                                                        cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-                                                        enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-                                                        ..Default::default()
-                                                    }),
-                                         payload.as_bytes().to_vec());
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                ..Default::default()
+            }),
+            payload.as_bytes().to_vec(),
+        );
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
@@ -1013,9 +1076,11 @@ mod tests {
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         encrypted_jwe
-            .into_decrypted(&key,
-                            KeyManagementAlgorithm::A256GCMKW,
-                            ContentEncryptionAlgorithm::A256GCM)
+            .into_decrypted(
+                &key,
+                KeyManagementAlgorithm::A256GCMKW,
+                ContentEncryptionAlgorithm::A256GCM,
+            )
             .unwrap();
     }
 }
