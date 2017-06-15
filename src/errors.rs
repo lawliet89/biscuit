@@ -113,14 +113,14 @@ impl error::Error for Error {
         use Error::*;
 
         Some(match *self {
-                 JsonError(ref err) => err as &error::Error,
-                 DecodeBase64(ref err) => err as &error::Error,
-                 Utf8(ref err) => err as &error::Error,
-                 ValidationError(ref err) => err as &error::Error,
-                 IOError(ref e) => e as &error::Error,
-                 UriParseError(ref e) => e as &error::Error,
-                 ref e => e as &error::Error,
-             })
+            JsonError(ref err) => err as &error::Error,
+            DecodeBase64(ref err) => err as &error::Error,
+            Utf8(ref err) => err as &error::Error,
+            ValidationError(ref err) => err as &error::Error,
+            IOError(ref e) => e as &error::Error,
+            UriParseError(ref e) => e as &error::Error,
+            ref e => e as &error::Error,
+        })
     }
 }
 
@@ -140,10 +140,12 @@ impl fmt::Display for Error {
                 ref actual,
                 ref expected,
             } => {
-                write!(f,
-                       "{} was expected for this cryptographic operation but {} was provided",
-                       expected,
-                       actual)
+                write!(
+                    f,
+                    "{} was expected for this cryptographic operation but {} was provided",
+                    expected,
+                    actual
+                )
             }
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
             UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
@@ -179,10 +181,12 @@ impl fmt::Display for ValidationError {
             MissingRequired(ref field) => write!(f, "{} is required but is missing", field),
             TemporalError(ref err) => write!(f, "{}: {}", self.description(), err),
             PartsLengthError { expected, actual } => {
-                write!(f,
-                       "Expected {} parts in Compact JSON representation but got {}",
-                       expected,
-                       actual)
+                write!(
+                    f,
+                    "Expected {} parts in Compact JSON representation but got {}",
+                    expected,
+                    actual
+                )
             }
             _ => write!(f, "{}", error::Error::description(self)),
         }

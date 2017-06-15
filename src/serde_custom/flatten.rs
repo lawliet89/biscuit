@@ -153,7 +153,8 @@ pub trait ToJson {
 }
 
 impl<T: ?Sized> ToJson for T
-    where T: Serialize
+where
+    T: Serialize,
 {
     fn to_json(&self) -> Result<Value, serde_json::Error> {
         to_value(self)
@@ -188,7 +189,8 @@ pub trait FlattenSerializable {
     /// # Panics
     /// Panics if any of the child yielded are not structs
     fn serialize_internal<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         use serde::ser::Error;
 
@@ -210,9 +212,9 @@ pub trait FlattenSerializable {
             .into_iter()
             .map(|r| r.unwrap())
             .map(|value| match value {
-                     Value::Object(map) => map,
-                     _ => unreachable!("Child was not a struct: {:?}", value),
-                 })
+                Value::Object(map) => map,
+                _ => unreachable!("Child was not a struct: {:?}", value),
+            })
             .collect();
 
         if let DuplicateKeysBehaviour::RaiseError = self.duplicate_keys() {
@@ -226,10 +228,7 @@ pub trait FlattenSerializable {
             }
         }
 
-        let map: Map<String, Value> = value_maps
-            .into_iter()
-            .flat_map(|m| m.into_iter())
-            .collect();
+        let map: Map<String, Value> = value_maps.into_iter().flat_map(|m| m.into_iter()).collect();
         map.serialize(serializer)
     }
 }
@@ -431,11 +430,13 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(OuterNoDuplicates,
-                        DuplicateKeysBehaviour::RaiseError,
-                        one,
-                        two,
-                        three);
+    impl_flatten_serde!(
+        OuterNoDuplicates,
+        DuplicateKeysBehaviour::RaiseError,
+        one,
+        two,
+        three
+    );
 
     /// Will not deserialize due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
@@ -445,11 +446,13 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(OuterOverwrite,
-                        DuplicateKeysBehaviour::Overwrite,
-                        one,
-                        two,
-                        three);
+    impl_flatten_serde!(
+        OuterOverwrite,
+        DuplicateKeysBehaviour::Overwrite,
+        one,
+        two,
+        three
+    );
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct Outer {
@@ -506,8 +509,7 @@ mod tests {
     /// Intersecting element is not in the shortest set
     #[test]
     fn pairwise_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> =
-            vec![[1, 2, 3].iter().cloned().collect(),
+        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
                                            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
                                            [11, 12, 13, 14].iter().cloned().collect(),
                                            [15, 16, 17].iter().cloned().collect(),
@@ -517,8 +519,7 @@ mod tests {
 
     #[test]
     fn pairwise_non_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> =
-            vec![[1, 2, 3].iter().cloned().collect(),
+        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
                                            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
                                            [11, 12, 13, 14].iter().cloned().collect(),
                                            [15, 16, 17].iter().cloned().collect(),
@@ -589,42 +590,46 @@ mod tests {
     fn serde_tokens() {
         let test_value = Outer::default();
 
-        assert_tokens(&test_value,
-                      &[Token::Map { len: Some(7) },
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Map { len: Some(7) },
 
-                        Token::Str("a"),
-                        Token::U64(0),
+                Token::Str("a"),
+                Token::U64(0),
 
-                        Token::Str("b"),
-                        Token::U64(0),
+                Token::Str("b"),
+                Token::U64(0),
 
-                        Token::Str("c"),
-                        Token::U64(0),
+                Token::Str("c"),
+                Token::U64(0),
 
-                        Token::Str("d"),
+                Token::Str("d"),
 
-                        // InnerTwo map
-                        Token::Map { len: Some(3) },
+                // InnerTwo map
+                Token::Map { len: Some(3) },
 
-                        Token::Str("a"),
-                        Token::Bool(false),
+                Token::Str("a"),
+                Token::Bool(false),
 
-                        Token::Str("e"),
-                        Token::Bool(false),
+                Token::Str("e"),
+                Token::Bool(false),
 
-                        Token::Str("f"),
-                        Token::U64(0),
-                        Token::MapEnd,
-                        // End InnerTwo map
-                        Token::Str("g"),
-                        Token::Bool(false),
+                Token::Str("f"),
+                Token::U64(0),
+                Token::MapEnd,
+                // End InnerTwo map
+                Token::Str("g"),
+                Token::Bool(false),
 
-                        Token::Str("h"),
-                        Token::Bool(false),
+                Token::Str("h"),
+                Token::Bool(false),
 
-                        Token::Str("i"),
-                        Token::Bool(false),
-                        Token::MapEnd]);
+                Token::Str("i"),
+                Token::Bool(false),
+                Token::MapEnd,
+            ],
+        );
     }
 
     #[test]
@@ -654,41 +659,45 @@ mod tests {
     fn serde_tokens_generic() {
         let test_value = OuterGeneric::<InnerThree>::default();
 
-        assert_tokens(&test_value,
-                      &[Token::Map { len: Some(7) },
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Map { len: Some(7) },
 
-                        Token::Str("a"),
-                        Token::U64(0),
+                Token::Str("a"),
+                Token::U64(0),
 
-                        Token::Str("b"),
-                        Token::U64(0),
+                Token::Str("b"),
+                Token::U64(0),
 
-                        Token::Str("c"),
-                        Token::U64(0),
+                Token::Str("c"),
+                Token::U64(0),
 
-                        Token::Str("d"),
+                Token::Str("d"),
 
-                        // InnerTwo map
-                        Token::Map { len: Some(3) },
+                // InnerTwo map
+                Token::Map { len: Some(3) },
 
-                        Token::Str("a"),
-                        Token::Bool(false),
+                Token::Str("a"),
+                Token::Bool(false),
 
-                        Token::Str("e"),
-                        Token::Bool(false),
+                Token::Str("e"),
+                Token::Bool(false),
 
-                        Token::Str("f"),
-                        Token::U64(0),
-                        Token::MapEnd,
-                        // End InnerTwo map
-                        Token::Str("g"),
-                        Token::Bool(false),
+                Token::Str("f"),
+                Token::U64(0),
+                Token::MapEnd,
+                // End InnerTwo map
+                Token::Str("g"),
+                Token::Bool(false),
 
-                        Token::Str("h"),
-                        Token::Bool(false),
+                Token::Str("h"),
+                Token::Bool(false),
 
-                        Token::Str("i"),
-                        Token::Bool(false),
-                        Token::MapEnd]);
+                Token::Str("i"),
+                Token::Bool(false),
+                Token::MapEnd,
+            ],
+        );
     }
 }

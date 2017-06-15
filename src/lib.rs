@@ -321,11 +321,14 @@ pub trait CompactPart {
     fn to_bytes(&self) -> Result<Vec<u8>, Error>;
 
     /// Convert a sequence of bytes into Self
-    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> where Self: Sized;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized;
 
     /// Base64 decode into Self
     fn from_base64<B: AsRef<[u8]>>(encoded: &B) -> Result<Self, Error>
-        where Self: Sized
+    where
+        Self: Sized,
     {
         let decoded = base64url::decode_nopad(encoded.as_ref())?;
         Self::from_bytes(&decoded)
@@ -344,7 +347,8 @@ pub trait CompactPart {
 pub trait CompactJson: Serialize + DeserializeOwned {}
 
 impl<T> CompactPart for T
-    where T: CompactJson
+where
+    T: CompactJson,
 {
     /// JSON serialize the part and return the JSON string bytes
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
@@ -487,9 +491,9 @@ impl Compact {
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts
-            .get(index)
-            .ok_or_else(|| "Out of bounds".to_string())?;
+        let part = self.parts.get(index).ok_or_else(
+            || "Out of bounds".to_string(),
+        )?;
         CompactPart::from_base64(part)
     }
 
@@ -507,7 +511,8 @@ impl Default for Compact {
 
 impl Serialize for Compact {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(&self.encode())
     }
@@ -515,7 +520,8 @@ impl Serialize for Compact {
 
 impl<'de> Deserialize<'de> for Compact {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
 
         struct CompactVisitor;
@@ -528,7 +534,8 @@ impl<'de> Deserialize<'de> for Compact {
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 Ok(Compact::decode(value))
             }
@@ -593,12 +600,14 @@ pub enum SingleOrMultiple<T> {
 }
 
 impl<T> SingleOrMultiple<T>
-    where T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync
+where
+    T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync,
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
-        where T: Borrow<Q>,
-              Q: PartialEq
+    where
+        T: Borrow<Q>,
+        Q: PartialEq,
     {
         match *self {
             SingleOrMultiple::Single(ref single) => single.borrow() == value,
@@ -688,7 +697,8 @@ impl FromStr for StringOrUri {
 
 impl Serialize for StringOrUri {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_str(self.as_ref())
     }
@@ -696,7 +706,8 @@ impl Serialize for StringOrUri {
 
 impl<'de> Deserialize<'de> for StringOrUri {
     fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         struct StringOrUriVisitor {}
 
@@ -708,7 +719,8 @@ impl<'de> Deserialize<'de> for StringOrUri {
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-                where E: de::Error
+            where
+                E: de::Error,
             {
                 StringOrUri::from_str(value).map_err(E::custom)
             }
@@ -758,7 +770,8 @@ impl From<i64> for Timestamp {
 
 impl Serialize for Timestamp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
+    where
+        S: Serializer,
     {
         serializer.serialize_i64(self.timestamp())
     }
@@ -766,10 +779,14 @@ impl Serialize for Timestamp {
 
 impl<'de> Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where D: Deserializer<'de>
+    where
+        D: Deserializer<'de>,
     {
         let timestamp = i64::deserialize(deserializer)?;
-        Ok(Timestamp(DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), UTC)))
+        Ok(Timestamp(DateTime::<UTC>::from_utc(
+            NaiveDateTime::from_timestamp(timestamp, 0),
+            UTC,
+        )))
     }
 }
 
@@ -857,11 +874,15 @@ impl RegisteredClaims {
         }
 
         if self.issued_at.is_some() && !Self::is_before(*self.issued_at.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
+            Err(ValidationError::TemporalError(
+                "Token issued in the future".to_string(),
+            ))?;
         }
 
         if self.not_before.is_some() && !Self::is_before(*self.not_before.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
+            Err(ValidationError::TemporalError(
+                "Token not valid yet".to_string(),
+            ))?;
         }
 
         Ok(())
@@ -870,31 +891,35 @@ impl RegisteredClaims {
 
     /// Check `a` is after `b` within a tolerated duration of `e`, where `e` is unsigned: a - b >= -e
     fn is_after<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
-        where Tz: chrono::offset::TimeZone,
-              Tz2: chrono::offset::TimeZone
+    where
+        Tz: chrono::offset::TimeZone,
+        Tz2: chrono::offset::TimeZone,
     {
         // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
         // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e)
-            .map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        let e = chrono::Duration::from_std(e).map_err(|e| {
+            ValidationError::TemporalError(e.description().to_string())
+        })?;
         Ok(a.signed_duration_since(b) >= -e)
     }
 
     /// Check that `a` is before `b` within a tolerated duration of `e`, where `e` is unsigned: a - b <= e
     fn is_before<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
-        where Tz: chrono::offset::TimeZone,
-              Tz2: chrono::offset::TimeZone
+    where
+        Tz: chrono::offset::TimeZone,
+        Tz2: chrono::offset::TimeZone,
     {
         // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
         // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e)
-            .map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
+        let e = chrono::Duration::from_std(e).map_err(|e| {
+            ValidationError::TemporalError(e.description().to_string())
+        })?;
         Ok(a.signed_duration_since(b) <= e)
     }
 }
@@ -912,7 +937,11 @@ pub struct ClaimsSet<T> {
 impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
                             registered, private);
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
+impl<T> CompactJson for ClaimsSet<T>
+where
+    T: Serialize + DeserializeOwned,
+{
+}
 
 #[cfg(test)]
 mod tests {
@@ -966,15 +995,19 @@ mod tests {
         let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert_tokens(&test,
-                      &[Token::Struct {
-                            name: "StringOrUriTest",
-                            len: 1,
-                        },
-                        Token::Str("string"),
-                        Token::Str("Random"),
+        assert_tokens(
+            &test,
+            &[
+                Token::Struct {
+                    name: "StringOrUriTest",
+                    len: 1,
+                },
+                Token::Str("string"),
+                Token::Str("Random"),
 
-                        Token::StructEnd]);
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
@@ -989,15 +1022,19 @@ mod tests {
         let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert_tokens(&test,
-                      &[Token::Struct {
-                            name: "StringOrUriTest",
-                            len: 1,
-                        },
-                        Token::Str("string"),
-                        Token::Str("https://www.example.com/"),
+        assert_tokens(
+            &test,
+            &[
+                Token::Struct {
+                    name: "StringOrUriTest",
+                    len: 1,
+                },
+                Token::Str("string"),
+                Token::Str("https://www.example.com/"),
 
-                        Token::StructEnd]);
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
@@ -1023,7 +1060,9 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
+            values: SingleOrMultiple::Multiple(
+                vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
+            ),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -1127,7 +1166,9 @@ mod tests {
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
             issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
-            audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
+            audience: Some(SingleOrMultiple::Single(
+                not_err!(FromStr::from_str("htts://acme-customer.com/")),
+            )),
             not_before: Some(1234.into()),
             ..Default::default()
         };
@@ -1146,7 +1187,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
+                )),
                 not_before: Some((-1234).into()),
                 ..Default::default()
             },
@@ -1156,27 +1199,31 @@ mod tests {
             },
         };
 
-        assert_tokens(&claim,
-                      &[Token::Map { len: Some(6) },
+        assert_tokens(
+            &claim,
+            &[
+                Token::Map { len: Some(6) },
 
-                        Token::Str("iss"),
-                        Token::Str("https://www.acme.com/"),
+                Token::Str("iss"),
+                Token::Str("https://www.acme.com/"),
 
-                        Token::Str("sub"),
-                        Token::Str("John Doe"),
+                Token::Str("sub"),
+                Token::Str("John Doe"),
 
-                        Token::Str("aud"),
-                        Token::Str("htts://acme-customer.com/"),
+                Token::Str("aud"),
+                Token::Str("htts://acme-customer.com/"),
 
-                        Token::Str("nbf"),
-                        Token::I64(-1234),
+                Token::Str("nbf"),
+                Token::I64(-1234),
 
-                        Token::Str("company"),
-                        Token::Str("ACME"),
+                Token::Str("company"),
+                Token::Str("ACME"),
 
-                        Token::Str("department"),
-                        Token::Str("Toilet Cleaning"),
-                        Token::MapEnd]);
+                Token::Str("department"),
+                Token::Str("Toilet Cleaning"),
+                Token::MapEnd,
+            ],
+        );
     }
 
     #[test]
@@ -1185,7 +1232,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1204,7 +1253,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com/")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1232,7 +1283,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str("htts://acme-customer.com")))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },

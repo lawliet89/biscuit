@@ -7,7 +7,8 @@ use serde::de;
 
 /// Serialize a byte sequence into Base64 URL encoded string
 pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer
+where
+    S: Serializer,
 {
     match *value {
         Some(ref value) => {
@@ -20,7 +21,8 @@ pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::
 
 /// Deserialize a byte sequence from Base64 URL encoded string
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
-    where D: Deserializer<'de>
+where
+    D: Deserializer<'de>,
 {
     struct BytesVisitor;
 
@@ -32,24 +34,26 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
         }
 
         fn visit_none<E>(self) -> Result<Self::Value, E>
-            where E: de::Error
+        where
+            E: de::Error,
         {
 
             Ok(None)
         }
 
         fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where D: Deserializer<'de>
+        where
+            D: Deserializer<'de>,
         {
 
             deserializer.deserialize_str(self)
         }
 
         fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where E: de::Error
+        where
+            E: de::Error,
         {
-            let bytes = base64url::decode_nopad(value.as_bytes())
-                .map_err(E::custom)?;
+            let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
             Ok(Some(bytes))
         }
     }
@@ -72,31 +76,39 @@ mod tests {
     fn some_serialization_round_trip() {
         let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
 
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "TestStruct",
-                            len: 1,
-                        },
-                        Token::Str("bytes"),
-                        Token::Some,
-                        Token::Str("aGVsbG8gd29ybGQ"),
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "TestStruct",
+                    len: 1,
+                },
+                Token::Str("bytes"),
+                Token::Some,
+                Token::Str("aGVsbG8gd29ybGQ"),
 
-                        Token::StructEnd]);
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
     fn none_serialization_round_trip() {
         let test_value = TestStruct { bytes: None };
 
-        assert_tokens(&test_value,
-                      &[Token::Struct {
-                            name: "TestStruct",
-                            len: 1,
-                        },
-                        Token::Str("bytes"),
-                        Token::None,
+        assert_tokens(
+            &test_value,
+            &[
+                Token::Struct {
+                    name: "TestStruct",
+                    len: 1,
+                },
+                Token::Str("bytes"),
+                Token::None,
 
-                        Token::StructEnd]);
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
