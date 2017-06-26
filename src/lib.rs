@@ -73,7 +73,7 @@ use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
-use chrono::{DateTime, UTC, NaiveDateTime};
+use chrono::{DateTime, Utc, NaiveDateTime};
 use data_encoding::base64url;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{self, DeserializeOwned};
@@ -739,32 +739,32 @@ impl Display for StringOrUri {
     }
 }
 
-/// Wrapper around `DateTime<UTC>` to allow us to do custom de(serialization)
+/// Wrapper around `DateTime<Utc>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Timestamp(DateTime<UTC>);
+pub struct Timestamp(DateTime<Utc>);
 
 impl Deref for Timestamp {
-    type Target = DateTime<UTC>;
+    type Target = DateTime<Utc>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<DateTime<UTC>> for Timestamp {
-    fn from(datetime: DateTime<UTC>) -> Self {
+impl From<DateTime<Utc>> for Timestamp {
+    fn from(datetime: DateTime<Utc>) -> Self {
         Timestamp(datetime)
     }
 }
 
-impl Into<DateTime<UTC>> for Timestamp {
-    fn into(self) -> DateTime<UTC> {
+impl Into<DateTime<Utc>> for Timestamp {
+    fn into(self) -> DateTime<Utc> {
         self.0
     }
 }
 
 impl From<i64> for Timestamp {
     fn from(timestamp: i64) -> Self {
-        DateTime::<UTC>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), UTC).into()
+        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc).into()
     }
 }
 
@@ -783,9 +783,9 @@ impl<'de> Deserialize<'de> for Timestamp {
         D: Deserializer<'de>,
     {
         let timestamp = i64::deserialize(deserializer)?;
-        Ok(Timestamp(DateTime::<UTC>::from_utc(
+        Ok(Timestamp(DateTime::<Utc>::from_utc(
             NaiveDateTime::from_timestamp(timestamp, 0),
-            UTC,
+            Utc,
         )))
     }
 }
@@ -839,7 +839,7 @@ pub struct TemporalValidationOptions {
     /// Allow for some clock drifts, limited to this duration during temporal validation
     pub epsilon: Option<std::time::Duration>,
     /// Specify a time to use in temporal validation instead of `Now`.
-    pub now: Option<DateTime<UTC>>,
+    pub now: Option<DateTime<Utc>>,
 }
 
 impl RegisteredClaims {
@@ -860,7 +860,7 @@ impl RegisteredClaims {
         }
 
         let now = match options.now {
-            None => UTC::now(),
+            None => Utc::now(),
             Some(now) => now,
         };
 
@@ -948,7 +948,7 @@ mod tests {
     use std::str::{self, FromStr};
     use std::time::Duration;
 
-    use chrono::{UTC, TimeZone};
+    use chrono::{Utc, TimeZone};
     use serde_json;
     use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
 
@@ -1138,7 +1138,7 @@ mod tests {
     fn timestamp_serialization_roundtrip() {
         use chrono::Timelike;
 
-        let now: Timestamp = UTC::now().with_nanosecond(0).unwrap().into();
+        let now: Timestamp = Utc::now().with_nanosecond(0).unwrap().into();
         let serialized = not_err!(serde_json::to_string(&now));
         let deserialized = not_err!(serde_json::from_str(&serialized));
         assert_eq!(now, deserialized);
@@ -1301,58 +1301,58 @@ mod tests {
     #[test]
     fn is_after() {
         // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(2, 0),
-                                                    UTC.timestamp(0, 0),
+        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(2, 0),
+                                                    Utc.timestamp(0, 0),
                                                     Duration::from_secs(0))));
-        assert!(!not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
-                                                     UTC.timestamp(3, 0),
+        assert!(!not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
+                                                     Utc.timestamp(3, 0),
                                                      Duration::from_secs(0))));
 
         // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
-                                                    UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
+                                                    Utc.timestamp(3, 0),
                                                     Duration::from_secs(5))));
 
         // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_after(UTC.timestamp(0, 0),
-                                                     UTC.timestamp(3, 0),
+        assert!(!not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
+                                                     Utc.timestamp(3, 0),
                                                      Duration::from_secs(1))));
 
         // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(7, 0),
-                                                    UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(7, 0),
+                                                    Utc.timestamp(3, 0),
                                                     Duration::from_secs(5))));
-        assert!(not_err!(RegisteredClaims::is_after(UTC.timestamp(10, 0),
-                                                    UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(10, 0),
+                                                    Utc.timestamp(3, 0),
                                                     Duration::from_secs(5))));
     }
 
     #[test]
     fn is_before() {
         // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(-10, 0),
-                                                     UTC.timestamp(0, 0),
+        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(-10, 0),
+                                                     Utc.timestamp(0, 0),
                                                      Duration::from_secs(0))));
-        assert!(!not_err!(RegisteredClaims::is_before(UTC.timestamp(10, 0),
-                                                      UTC.timestamp(3, 0),
+        assert!(!not_err!(RegisteredClaims::is_before(Utc.timestamp(10, 0),
+                                                      Utc.timestamp(3, 0),
                                                       Duration::from_secs(0))));
 
         // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(5, 0),
-                                                     UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(5, 0),
+                                                     Utc.timestamp(3, 0),
                                                      Duration::from_secs(5))));
 
         // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_before(UTC.timestamp(10, 0),
-                                                      UTC.timestamp(3, 0),
+        assert!(!not_err!(RegisteredClaims::is_before(Utc.timestamp(10, 0),
+                                                      Utc.timestamp(3, 0),
                                                       Duration::from_secs(1))));
 
         // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(0, 0),
-                                                     UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(0, 0),
+                                                     Utc.timestamp(3, 0),
                                                      Duration::from_secs(5))));
-        assert!(not_err!(RegisteredClaims::is_before(UTC.timestamp(-10, 0),
-                                                     UTC.timestamp(3, 0),
+        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(-10, 0),
+                                                     Utc.timestamp(3, 0),
                                                      Duration::from_secs(5))));
     }
 
@@ -1408,7 +1408,7 @@ mod tests {
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_future_token() {
         let options = TemporalValidationOptions {
-            now: Some(UTC.timestamp(0, 0)),
+            now: Some(Utc.timestamp(0, 0)),
             ..Default::default()
         };
 
@@ -1423,7 +1423,7 @@ mod tests {
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_expired_token() {
         let options = TemporalValidationOptions {
-            now: Some(UTC.timestamp(2, 0)),
+            now: Some(Utc.timestamp(2, 0)),
             ..Default::default()
         };
 
@@ -1438,7 +1438,7 @@ mod tests {
     #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_early_token() {
         let options = TemporalValidationOptions {
-            now: Some(UTC.timestamp(0, 0)),
+            now: Some(Utc.timestamp(0, 0)),
             ..Default::default()
         };
 
@@ -1461,7 +1461,7 @@ mod tests {
     #[test]
     fn validate_times_valid_token_with_all_required() {
         let options = TemporalValidationOptions {
-            now: Some(UTC.timestamp(100, 0)),
+            now: Some(Utc.timestamp(100, 0)),
             issued_at_required: true,
             not_before_required: true,
             expiry_required: true,
@@ -1480,7 +1480,7 @@ mod tests {
     #[test]
     fn validate_times_valid_token_with_epsilon() {
         let options = TemporalValidationOptions {
-            now: Some(UTC.timestamp(100, 0)),
+            now: Some(Utc.timestamp(100, 0)),
             epsilon: Some(Duration::from_secs(10)),
             ..Default::default()
         };
