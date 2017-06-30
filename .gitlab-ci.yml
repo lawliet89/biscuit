@@ -1,0 +1,26 @@
+image: "docker.mjdsystems.ca/docker/rust-builder"
+
+stages:
+  - build
+
+test:cargo:debug:
+  stage:
+    build
+  script:
+  - apt-get update && apt-get install -y libssl-dev
+  - rustc --version && cargo --version
+  - cargo build --verbose
+  - cargo test --verbose
+  tags:
+  - workoutnation
+
+test:cargo:release:
+  stage:
+    build
+  script:
+  - apt-get update && apt-get install -y libssl-dev
+  - rustc --version && cargo --version
+  - cargo build --release --verbose
+  - cargo test --release --verbose
+  tags:
+  - workoutnation
