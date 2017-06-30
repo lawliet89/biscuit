@@ -1,6 +1,6 @@
 [package]
-name = "biscuit"
-version = "0.0.4"
+name = "biscuit-openssl"
+version = "0.0.1"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
@@ -25,13 +25,11 @@ doc = true
 [dependencies]
 chrono = "0.4"
 data-encoding = "1.2.0"
-lazy_static = "0.2"
 num = "0.1.37"
-ring = { version = "0.10.0", features = ["rsa_signing"] }
+openssl = "0.9.14"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-untrusted = "0.5"
 url = "^1.0"
 
 [dev-dependencies]

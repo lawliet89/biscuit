@@ -524,19 +524,19 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
 mod tests {
     use std::str::FromStr;
 
-    use ring::rand::SecureRandom;
     use serde_test::{Token, assert_tokens};
+    use openssl::rand;
 
     use JWE;
     use super::*;
-    use jwa::{self, rng};
+    use jwa;
     use jws;
     use test::assert_serde_json;
 
     fn cek_oct_key(len: usize) -> jwk::JWK<::Empty> {
         // Construct the encryption key
         let mut key: Vec<u8> = vec![0; len];
-        not_err!(rng().fill(&mut key));
+        not_err!(rand::rand_bytes(&mut key));
         jwk::JWK {
             common: Default::default(),
             additional: Default::default(),

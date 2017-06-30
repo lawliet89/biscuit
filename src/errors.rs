@@ -1,7 +1,7 @@
 //! Errors returned will be converted to one of the structs in this module.
 use std::{str, string, fmt, error, io};
 use data_encoding;
-use ring;
+use openssl;
 use serde_json;
 use url::ParseError;
 
@@ -48,7 +48,7 @@ pub enum ValidationError {
     InvalidSignature,
     /// Token provided was signed or encrypted with an unexpected algorithm
     WrongAlgorithmHeader,
-
+    
     /// A field required is missing from the token
     MissingRequired(String),
     /// The token has invalid temporal field values
@@ -79,8 +79,8 @@ impl_from_error!(io::Error, Error::IOError);
 impl_from_error!(ParseError, Error::UriParseError);
 
 
-impl From<ring::error::Unspecified> for Error {
-    fn from(_: ring::error::Unspecified) -> Self {
+impl From<openssl::error::ErrorStack> for Error {
+    fn from(_: openssl::error::ErrorStack) -> Self {
         Error::UnspecifiedCryptographicError
     }
 }
