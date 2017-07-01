@@ -240,15 +240,15 @@ impl SignatureAlgorithm {
             Secret::Bytes(ref secret) => secret,
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
         };
-        
+
         let key = PKey::hmac(secret)?;
 
         let digest = algorithm.get_openssl_digest();
-        
+
         let mut signer = Signer::new(digest, &key)?;
-        
+
         signer.update(data)?;
-        
+
         Ok(signer.finish()?)
     }
 
@@ -257,11 +257,11 @@ impl SignatureAlgorithm {
             Secret::RSAKeyPair(ref key_pair) => key_pair,
             _ => Err("Invalid secret type. A RSAKeyPair is required".to_string())?,
         };
-        
+
         let digest = algorithm.get_openssl_digest();
-        
+
         let mut signer = Signer::new(digest, key_pair)?;
-        
+
         if algorithm.is_pss() {
             signer.pkey_ctx_mut().set_rsa_padding(Padding::from_raw(6))?;
         } else if algorithm.is_pkcs() {
@@ -269,9 +269,9 @@ impl SignatureAlgorithm {
         } else {
             unreachable!("Unknown rsa padding");
         }
-        
+
         signer.update(data)?;
-        
+
         return Ok(signer.finish()?);
     }
 
@@ -300,11 +300,12 @@ impl SignatureAlgorithm {
     ) -> Result<bool, Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
         if expected_signature.len() != actual_signature.len() {
-            return Ok(false)
+            return Ok(false);
         }
-        Ok(
-            ::openssl::memcmp::eq(expected_signature.as_ref(), actual_signature.as_ref()),
-        )
+        Ok(::openssl::memcmp::eq(
+            expected_signature.as_ref(),
+            actual_signature.as_ref(),
+        ))
     }
 
     fn verify_public_key(
@@ -317,26 +318,28 @@ impl SignatureAlgorithm {
             Secret::PublicKey(ref public_key) => public_key,
             _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
         };
-        
+
         let digest = algorithm.get_openssl_digest();
-        
+
         // TODO: Assume for now the public key above matches what we expect
 
         let mut verifier = Verifier::new(digest, public_key)?;
-        
+
         if algorithm.is_pss() {
-            verifier.pkey_ctx_mut().set_rsa_padding(Padding::from_raw(6))?;
+            verifier.pkey_ctx_mut().set_rsa_padding(
+                Padding::from_raw(6),
+            )?;
         } else if algorithm.is_pkcs() {
             verifier.pkey_ctx_mut().set_rsa_padding(rsa::PKCS1_PADDING)?;
         } else {
             unreachable!("Unknown rsa padding");
         }
-        
+
         verifier.update(data)?;
 
         return Ok(verifier.finish(expected_signature)?);
     }
-    
+
     fn get_openssl_digest(&self) -> MessageDigest {
         match *self {
             SignatureAlgorithm::RS256 => MessageDigest::sha256(),
@@ -354,7 +357,7 @@ impl SignatureAlgorithm {
             _ => unreachable!("Should not happen"),
         }
     }
-    
+
     fn is_pss(&self) -> bool {
         match *self {
             SignatureAlgorithm::PS256 |
@@ -363,7 +366,7 @@ impl SignatureAlgorithm {
             _ => false,
         }
     }
-    
+
     fn is_pkcs(&self) -> bool {
         match *self {
             SignatureAlgorithm::RS256 |
@@ -640,7 +643,7 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
         Some(&encrypted.nonce),
         &encrypted.additional_data,
         &encrypted.encrypted,
-        &encrypted.tag
+        &encrypted.tag,
     )?;
     Ok(plaintext)
 }
@@ -798,7 +801,6 @@ mod tests {
         ));
         assert!(valid);
     }*/
-
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
     /// TODO: ECDSA
     /*#[test]
@@ -821,7 +823,6 @@ mod tests {
         ));
         assert!(valid);
     }*/
-
     #[test]
     #[ignore]
     #[should_panic(expected = "UnsupportedOperation")]
@@ -1053,8 +1054,8 @@ mod tests {
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
         assert_eq!(
-                cek.octect_key().unwrap(),
-                decrypted_cek.octect_key().unwrap()
+            cek.octect_key().unwrap(),
+            decrypted_cek.octect_key().unwrap()
         );
     }
 
@@ -1080,8 +1081,8 @@ mod tests {
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
         assert_eq!(
-                cek.octect_key().unwrap(),
-                decrypted_cek.octect_key().unwrap()
+            cek.octect_key().unwrap(),
+            decrypted_cek.octect_key().unwrap()
         );
     }
 

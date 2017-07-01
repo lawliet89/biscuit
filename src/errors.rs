@@ -48,7 +48,7 @@ pub enum ValidationError {
     InvalidSignature,
     /// Token provided was signed or encrypted with an unexpected algorithm
     WrongAlgorithmHeader,
-    
+
     /// A field required is missing from the token
     MissingRequired(String),
     /// The token has invalid temporal field values
