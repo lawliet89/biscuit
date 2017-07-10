@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.0.5 (2017-07-05)
+
+This release adds no new features and breaks no API. It simply bumps Chrono and Ring to their newest version.
+
 ## Version 0.0.4 (2017-05-15)
 
 Update dependency to `ring` 0.9.4 so that different versions of `ring` can no longer be used in a Rust build.
