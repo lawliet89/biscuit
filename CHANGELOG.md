@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.0.6 (2017-07-05)
+
+This release adds no new features and breaks no API. It simply bumps `ring` to 0.11.
+
 ## Version 0.0.5 (2017-07-05)
 
 This release adds no new features and breaks no API. It simply bumps Chrono and Ring to their newest version.
