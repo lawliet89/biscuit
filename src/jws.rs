@@ -44,7 +44,11 @@ pub enum Compact<T, H> {
     Encoded(::Compact),
 }
 
-impl<T: CompactPart, H: Serialize + DeserializeOwned> Compact<T, H> {
+impl<T, H> Compact<T, H>
+where
+    T: CompactPart,
+    H: Serialize + DeserializeOwned,
+{
     /// New decoded JWT
     pub fn new_decoded(header: Header<H>, payload: T) -> Self {
         Compact::Decoded {
@@ -205,6 +209,23 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned> Compact<T, H> {
             Compact::Decoded { .. } => panic!("JWS is decoded"),
             Compact::Encoded(encoded) => encoded,
         }
+    }
+}
+
+/// Convenience implementation for a Compact that contains a ClaimsSet
+impl<P, H> Compact<::ClaimsSet<P>, H>
+where
+    ::ClaimsSet<P>: CompactPart,
+    H: Serialize + DeserializeOwned,
+{
+    /// Validate the temporal claims in the decoded token
+    ///
+    /// If `None` is provided for options, the defaults will apply.
+    ///
+    /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
+    /// are required, and they will pass validation if they are missing.
+    pub fn validate_times(&self, options: Option<::TemporalValidationOptions>) -> Result<(), Error> {
+        Ok(self.payload()?.registered.validate_times(options)?)
     }
 }
 

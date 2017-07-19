@@ -288,7 +288,11 @@ pub enum Compact<T, H> {
     Encrypted(::Compact),
 }
 
-impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
+impl<T, H> Compact<T, H>
+where
+    T: CompactPart,
+    H: Serialize + DeserializeOwned + Clone,
+{
     /// Create a new encrypted JWE
     pub fn new_decrypted(header: Header<H>, payload: T) -> Self {
         Compact::Decrypted {
@@ -517,6 +521,23 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned + Clone> Compact<T, H> {
             Compact::Decrypted { .. } => panic!("JWE is decrypted"),
             Compact::Encrypted(compact) => compact,
         }
+    }
+}
+
+/// Convenience implementation for a Compact that contains a ClaimsSet
+impl<P, H> Compact<::ClaimsSet<P>, H>
+where
+    ::ClaimsSet<P>: CompactPart,
+    H: Serialize + DeserializeOwned + Clone,
+{
+    /// Validate the temporal claims in the decoded token
+    ///
+    /// If `None` is provided for options, the defaults will apply.
+    ///
+    /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
+    /// are required, and they will pass validation if they are missing.
+    pub fn validate_times(&self, options: Option<::TemporalValidationOptions>) -> Result<(), Error> {
+        Ok(self.payload()?.registered.validate_times(options)?)
     }
 }
 

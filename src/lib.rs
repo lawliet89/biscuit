@@ -18,7 +18,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.0.6"
+//! biscuit = "0.0.7"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -824,9 +824,12 @@ pub struct RegisteredClaims {
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
 /// Options for claims time validation
+///
 /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
 /// are required, and they will pass validation if they are missing.
+///
 /// Should any temporal claims be needed, set the appropriate fields.
+///
 /// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
 /// `std::time::Duration` to allow time comparisons to fall within the margin.
 pub struct TemporalValidationOptions {
@@ -844,6 +847,11 @@ pub struct TemporalValidationOptions {
 
 impl RegisteredClaims {
     /// Validate the temporal claims in the token
+    ///
+    /// If `None` is provided for options, the defaults will apply.
+    ///
+    /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
+    /// are required, and they will pass validation if they are missing.
     pub fn validate_times(&self, options: Option<TemporalValidationOptions>) -> Result<(), ValidationError> {
         let options = options.unwrap_or_default();
 

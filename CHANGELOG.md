@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.0.7 (2017-07-19)
+
+There are no breaking changes in this release.
+
+Added a convenience `validate_times` function to `jwe::Compact` and `jws::Compact` that allows
+quick temporal validation if their payloads are `ClaimSet`s.
+
 ## Version 0.0.6 (2017-07-05)
 
 This release adds no new features and breaks no API. It simply bumps `ring` to 0.11.
