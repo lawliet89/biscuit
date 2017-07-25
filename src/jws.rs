@@ -322,7 +322,7 @@ impl Secret {
         let mut file = File::open(path)?;
         let metadata = file.metadata()?;
         let mut bytes: Vec<u8> = Vec::with_capacity(metadata.len() as usize);
-        file.read_to_end(&mut bytes)?;
+        let _ = file.read_to_end(&mut bytes)?;
         Ok(bytes)
     }
 
@@ -518,7 +518,7 @@ mod tests {
             }),
             expected_claims.clone(),
         );
-        serde_json::to_string(&biscuit).unwrap();
+        let _ = serde_json::to_string(&biscuit).unwrap();
     }
 
     #[test]
@@ -528,7 +528,7 @@ mod tests {
                        "payload":{"iss":"https://www.acme.com/","sub":"John Doe",
                                      "aud":"htts://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
-        serde_json::from_str::<Compact<PrivateClaims, Empty>>(json).unwrap();
+        let _ = serde_json::from_str::<Compact<PrivateClaims, Empty>>(json).unwrap();
     }
 
     #[test]
@@ -666,7 +666,7 @@ mod tests {
         let signing_secret = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
 
         let token = Compact::<ClaimsSet<serde_json::Value>, ::Empty>::new_encoded(jwt);
-        not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));
+        let _ = not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));
     }
 
     #[test]
@@ -712,7 +712,7 @@ mod tests {
             &Secret::Bytes("secret".to_string().into_bytes()),
             SignatureAlgorithm::HS256,
         );
-        claims.unwrap();
+        let _ = claims.unwrap();
     }
 
     #[test]
@@ -727,7 +727,7 @@ mod tests {
             &Secret::Bytes("secret".to_string().into_bytes()),
             SignatureAlgorithm::HS256,
         );
-        claims.unwrap();
+        let _ = claims.unwrap();
     }
 
     #[test]
@@ -740,7 +740,7 @@ mod tests {
         );
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(&public_key, SignatureAlgorithm::RS256);
-        claims.unwrap();
+        let _ = claims.unwrap();
     }
 
     #[test]
@@ -755,7 +755,7 @@ mod tests {
             &Secret::Bytes("secret".to_string().into_bytes()),
             SignatureAlgorithm::HS256,
         );
-        claims.unwrap();
+        let _ = claims.unwrap();
     }
 
     #[test]

@@ -51,6 +51,61 @@
 #![deny(missing_docs)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
+#![allow(
+    legacy_directory_ownership,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    unknown_lints,
+)]
+
+// TODO
+#![allow(
+    variant_size_differences,
+)]
+
+#![deny(
+    const_err,
+    dead_code,
+    deprecated,
+    exceeding_bitshifts,
+    fat_ptr_transmutes,
+    improper_ctypes,
+    missing_docs,
+    mutable_transmutes,
+    no_mangle_const_items,
+    non_camel_case_types,
+    non_shorthand_field_patterns,
+    non_upper_case_globals,
+    overflowing_literals,
+    path_statements,
+    plugin_as_library,
+    private_no_mangle_fns,
+    private_no_mangle_statics,
+    stable_features,
+    trivial_casts,
+    trivial_numeric_casts,
+    unconditional_recursion,
+    unknown_crate_types,
+    unreachable_code,
+    unused_allocation,
+    unused_assignments,
+    unused_attributes,
+    unused_comparisons,
+    unused_extern_crates,
+    unused_features,
+    unused_imports,
+    unused_import_braces,
+    unused_qualifications,
+    unused_must_use,
+    unused_mut,
+    unused_parens,
+    unused_results,
+    unused_unsafe,
+    unused_variables,
+    warnings,
+    while_true,
+)]
+
 extern crate chrono;
 extern crate data_encoding;
 #[macro_use]
@@ -1048,7 +1103,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "UriParseError")]
     fn string_or_uri_will_fail_invalid_uris_containing_colons() {
-        StringOrUriTest { string: FromStr::from_str("Invalid URI: yes!").unwrap() };
+        let _ = StringOrUriTest { string: FromStr::from_str("Invalid URI: yes!").unwrap() };
     }
 
     #[test]
@@ -1303,7 +1358,7 @@ mod tests {
             },
         };
 
-        serde_json::to_string(&claim).unwrap();
+        let _ = serde_json::to_string(&claim).unwrap();
     }
 
     #[test]
