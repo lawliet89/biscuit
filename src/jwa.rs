@@ -561,8 +561,7 @@ impl ContentEncryptionAlgorithm {
 }
 
 /// Return a psuedo random number generator
-// FIXME: This should not be public
-pub fn rng() -> &'static SystemRandom {
+pub(crate) fn rng() -> &'static SystemRandom {
     use std::ops::Deref;
 
     lazy_static! {
