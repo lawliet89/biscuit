@@ -58,11 +58,6 @@
     unknown_lints,
 )]
 
-// TODO
-#![allow(
-    variant_size_differences,
-)]
-
 #![deny(
     const_err,
     dead_code,
@@ -102,6 +97,7 @@
     unused_results,
     unused_unsafe,
     unused_variables,
+    variant_size_differences,
     warnings,
     while_true,
 )]
@@ -718,6 +714,7 @@ where
 /// # }
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[allow(variant_size_differences)] // FIXME
 pub enum StringOrUri {
     /// A generic string
     String(String),
