@@ -801,7 +801,7 @@ mod tests {
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
 
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A128GCMKW,
@@ -830,7 +830,7 @@ mod tests {
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key));
 
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -844,7 +844,7 @@ mod tests {
     fn decrypt_with_incorrect_length() {
         let key = cek_oct_key(256 / 8);
         let invalid = Compact::<::Empty, ::Empty>::new_encrypted("INVALID");
-        invalid
+        let _ = invalid
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -880,7 +880,7 @@ mod tests {
         compact.parts[0] = not_err!(header.to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -916,7 +916,7 @@ mod tests {
         compact.parts[0] = not_err!(header.to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -950,7 +950,7 @@ mod tests {
         compact.parts[4] = not_err!(vec![0u8; 1].to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -987,7 +987,7 @@ mod tests {
         compact.parts[0] = not_err!(header.to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -1022,7 +1022,7 @@ mod tests {
         compact.parts[1] = not_err!(vec![0u8; 256 / 8].to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -1059,7 +1059,7 @@ mod tests {
         compact.parts[3] = not_err!(vec![0u8; 32].to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
@@ -1096,7 +1096,7 @@ mod tests {
         compact.parts[2] = not_err!(vec![0u8; 96/8].to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
-        encrypted_jwe
+        let _ = encrypted_jwe
             .into_decrypted(
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,

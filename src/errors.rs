@@ -113,13 +113,13 @@ impl error::Error for Error {
         use Error::*;
 
         Some(match *self {
-            JsonError(ref err) => err as &error::Error,
-            DecodeBase64(ref err) => err as &error::Error,
-            Utf8(ref err) => err as &error::Error,
-            ValidationError(ref err) => err as &error::Error,
-            IOError(ref e) => e as &error::Error,
-            UriParseError(ref e) => e as &error::Error,
-            ref e => e as &error::Error,
+            JsonError(ref err) => err,
+            DecodeBase64(ref err) => err,
+            Utf8(ref err) => err,
+            ValidationError(ref err) => err,
+            IOError(ref e) => e,
+            UriParseError(ref e) => e,
+            ref e => e,
         })
     }
 }
@@ -168,7 +168,7 @@ impl error::Error for ValidationError {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        Some(self as &error::Error)
+        Some(self)
     }
 }
 

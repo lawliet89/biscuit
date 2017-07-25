@@ -760,7 +760,7 @@ mod tests {
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        SignatureAlgorithm::ES256
+        let _ = SignatureAlgorithm::ES256
             .sign(payload_bytes, &private_key)
             .unwrap();
     }

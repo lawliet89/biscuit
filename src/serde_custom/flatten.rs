@@ -132,6 +132,8 @@
 //! assert_eq!(deserialized, test_value);
 //! # }
 //! ```
+
+#![allow(unused_macros)]
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -263,6 +265,7 @@ fn pairwise_intersection<T: Hash + Eq + Clone>(sets: &[HashSet<T>]) -> bool {
 // TODO: Procedural macro
 macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        #[allow(unused_qualifications)]
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
             fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
                 vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
@@ -273,6 +276,7 @@ macro_rules! impl_flatten_serialize {
             }
         }
 
+        #[allow(unused_qualifications)]
         impl serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
@@ -293,6 +297,7 @@ macro_rules! impl_flatten_serialize {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize {
     ($t:ty, $( $child:ident ),*) => {
+        #[allow(unused_qualifications)]
         impl<'de> serde::Deserialize<'de> for $t {
             fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where D: serde::Deserializer<'de>
@@ -330,6 +335,7 @@ macro_rules! impl_flatten_serde {
 // TODO: Procedural macro
 macro_rules! impl_flatten_serialize_generic {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
+        #[allow(unused_qualifications)]
         impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
             where T: serde::Serialize
         {
@@ -342,6 +348,7 @@ macro_rules! impl_flatten_serialize_generic {
             }
         }
 
+        #[allow(unused_qualifications)]
         impl<T: serde::Serialize> serde::Serialize for $t {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where S: serde::Serializer
@@ -362,6 +369,7 @@ macro_rules! impl_flatten_serialize_generic {
 // TODO: Procedural macro
 macro_rules! impl_flatten_deserialize_generic {
     ($t:ty, $( $child:ident ),*) => {
+        #[allow(unused_qualifications)]
         impl<'de, T> serde::Deserialize<'de> for $t
             where T: serde::Deserialize<'de>
         {
@@ -531,7 +539,7 @@ mod tests {
     #[should_panic(expected = "Structs have duplicate keys")]
     fn errors_on_duplicate_keys() {
         let test_value = OuterNoDuplicates::default();
-        serde_json::to_string(&test_value).unwrap();
+        let _ = serde_json::to_string(&test_value).unwrap();
     }
 
     #[test]
