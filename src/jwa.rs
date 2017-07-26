@@ -29,7 +29,7 @@ lazy_static! {
         EncryptionOptions::AES_GCM { nonce: vec![0; AES_GCM_NONCE_LENGTH] };
 }
 
-/// A default `None` EncryptionOptions
+/// A default `None` `EncryptionOptions`
 pub(crate) const NONE_ENCRYPTION_OPTIONS: &EncryptionOptions = &EncryptionOptions::None;
 
 /// Options to be passed in while performing an encryption operation, if required by the algorithm.
@@ -693,7 +693,7 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     let mut in_out: Vec<u8> = payload.to_vec();
     in_out.append(&mut vec![0; AES_GCM_TAG_SIZE]);
 
-    let size = aead::seal_in_place(&sealing_key, &nonce, aad, &mut in_out, AES_GCM_TAG_SIZE)?;
+    let size = aead::seal_in_place(&sealing_key, nonce, aad, &mut in_out, AES_GCM_TAG_SIZE)?;
     Ok(EncryptionResult {
         nonce: nonce.to_vec(),
         encrypted: in_out[0..(size - AES_GCM_TAG_SIZE)].to_vec(),

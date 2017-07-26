@@ -595,7 +595,7 @@ where
     }
 }
 
-/// Convenience implementation for a Compact that contains a ClaimsSet
+/// Convenience implementation for a Compact that contains a `ClaimsSet`
 impl<P, H> Compact<::ClaimsSet<P>, H>
 where
     ::ClaimsSet<P>: CompactPart,
