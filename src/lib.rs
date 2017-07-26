@@ -48,8 +48,6 @@
 //! - [CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JOSE](https://tools.ietf.org/html/rfc8037)
 //! - [JWS Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
-#![deny(missing_docs)]
-#![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 #![allow(
     legacy_directory_ownership,
@@ -101,6 +99,8 @@
     warnings,
     while_true,
 )]
+
+#![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
 extern crate data_encoding;

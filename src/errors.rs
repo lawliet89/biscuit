@@ -33,6 +33,14 @@ pub enum Error {
         actual: String,
     },
 
+    /// Wrong variant of `EncryptionOptions` was provided for the encryption operation
+    WrongEncryptionOptions {
+        /// Expected variant of options
+        expected: String,
+        /// Actual variant of options
+        actual: String,
+    },
+
     /// An unknown cryptographic error
     UnspecifiedCryptographicError,
     /// An unsupported or invalid operation
@@ -104,6 +112,9 @@ impl error::Error for Error {
             IOError(ref e) => e.description(),
             UriParseError(ref e) => e.description(),
             WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
+            WrongEncryptionOptions { .. } => {
+                "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
+            }
             UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
             UnsupportedOperation => "This operation is not supported",
         }
@@ -137,6 +148,17 @@ impl fmt::Display for Error {
             IOError(ref err) => fmt::Display::fmt(err, f),
             UriParseError(ref err) => fmt::Display::fmt(err, f),
             WrongKeyType {
+                ref actual,
+                ref expected,
+            } => {
+                write!(
+                    f,
+                    "{} was expected for this cryptographic operation but {} was provided",
+                    expected,
+                    actual
+                )
+            }
+            WrongEncryptionOptions {
                 ref actual,
                 ref expected,
             } => {

@@ -11,7 +11,7 @@ use serde_json;
 
 use {CompactJson, CompactPart, Empty};
 use errors::{Error, ValidationError};
-use jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm, EncryptionResult};
+use jwa::{self, KeyManagementAlgorithm, ContentEncryptionAlgorithm, EncryptionResult, EncryptionOptions};
 use jwk;
 use serde_custom;
 
@@ -306,23 +306,63 @@ where
         Compact::Encrypted(::Compact::decode(token))
     }
 
-    /// Consumes self and encrypt it. If the token is already encrypted,
-    /// this is a no-op.
-    pub fn into_encrypted<K: Serialize + DeserializeOwned>(self, key: &jwk::JWK<K>) -> Result<Self, Error> {
+    /// Consumes self and encrypt it. If the token is already encrypted, this is a no-op.
+    ///
+    /// You will need to provide a `jwa::EncryptionOptions` that will differ based on your chosen
+    /// algorithms.
+    ///
+    /// If your `cek_algorithm` is not `dir` or direct, the options provided will be used to
+    /// encrypt your content encryption key.
+    ///
+    /// If your `cek_algorithm` is `dir` or Direct, then the options will be used to encrypt
+    /// your content directly.
+    pub fn into_encrypted<K: Serialize + DeserializeOwned>(
+        self,
+        key: &jwk::JWK<K>,
+        options: &EncryptionOptions,
+    ) -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => Ok(self),
-            Compact::Decrypted { .. } => self.encrypt(key),
+            Compact::Decrypted { .. } => self.encrypt(key, options),
         }
     }
 
-    /// Encrypt an Decrypted JWE
-    pub fn encrypt<K: Serialize + DeserializeOwned>(&self, key: &jwk::JWK<K>) -> Result<Self, Error> {
+    /// Encrypt an Decrypted JWE.
+    ///
+    /// You will need to provide a `jwa::EncryptionOptions` that will differ based on your chosen
+    /// algorithms.
+    ///
+    /// If your `cek_algorithm` is not `dir` or direct, the options provided will be used to
+    /// encrypt your content encryption key.
+    ///
+    /// If your `cek_algorithm` is `dir` or Direct, then the options will be used to encrypt
+    /// your content directly.
+    pub fn encrypt<K: Serialize + DeserializeOwned>(
+        &self,
+        key: &jwk::JWK<K>,
+        options: &EncryptionOptions,
+    ) -> Result<Self, Error> {
         match *self {
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
             Compact::Decrypted {
                 ref header,
                 ref payload,
             } => {
+                use std::borrow::Cow;
+
+                // Resolve encryption option
+                let (key_option, content_option): (_, Cow<_>) = match header.registered.cek_algorithm {
+                    KeyManagementAlgorithm::DirectSymmetricKey => {
+                        (jwa::NONE_ENCRYPTION_OPTIONS, Cow::Borrowed(options))
+                    }
+                    _ => {
+                        (
+                            options,
+                            Cow::Owned(header.registered.enc_algorithm.random_encryption_options()?),
+                        )
+                    }
+                };
+
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
                 let cek = header.registered.cek_algorithm.cek(
@@ -334,6 +374,7 @@ where
                 let encrypted_cek = header.registered.cek_algorithm.encrypt(
                     cek.algorithm.octect_key()?,
                     key,
+                    key_option,
                 )?;
                 // Update header
                 let mut header = header.clone();
@@ -355,6 +396,7 @@ where
                     &payload,
                     &header.to_bytes()?,
                     &cek,
+                    &content_option,
                 )?;
 
                 // Finally create the JWE
