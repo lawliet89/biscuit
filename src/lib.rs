@@ -48,8 +48,6 @@
 //! - [CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JOSE](https://tools.ietf.org/html/rfc8037)
 //! - [JWS Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
-#![deny(missing_docs)]
-#![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 #![allow(
     legacy_directory_ownership,
@@ -101,6 +99,8 @@
     warnings,
     while_true,
 )]
+
+#![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
 extern crate data_encoding;
@@ -236,20 +236,20 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// # Examples
 /// ## Sign with HS256, then encrypt with A256GCMKW and A256GCM
 ///
-/// ```
+/// ```rust
 /// extern crate biscuit;
+/// extern crate num;
 /// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 ///
 /// use std::str::FromStr;
 /// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
-/// use biscuit::jwk::{JWK};
+/// use biscuit::jwk::JWK;
 /// use biscuit::jws::{self, Secret};
 /// use biscuit::jwe;
-/// use biscuit::jwa::{SignatureAlgorithm, KeyManagementAlgorithm, ContentEncryptionAlgorithm};
-///
-/// # fn main() {
+/// use biscuit::jwa::{EncryptionOptions, SignatureAlgorithm, KeyManagementAlgorithm,
+///                    ContentEncryptionAlgorithm};
 ///
 /// // Define our own private claims
 /// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -258,13 +258,16 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 ///     department: String,
 /// }
 ///
+/// #[allow(unused_assignments)]
+/// # fn main() {
 /// // Craft our JWS
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
 ///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
 ///         subject: Some(FromStr::from_str("John Doe").unwrap()),
-///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///         audience: Some(SingleOrMultiple::Single(
+///             FromStr::from_str("htts://acme-customer.com").unwrap(),
+///         )),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -274,33 +277,48 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 ///     },
 /// };
 ///
-/// let expected_jwt = JWT::new_decoded(From::from(
-///                                         jws::RegisteredHeader {
-///                                             algorithm: SignatureAlgorithm::HS256,
-///                                             ..Default::default()
-///                                         }),
-///                                     expected_claims.clone());
+/// let expected_jwt = JWT::new_decoded(
+///     From::from(jws::RegisteredHeader {
+///         algorithm: SignatureAlgorithm::HS256,
+///         ..Default::default()
+///     }),
+///     expected_claims.clone(),
+/// );
 ///
 /// let jws = expected_jwt
-///     .into_encoded(&Secret::Bytes("secret".to_string().into_bytes())).unwrap();
+///     .into_encoded(&Secret::Bytes("secret".to_string().into_bytes()))
+///     .unwrap();
 ///
 /// // Encrypt the token
 ///
 /// // You would usually have your own AES key for this, but we will use a zeroed key as an example
-/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256/8], Default::default());
+/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256 / 8], Default::default());
+///
+/// // We need to create an `EncryptionOptions` with a nonce for AES GCM encryption.
+/// // You must take care NOT to reuse the nonce. You can simply treat the nonce as a 96 bit
+/// // counter that is incremented after every use
+/// let mut nonce_counter = num::BigUint::from_bytes_le(&vec![0; 96 / 8]);
+/// // Make sure it's no more than 96 bits!
+/// assert!(nonce_counter.bits() <= 96);
+/// let mut nonce_bytes = nonce_counter.to_bytes_le();
+/// // We need to ensure it is exactly 96 bits
+/// nonce_bytes.resize(96 / 8, 0);
+/// let options = EncryptionOptions::AES_GCM { nonce: nonce_bytes };
 ///
 /// // Construct the JWE
-/// let jwe = JWE::new_decrypted(From::from(jwe::RegisteredHeader {
-///                                                 cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-///                                                 enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-///                                                 media_type: Some("JOSE".to_string()),
-///                                                 content_type: Some("JOSE".to_string()),
-///                                                 ..Default::default()
-///                                             }),
-///                              jws.clone());
+/// let jwe = JWE::new_decrypted(
+///     From::from(jwe::RegisteredHeader {
+///         cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+///         enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+///         media_type: Some("JOSE".to_string()),
+///         content_type: Some("JOSE".to_string()),
+///         ..Default::default()
+///     }),
+///     jws.clone(),
+/// );
 ///
 /// // Encrypt
-/// let encrypted_jwe = jwe.encrypt(&key).unwrap();
+/// let encrypted_jwe = jwe.encrypt(&key, &options).unwrap();
 ///
 /// let token = encrypted_jwe.unwrap_encrypted().to_string();
 ///
@@ -310,14 +328,21 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// let token: JWE<PrivateClaims, ::Empty, ::Empty> = JWE::new_encrypted(&token);
 ///
 /// // Decrypt
-/// let decrypted_jwe = token.into_decrypted(&key,
-///                                          KeyManagementAlgorithm::A256GCMKW,
-///                                          ContentEncryptionAlgorithm::A256GCM)
-///                           .unwrap();
+/// let decrypted_jwe = token
+///     .into_decrypted(
+///         &key,
+///         KeyManagementAlgorithm::A256GCMKW,
+///         ContentEncryptionAlgorithm::A256GCM,
+///     )
+///     .unwrap();
 ///
 /// let decrypted_jws = decrypted_jwe.payload().unwrap();
 /// assert_eq!(jws, *decrypted_jws);
+///
+/// // Don't forget to increment the nonce!
+/// nonce_counter = nonce_counter + 1u8;
 /// # }
+/// ```
 pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
 
 /// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type

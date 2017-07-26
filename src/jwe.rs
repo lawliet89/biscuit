@@ -11,7 +11,7 @@ use serde_json;
 
 use {CompactJson, CompactPart, Empty};
 use errors::{Error, ValidationError};
-use jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm, EncryptionResult};
+use jwa::{self, KeyManagementAlgorithm, ContentEncryptionAlgorithm, EncryptionResult, EncryptionOptions};
 use jwk;
 use serde_custom;
 
@@ -229,6 +229,14 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// Compact representation of a JWE, or an encrypted JWT
 ///
 /// This representation contains a payload of type `T` with custom headers provided by type `H`.
+/// In general you should use a JWE with a JWS. That is, you should sign your JSON Web Token to
+/// create a JWS, and then encrypt the signed JWS.
+///
+/// # Nonce/Initialization Vectors for AES GCM encryption
+///
+/// When encrypting tokens with AES GCM, you must take care _not to reuse_ the nonce for the same
+/// key. You can keep track of this by simply treating the nonce as a 96 bit counter and
+/// incrementing it every time you encrypt something new.
 ///
 /// # Examples
 /// ## Encrypting a JWS/JWT
@@ -237,40 +245,61 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// ## Encrypting a string payload with A256GCMKW and A256GCM
 /// ```
 /// extern crate biscuit;
+/// extern crate num;
 ///
 /// use std::str;
 /// use biscuit::Empty;
-/// use biscuit::jwk::{JWK};
+/// use biscuit::jwk::JWK;
 /// use biscuit::jwe;
-/// use biscuit::jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm};
+/// use biscuit::jwa::{EncryptionOptions, KeyManagementAlgorithm, ContentEncryptionAlgorithm};
 ///
+/// # #[allow(unused_assignments)]
 /// # fn main() {
-///
 /// let payload = "The true sign of intelligence is not knowledge but imagination.";
 /// // You would usually have your own AES key for this, but we will use a zeroed key as an example
-/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256/8], Default::default());
+/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256 / 8], Default::default());
 ///
 /// // Construct the JWE
-/// let jwe = jwe::Compact::new_decrypted(From::from(jwe::RegisteredHeader {
-///                                                 cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
-///                                                 enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
-///                                                 ..Default::default()
-///                                             }),
-///                                       payload.as_bytes().to_vec());
+/// let jwe = jwe::Compact::new_decrypted(
+///     From::from(jwe::RegisteredHeader {
+///         cek_algorithm: KeyManagementAlgorithm::A256GCMKW,
+///         enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+///         ..Default::default()
+///     }),
+///     payload.as_bytes().to_vec(),
+/// );
+///
+/// // We need to create an `EncryptionOptions` with a nonce for AES GCM encryption.
+/// // You must take care NOT to reuse the nonce. You can simply treat the nonce as a 96 bit
+/// // counter that is incremented after every use
+/// let mut nonce_counter = num::BigUint::from_bytes_le(&vec![0; 96 / 8]);
+/// // Make sure it's no more than 96 bits!
+/// assert!(nonce_counter.bits() <= 96);
+/// let mut nonce_bytes = nonce_counter.to_bytes_le();
+/// // We need to ensure it is exactly 96 bits
+/// nonce_bytes.resize(96/8, 0);
+/// let options = EncryptionOptions::AES_GCM { nonce: nonce_bytes };
 ///
 /// // Encrypt
-/// let encrypted_jwe = jwe.encrypt(&key).unwrap();
+/// let encrypted_jwe = jwe.encrypt(&key, &options).unwrap();
 ///
 /// // Decrypt
-/// let decrypted_jwe = encrypted_jwe.decrypt(&key,
-///                                           KeyManagementAlgorithm::A256GCMKW,
-///                                           ContentEncryptionAlgorithm::A256GCM)
-///                                   .unwrap();
+/// let decrypted_jwe = encrypted_jwe
+///     .decrypt(
+///         &key,
+///         KeyManagementAlgorithm::A256GCMKW,
+///         ContentEncryptionAlgorithm::A256GCM,
+///     )
+///     .unwrap();
 ///
 /// let decrypted_payload: &Vec<u8> = decrypted_jwe.payload().unwrap();
 /// let decrypted_str = str::from_utf8(&*decrypted_payload).unwrap();
 /// assert_eq!(decrypted_str, payload);
+///
+/// // Don't forget to increment the nonce!
+/// nonce_counter = nonce_counter + 1u8;
 /// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Compact<T, H> {
@@ -306,23 +335,63 @@ where
         Compact::Encrypted(::Compact::decode(token))
     }
 
-    /// Consumes self and encrypt it. If the token is already encrypted,
-    /// this is a no-op.
-    pub fn into_encrypted<K: Serialize + DeserializeOwned>(self, key: &jwk::JWK<K>) -> Result<Self, Error> {
+    /// Consumes self and encrypt it. If the token is already encrypted, this is a no-op.
+    ///
+    /// You will need to provide a `jwa::EncryptionOptions` that will differ based on your chosen
+    /// algorithms.
+    ///
+    /// If your `cek_algorithm` is not `dir` or direct, the options provided will be used to
+    /// encrypt your content encryption key.
+    ///
+    /// If your `cek_algorithm` is `dir` or Direct, then the options will be used to encrypt
+    /// your content directly.
+    pub fn into_encrypted<K: Serialize + DeserializeOwned>(
+        self,
+        key: &jwk::JWK<K>,
+        options: &EncryptionOptions,
+    ) -> Result<Self, Error> {
         match self {
             Compact::Encrypted(_) => Ok(self),
-            Compact::Decrypted { .. } => self.encrypt(key),
+            Compact::Decrypted { .. } => self.encrypt(key, options),
         }
     }
 
-    /// Encrypt an Decrypted JWE
-    pub fn encrypt<K: Serialize + DeserializeOwned>(&self, key: &jwk::JWK<K>) -> Result<Self, Error> {
+    /// Encrypt an Decrypted JWE.
+    ///
+    /// You will need to provide a `jwa::EncryptionOptions` that will differ based on your chosen
+    /// algorithms.
+    ///
+    /// If your `cek_algorithm` is not `dir` or direct, the options provided will be used to
+    /// encrypt your content encryption key.
+    ///
+    /// If your `cek_algorithm` is `dir` or Direct, then the options will be used to encrypt
+    /// your content directly.
+    pub fn encrypt<K: Serialize + DeserializeOwned>(
+        &self,
+        key: &jwk::JWK<K>,
+        options: &EncryptionOptions,
+    ) -> Result<Self, Error> {
         match *self {
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
             Compact::Decrypted {
                 ref header,
                 ref payload,
             } => {
+                use std::borrow::Cow;
+
+                // Resolve encryption option
+                let (key_option, content_option): (_, Cow<_>) = match header.registered.cek_algorithm {
+                    KeyManagementAlgorithm::DirectSymmetricKey => {
+                        (jwa::NONE_ENCRYPTION_OPTIONS, Cow::Borrowed(options))
+                    }
+                    _ => {
+                        (
+                            options,
+                            Cow::Owned(header.registered.enc_algorithm.random_encryption_options()?),
+                        )
+                    }
+                };
+
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
                 let cek = header.registered.cek_algorithm.cek(
@@ -334,6 +403,7 @@ where
                 let encrypted_cek = header.registered.cek_algorithm.encrypt(
                     cek.algorithm.octect_key()?,
                     key,
+                    key_option,
                 )?;
                 // Update header
                 let mut header = header.clone();
@@ -355,6 +425,7 @@ where
                     &payload,
                     &header.to_bytes()?,
                     &cek,
+                    &content_option,
                 )?;
 
                 // Finally create the JWE
@@ -524,7 +595,7 @@ where
     }
 }
 
-/// Convenience implementation for a Compact that contains a ClaimsSet
+/// Convenience implementation for a Compact that contains a `ClaimsSet`
 impl<P, H> Compact<::ClaimsSet<P>, H>
 where
     ::ClaimsSet<P>: CompactPart,
@@ -550,7 +621,7 @@ mod tests {
 
     use JWE;
     use super::*;
-    use jwa::{self, rng};
+    use jwa::{self, rng, random_aes_gcm_nonce};
     use jws;
     use test::assert_serde_json;
 
@@ -688,9 +759,10 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         {
             // Check that new header values are added
@@ -754,9 +826,10 @@ mod tests {
             }),
             jws.clone(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         {
             // Check that new header values are added
@@ -797,9 +870,10 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         let _ = encrypted_jwe
             .into_decrypted(
@@ -827,8 +901,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         let _ = encrypted_jwe
             .into_decrypted(
@@ -870,8 +945,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -906,8 +982,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -942,8 +1019,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -976,9 +1054,10 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -1014,8 +1093,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -1048,9 +1128,10 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
@@ -1085,9 +1166,10 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
 
         // Encrypt
-        let encrypted_jwe = not_err!(jwe.encrypt(&key));
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();

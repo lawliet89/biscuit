@@ -3,6 +3,8 @@
 //! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518).
 //!
 //! Typically, you will not use these directly, but as part of a JWS or JWE.
+use std::fmt;
+
 use ring::{aead, digest, hmac, rand, signature};
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
@@ -17,9 +19,36 @@ use jws::Secret;
 pub use ring::rand::SecureRandom;
 
 /// AES GCM Tag Size, in bytes
-const TAG_SIZE: usize = 128 / 8;
+const AES_GCM_TAG_SIZE: usize = 128 / 8;
 /// AES GCM Nonce length, in bytes
-const NONCE_LENGTH: usize = 96 / 8;
+const AES_GCM_NONCE_LENGTH: usize = 96 / 8;
+
+/// A zeroed AES GCM Nonce EncryptionOptions
+lazy_static! {
+    static ref AES_GCM_ZEROED_NONCE: EncryptionOptions =
+        EncryptionOptions::AES_GCM { nonce: vec![0; AES_GCM_NONCE_LENGTH] };
+}
+
+/// A default `None` `EncryptionOptions`
+pub(crate) const NONE_ENCRYPTION_OPTIONS: &EncryptionOptions = &EncryptionOptions::None;
+
+/// Options to be passed in while performing an encryption operation, if required by the algorithm.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(non_camel_case_types)]
+pub enum EncryptionOptions {
+    /// No options are required. Most algorithms do not require additional parameters
+    None,
+    /// Options for AES GCM encryption.
+    AES_GCM {
+        /// Initialization vector, or nonce for the AES GCM encryption. _MUST BE_ 96 bits long.
+        ///
+        /// AES GCM encryption operations should not reuse the nonce, or initialization vector.
+        /// Users should keep track of previously used
+        /// nonces and not reuse them. A simple way to keep track is to simply increment the nonce
+        /// as a 96 bit counter.
+        nonce: Vec<u8>,
+    },
+}
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 /// Algorithms described by [RFC 7518](https://tools.ietf.org/html/rfc7518).
@@ -181,6 +210,12 @@ pub struct EncryptionResult {
     pub additional_data: Vec<u8>,
 }
 
+impl Default for EncryptionOptions {
+    fn default() -> Self {
+        EncryptionOptions::None
+    }
+}
+
 impl Default for SignatureAlgorithm {
     fn default() -> Self {
         SignatureAlgorithm::HS256
@@ -196,6 +231,22 @@ impl Default for KeyManagementAlgorithm {
 impl Default for ContentEncryptionAlgorithm {
     fn default() -> Self {
         ContentEncryptionAlgorithm::A128GCM
+    }
+}
+
+impl EncryptionOptions {
+    /// Description of the type of key
+    pub fn description(&self) -> &'static str {
+        match *self {
+            EncryptionOptions::None => "None",
+            EncryptionOptions::AES_GCM { .. } => "AES GCM Nonce/Initialization Vector",
+        }
+    }
+}
+
+impl fmt::Display for EncryptionOptions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.description())
     }
 }
 
@@ -411,12 +462,23 @@ impl KeyManagementAlgorithm {
         &self,
         payload: &[u8],
         key: &jwk::JWK<T>,
+        options: &EncryptionOptions,
     ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
-            A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key),
-            DirectSymmetricKey => Ok(Default::default()),
+            A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key, options),
+            DirectSymmetricKey => {
+                match *options {
+                    EncryptionOptions::None => Ok(Default::default()),
+                    ref other => {
+                        Err(unexpected_encryption_options_error!(
+                            EncryptionOptions::None,
+                            other
+                        ))
+                    }
+                }
+            }
             _ => Err(Error::UnsupportedOperation),
         }
     }
@@ -441,6 +503,7 @@ impl KeyManagementAlgorithm {
         &self,
         payload: &[u8],
         key: &jwk::JWK<T>,
+        options: &EncryptionOptions,
     ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
@@ -449,7 +512,19 @@ impl KeyManagementAlgorithm {
             A256GCMKW => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };
-        aes_gcm_encrypt(algorithm, payload, &[], key)
+
+        let nonce = match *options {
+            EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
+            ref others => {
+                Err(unexpected_encryption_options_error!(
+                    AES_GCM_ZEROED_NONCE,
+                    others
+                ))
+            }
+        }?;
+        // FIXME: Should we check the nonce length here or leave it to ring?
+
+        aes_gcm_encrypt(algorithm, payload, nonce.as_slice(), &[], key)
     }
 
     fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
@@ -504,11 +579,12 @@ impl ContentEncryptionAlgorithm {
         payload: &[u8],
         aad: &[u8],
         key: &jwk::JWK<T>,
+        options: &EncryptionOptions,
     ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         match *self {
-            A128GCM | A192GCM | A256GCM => self.aes_gcm_encrypt(payload, aad, key),
+            A128GCM | A192GCM | A256GCM => self.aes_gcm_encrypt(payload, aad, key, options),
             _ => Err(Error::UnsupportedOperation),
         }
 
@@ -528,11 +604,25 @@ impl ContentEncryptionAlgorithm {
         }
     }
 
+    /// Generate a new random `EncryptionOptions` based on the algorithm
+    pub(crate) fn random_encryption_options(&self) -> Result<EncryptionOptions, Error> {
+        use self::ContentEncryptionAlgorithm::*;
+        match *self {
+            A128GCM | A192GCM | A256GCM => {
+                Ok(EncryptionOptions::AES_GCM {
+                    nonce: random_aes_gcm_nonce()?,
+                })
+            }
+            _ => Err(Error::UnsupportedOperation),
+        }
+    }
+
     fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
         &self,
         payload: &[u8],
         aad: &[u8],
         key: &jwk::JWK<T>,
+        options: &EncryptionOptions,
     ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
@@ -541,7 +631,19 @@ impl ContentEncryptionAlgorithm {
             A256GCM => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
         };
-        aes_gcm_encrypt(algorithm, payload, aad, key)
+
+        let nonce = match *options {
+            EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
+            ref others => {
+                Err(unexpected_encryption_options_error!(
+                    AES_GCM_ZEROED_NONCE,
+                    others
+                ))
+            }
+        }?;
+        // FIXME: Should we check the nonce length here or leave it to ring?
+
+        aes_gcm_encrypt(algorithm, payload, nonce.as_slice(), aad, key)
     }
 
     fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
@@ -575,29 +677,27 @@ pub(crate) fn rng() -> &'static SystemRandom {
 fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     algorithm: &'static aead::Algorithm,
     payload: &[u8],
+    nonce: &[u8],
     aad: &[u8],
     key: &jwk::JWK<T>,
 ) -> Result<EncryptionResult, Error> {
 
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
-    assert_eq!(algorithm.tag_len(), TAG_SIZE);
+    assert_eq!(algorithm.tag_len(), AES_GCM_TAG_SIZE);
     // Also the nonce (or initialization vector) needs to be 96 bits
-    assert_eq!(algorithm.nonce_len(), NONCE_LENGTH);
+    assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
     let key = key.algorithm.octect_key()?;
     let sealing_key = aead::SealingKey::new(algorithm, key)?;
 
     let mut in_out: Vec<u8> = payload.to_vec();
-    in_out.append(&mut vec![0; TAG_SIZE]);
+    in_out.append(&mut vec![0; AES_GCM_TAG_SIZE]);
 
-    let mut nonce: Vec<u8> = vec![0; NONCE_LENGTH];
-    rng().fill(&mut nonce)?;
-
-    let size = aead::seal_in_place(&sealing_key, &nonce, aad, &mut in_out, TAG_SIZE)?;
+    let size = aead::seal_in_place(&sealing_key, nonce, aad, &mut in_out, AES_GCM_TAG_SIZE)?;
     Ok(EncryptionResult {
-        nonce: nonce,
-        encrypted: in_out[0..(size - TAG_SIZE)].to_vec(),
-        tag: in_out[(size - TAG_SIZE)..size].to_vec(),
+        nonce: nonce.to_vec(),
+        encrypted: in_out[0..(size - AES_GCM_TAG_SIZE)].to_vec(),
+        tag: in_out[(size - AES_GCM_TAG_SIZE)..size].to_vec(),
         additional_data: aad.to_vec(),
     })
 }
@@ -609,9 +709,9 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
     key: &jwk::JWK<T>,
 ) -> Result<Vec<u8>, Error> {
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
-    assert_eq!(algorithm.tag_len(), TAG_SIZE);
+    assert_eq!(algorithm.tag_len(), AES_GCM_TAG_SIZE);
     // Also the nonce (or initialization vector) needs to be 96 bits
-    assert_eq!(algorithm.nonce_len(), NONCE_LENGTH);
+    assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
     let key = key.algorithm.octect_key()?;
     let opening_key = aead::OpeningKey::new(algorithm, key)?;
@@ -627,6 +727,12 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
         &mut in_out,
     )?;
     Ok(plaintext.to_vec())
+}
+
+pub(crate) fn random_aes_gcm_nonce() -> Result<Vec<u8>, Error> {
+    let mut nonce: Vec<u8> = vec![0; AES_GCM_NONCE_LENGTH];
+    rng().fill(&mut nonce)?;
+    Ok(nonce)
 }
 
 #[cfg(test)]
@@ -907,6 +1013,7 @@ mod tests {
         let encrypted = not_err!(aes_gcm_encrypt(
             &aead::AES_128_GCM,
             PAYLOAD.as_bytes(),
+            &random_aes_gcm_nonce().unwrap(),
             &vec![],
             &key,
         ));
@@ -934,6 +1041,7 @@ mod tests {
         let encrypted = not_err!(aes_gcm_encrypt(
             &aead::AES_256_GCM,
             PAYLOAD.as_bytes(),
+            &random_aes_gcm_nonce().unwrap(),
             &vec![],
             &key,
         ));
@@ -1028,11 +1136,13 @@ mod tests {
             },
         };
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
+        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
         assert!(
@@ -1057,11 +1167,13 @@ mod tests {
             },
         };
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key));
+        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
 
         assert!(
@@ -1102,10 +1214,17 @@ mod tests {
             },
         };
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key));
+        let encrypted_payload = not_err!(enc_alg.encrypt(
+            payload.as_bytes(),
+            aad.as_bytes(),
+            &key,
+            &options,
+        ));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
@@ -1125,10 +1244,17 @@ mod tests {
             },
         };
 
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key));
+        let encrypted_payload = not_err!(enc_alg.encrypt(
+            payload.as_bytes(),
+            aad.as_bytes(),
+            &key,
+            &options,
+        ));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
