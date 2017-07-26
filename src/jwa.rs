@@ -40,12 +40,12 @@ pub enum EncryptionOptions {
     None,
     /// Options for AES GCM encryption.
     AES_GCM {
-        /// Initialization vector, or nonce for the AES GCM encryption.
+        /// Initialization vector, or nonce for the AES GCM encryption. _MUST BE_ 96 bits long.
         ///
         /// AES GCM encryption operations should not reuse the nonce, or initialization vector.
         /// Users should keep track of previously used
         /// nonces and not reuse them. A simple way to keep track is to simply increment the nonce
-        /// as a counter.
+        /// as a 96 bit counter.
         nonce: Vec<u8>,
     },
 }
