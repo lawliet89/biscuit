@@ -400,7 +400,7 @@ where
                         .enc_algorithm,
                     key,
                 )?;
-                let encrypted_cek = header.registered.cek_algorithm.encrypt(
+                let encrypted_cek = header.registered.cek_algorithm.wrap_key(
                     cek.algorithm.octect_key()?,
                     key,
                     key_option,
@@ -490,7 +490,7 @@ where
 
                 // Steps 6-13 involve the computation of the cek
                 let cek_encryption_result = header.extract_cek_encryption_result(&encrypted_cek);
-                let cek = header.registered.cek_algorithm.decrypt(
+                let cek = header.registered.cek_algorithm.unwrap_key(
                     &cek_encryption_result,
                     header
                         .registered

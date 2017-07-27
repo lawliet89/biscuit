@@ -417,7 +417,11 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    /// Retrieve the Content Encryption Key (CEK) based on the algorithm for encryption
+    /// Return the Content Encryption Key (CEK) based on the key management algorithm
+    ///
+    /// If the algorithm is `dir` or `DirectSymmetricKey`, the key provided is the CEK.
+    /// Otherwise, the appropriate algorithm will be used to derive or generate the required CEK
+    /// using the provided key.
     pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
@@ -457,8 +461,8 @@ impl KeyManagementAlgorithm {
         })
     }
 
-    /// Encrypt or wrap a key with the provided algorithm
-    pub fn encrypt<T: Serialize + DeserializeOwned>(
+    /// Encrypt or wrap a Content Encryption Key with the provided algorithm
+    pub fn wrap_key<T: Serialize + DeserializeOwned>(
         &self,
         payload: &[u8],
         key: &jwk::JWK<T>,
@@ -484,7 +488,7 @@ impl KeyManagementAlgorithm {
     }
 
     /// Decrypt or unwrap a CEK with the provided algorithm
-    pub fn decrypt<T: Serialize + DeserializeOwned>(
+    pub fn unwrap_key<T: Serialize + DeserializeOwned>(
         &self,
         encrypted: &EncryptionResult,
         content_alg: ContentEncryptionAlgorithm,
@@ -1142,8 +1146,8 @@ mod tests {
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key, &options));
-        let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
+        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
+        let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
         assert!(
             verify_slices_are_equal(
@@ -1173,8 +1177,8 @@ mod tests {
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.encrypt(cek.octect_key().unwrap(), &key, &options));
-        let decrypted_cek = not_err!(cek_alg.decrypt(&encrypted_cek, enc_alg, &key));
+        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
+        let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
         assert!(
             verify_slices_are_equal(
