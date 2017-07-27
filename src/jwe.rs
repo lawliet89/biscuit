@@ -770,6 +770,10 @@ mod tests {
             let header: Header<::Empty> = not_err!(compact.part(0));
             assert!(header.cek_algorithm.nonce.is_some());
             assert!(header.cek_algorithm.tag.is_some());
+
+            // Check that the encrypted key part is not empty
+            let cek: Vec<u8> = not_err!(compact.part(1));
+            assert_eq!(256/8, cek.len());
         }
 
         // Serde test
@@ -837,6 +841,10 @@ mod tests {
             let header: Header<::Empty> = not_err!(compact.part(0));
             assert!(header.cek_algorithm.nonce.is_some());
             assert!(header.cek_algorithm.tag.is_some());
+
+            // Check that the encrypted key part is not empty
+            let cek: Vec<u8> = not_err!(compact.part(1));
+            assert_eq!(256/8, cek.len());
         }
 
         // Serde test
@@ -847,6 +855,76 @@ mod tests {
         // Decrypt
         let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
                                                            KeyManagementAlgorithm::A256GCMKW,
+                                                           ContentEncryptionAlgorithm::A256GCM));
+        assert_eq!(jwe, decrypted_jwe);
+
+        let decrypted_jws = not_err!(decrypted_jwe.payload());
+        assert_eq!(jws, *decrypted_jws);
+    }
+
+    #[test]
+    fn jwe_dir_aes256gcm_jws_round_trip() {
+        // Construct the JWS
+        let claims = ::ClaimsSet::<::Empty> {
+            registered: ::RegisteredClaims {
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(::SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: Default::default(),
+        };
+        let jws = jws::Compact::new_decoded(
+            From::from(jws::RegisteredHeader {
+                algorithm: jwa::SignatureAlgorithm::HS256,
+                ..Default::default()
+            }),
+            claims.clone(),
+        );
+        let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
+
+        // Construct the encryption key
+        let key = cek_oct_key(256 / 8);
+
+        // Construct the JWE
+        let jwe = Compact::new_decrypted(
+            From::from(RegisteredHeader {
+                cek_algorithm: KeyManagementAlgorithm::DirectSymmetricKey,
+                enc_algorithm: ContentEncryptionAlgorithm::A256GCM,
+                media_type: Some("JOSE".to_string()),
+                content_type: Some("JOSE".to_string()),
+                ..Default::default()
+            }),
+            jws.clone(),
+        );
+        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+
+        // Encrypt
+        let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
+
+        {
+            let compact = not_err!(encrypted_jwe.encrypted());
+            // Check that new header values are empty
+            let header: Header<::Empty> = not_err!(compact.part(0));
+            assert!(header.cek_algorithm.nonce.is_none());
+            assert!(header.cek_algorithm.tag.is_none());
+
+            // Check that the encrypted key part is empty
+            let cek: Vec<u8> = not_err!(compact.part(1));
+            assert!(cek.is_empty());
+        }
+
+        // Serde test
+        let json = not_err!(serde_json::to_string(&encrypted_jwe));
+        let deserialized_json: JWE<::Empty, ::Empty, ::Empty> = not_err!(serde_json::from_str(&json));
+        assert_eq!(deserialized_json, encrypted_jwe);
+
+        // Decrypt
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
+                                                           KeyManagementAlgorithm::DirectSymmetricKey,
                                                            ContentEncryptionAlgorithm::A256GCM));
         assert_eq!(jwe, decrypted_jwe);
 
