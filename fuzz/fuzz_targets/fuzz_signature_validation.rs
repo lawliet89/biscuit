@@ -4,7 +4,6 @@ extern crate libfuzzer_sys;
 extern crate biscuit;
 extern crate serde_json;
 
-use std::str::FromStr;
 use biscuit::*;
 use biscuit::jws::*;
 use biscuit::jwa::*;
