@@ -1,3 +1,7 @@
 target
-corpus
+corpus/**/*
+!corpus/fuzz_decryption/
+!corpus/fuzz_decryption/valid_token
+!corpus/fuzz_signature_validation/
+!corpus/fuzz_signature_validation/valid_token
 artifacts
