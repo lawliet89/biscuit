@@ -121,14 +121,9 @@ where
                 let signature: Vec<u8> = encoded.part(2)?;
                 let payload = &encoded.parts[0..2].join(".").to_string();
 
-                if !algorithm.verify(
-                    signature.as_ref(),
-                    payload.as_ref(),
-                    secret,
-                )?
-                {
-                    Err(ValidationError::InvalidSignature)?;
-                }
+                algorithm
+                    .verify(signature.as_ref(), payload.as_ref(), secret)
+                    .map_err(|_| ValidationError::InvalidSignature)?;
 
                 let header: Header<H> = encoded.part(0)?;
                 if header.registered.algorithm != algorithm {
