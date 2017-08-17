@@ -745,8 +745,8 @@ mod tests {
     fn compact_jws_decode_token_invalid_signature_hs256() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded(
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                                                                    eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                                    pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+             eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+             pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
         );
         let claims = token.decode(
             &Secret::Bytes("secret".to_string().into_bytes()),
@@ -760,8 +760,8 @@ mod tests {
     fn compact_jws_decode_token_invalid_signature_rs256() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded(
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+             eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+             pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
         );
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let claims = token.decode(&public_key, SignatureAlgorithm::RS256);
@@ -773,8 +773,8 @@ mod tests {
     fn compact_jws_decode_token_wrong_algorithm() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded(
             "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.\
-                                                       eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
-                                                       pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
+             eyJzdWIiOiJiQGIuY29tIiwiY29tcGFueSI6IkFDTUUifQ.\
+             pKscJVk7-aHxfmQKlaZxh5uhuKhGMAa-1F5IX5mfUwI",
         );
         let claims = token.decode(
             &Secret::Bytes("secret".to_string().into_bytes()),
