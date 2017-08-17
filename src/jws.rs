@@ -209,7 +209,7 @@ where
     /// Without decoding and verifying the JWS, retrieve a copy of the header.
     ///
     /// ## Warning
-    /// Use this at your own risk. It is not advisable to trust unverified content
+    /// Use this at your own risk. It is not advisable to trust unverified content.
     pub fn unverified_header(&self) -> Result<Header<H>, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
@@ -220,7 +220,7 @@ where
     /// Without decoding and verifying the JWS, retrieve a copy of the payload.
     ///
     /// ## Warning
-    /// Use this at your own risk. It is not advisable to trust unverified content
+    /// Use this at your own risk. It is not advisable to trust unverified content.
     pub fn unverified_payload(&self) -> Result<T, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
@@ -834,22 +834,6 @@ mod tests {
         let decoded: RegisteredHeader = not_err!(serde_json::from_str(&encoded));
         assert_eq!(decoded, expected);
     }
-
-    // let expected_claims = ClaimsSet::<PrivateClaims> {
-    //     registered: RegisteredClaims {
-    //         issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-    //         subject: Some(not_err!(FromStr::from_str("John Doe"))),
-    //         audience: Some(SingleOrMultiple::Single(
-    //             not_err!(FromStr::from_str("htts://acme-customer.com")),
-    //         )),
-    //         not_before: Some(1234.into()),
-    //         ..Default::default()
-    //     },
-    //     private: PrivateClaims {
-    //         department: "Toilet Cleaning".to_string(),
-    //         company: "ACME".to_string(),
-    //     },
-    // };
 
     #[test]
     fn unverified_header_is_returned_correctly() {
