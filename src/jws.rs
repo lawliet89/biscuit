@@ -205,6 +205,36 @@ where
             Compact::Encoded(encoded) => encoded,
         }
     }
+
+    /// Without decoding and verifying the JWS, retrieve a copy of the header.
+    ///
+    /// ## Warning
+    /// Use this at your own risk. It is not advisable to trust unverified content
+    pub fn unverified_header(&self) -> Result<Header<H>, Error> {
+        match *self {
+            Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encoded(ref compact) => compact.part(0),
+        }
+    }
+
+    /// Without decoding and verifying the JWS, retrieve a copy of the payload.
+    ///
+    /// ## Warning
+    /// Use this at your own risk. It is not advisable to trust unverified content
+    pub fn unverified_payload(&self) -> Result<T, Error> {
+        match *self {
+            Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encoded(ref compact) => compact.part(1),
+        }
+    }
+
+    /// Get a copy of the signature
+    pub fn signature(&self) -> Result<Vec<u8>, Error> {
+        match *self {
+            Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
+            Compact::Encoded(ref compact) => compact.part(2),
+        }
+    }
 }
 
 /// Convenience implementation for a Compact that contains a `ClaimsSet`
@@ -803,5 +833,82 @@ mod tests {
 
         let decoded: RegisteredHeader = not_err!(serde_json::from_str(&encoded));
         assert_eq!(decoded, expected);
+    }
+
+    // let expected_claims = ClaimsSet::<PrivateClaims> {
+    //     registered: RegisteredClaims {
+    //         issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+    //         subject: Some(not_err!(FromStr::from_str("John Doe"))),
+    //         audience: Some(SingleOrMultiple::Single(
+    //             not_err!(FromStr::from_str("htts://acme-customer.com")),
+    //         )),
+    //         not_before: Some(1234.into()),
+    //         ..Default::default()
+    //     },
+    //     private: PrivateClaims {
+    //         department: "Toilet Cleaning".to_string(),
+    //         company: "ACME".to_string(),
+    //     },
+    // };
+
+    #[test]
+    fn unverified_header_is_returned_correctly() {
+        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
+
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
+        let expected_header = From::from(RegisteredHeader {
+            algorithm: SignatureAlgorithm::HS256,
+            ..Default::default()
+        });
+
+        let unverified_header = not_err!(encoded_token.unverified_header());
+        assert_eq!(unverified_header, expected_header);
+    }
+
+    #[test]
+    fn unverified_payload_is_returned_correctly() {
+        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
+
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
+        let expected_payload = ClaimsSet::<PrivateClaims> {
+            registered: RegisteredClaims {
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                subject: Some(not_err!(FromStr::from_str("John Doe"))),
+                audience: Some(SingleOrMultiple::Single(
+                    not_err!(FromStr::from_str("htts://acme-customer.com")),
+                )),
+                not_before: Some(1234.into()),
+                ..Default::default()
+            },
+            private: PrivateClaims {
+                department: "Toilet Cleaning".to_string(),
+                company: "ACME".to_string(),
+            },
+        };
+
+        let unverified_payload = not_err!(encoded_token.unverified_payload());
+        assert_eq!(unverified_payload, expected_payload);
+    }
+
+    #[test]
+    fn signature_is_returned_correctly() {
+        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
+                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
+                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
+
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
+        let expected_signature: Vec<u8> = vec![118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98,
+                                               191, 46, 37, 189, 228, 211, 250, 204, 90, 203, 145,
+                                               106, 234, 246, 58, 142, 114, 111, 169, 226];
+
+        let signature = not_err!(encoded_token.signature());
+        assert_eq!(signature, expected_signature);
     }
 }
