@@ -516,6 +516,18 @@ pub struct JWKSet<T> {
     pub keys: Vec<JWK<T>>,
 }
 
+impl<T> JWKSet<T> {
+    /// Find the key in the set that matches the given key id, if any.
+    pub fn find(&self, kid: &str) -> Option<&JWK<T>> {
+        for jwk in &self.keys {
+            if let Some(id) = jwk.common.key_id.as_ref() {
+                if id == kid { return Some(jwk) }
+            }
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str;
@@ -1023,5 +1035,58 @@ mod tests {
 
         let expected_json = include_str!("../test/fixtures/jwk_private_key.json");
         assert_serde_json(&test_value, Some(&expected_json));
+    }
+
+    fn find_key_set() -> JWKSet<::Empty> {
+        JWKSet {
+            keys: vec![
+                JWK {
+                    common: CommonParameters {
+                        key_id: Some("first".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::OctectKey {
+                        key_type: Default::default(),
+                        value: Default::default(),
+                    },
+                    additional: Default::default()
+                },
+                JWK {
+                    common: CommonParameters {
+                        key_id: Some("second".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::OctectKey {
+                        key_type: Default::default(),
+                        value: Default::default(),
+                    },
+                    additional: Default::default()
+                },
+                JWK {
+                    common: Default::default(),
+                    algorithm: AlgorithmParameters::OctectKey {
+                        key_type: Default::default(),
+                        value: Default::default(),
+                    },
+                    additional: Default::default()
+                }
+            ]
+        }
+    }
+
+    /// Example find success test
+    #[test]
+    fn jwk_set_find_some_test() {
+        let keys = find_key_set();
+        let key = keys.find("first").expect("Should have found key");
+        let kid = key.common.key_id.as_ref().expect("Key should have a key id");
+        assert_eq!(kid, "first");
+    }
+
+    /// Example find fail test
+    #[test]
+    fn jwk_set_find_none_test() {
+        let keys = find_key_set();
+        assert_eq!(keys.find("third"), None);
     }
 }
