@@ -373,6 +373,26 @@ impl SignatureAlgorithm {
     ) -> Result<(), Error> {
         let public_key = match *secret {
             Secret::PublicKey(ref public_key) => public_key,
+            Secret::Pkcs{ref n, ref e} => {
+                let params = match *algorithm {
+                    SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
+                    SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
+                    SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+                    SignatureAlgorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
+                    SignatureAlgorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
+                    SignatureAlgorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
+                    _ => unreachable!("(n,e) secret with a non-rsa algorithm should not happen"),
+                };
+
+                let sn = &n.to_bytes_be()[..];
+                let se = &e.to_bytes_be()[..];
+                let n = untrusted::Input::from(sn);
+                let e = untrusted::Input::from(se);
+                let message = untrusted::Input::from(data);
+                let signature = untrusted::Input::from(expected_signature);
+
+                return Ok(signature::primitive::verify_rsa(params, (n, e), message, signature)?)
+            }
             _ => Err("Invalid secret type. A PublicKey is required".to_string())?,
         };
         let public_key_der = untrusted::Input::from(public_key.as_slice());
