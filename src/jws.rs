@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::str;
 
+use num::BigUint;
 use ring::signature;
 use serde::{self, Serialize};
 use serde::de::DeserializeOwned;
@@ -337,6 +338,15 @@ pub enum Secret {
     ///
     /// let secret = Secret::public_key_from_file("test/fixtures/rsa_public_key.der");
     PublicKey(Vec<u8>),
+    /// The (n, e) PKCS parameters pair of an RSA Public Key
+    ///
+    /// These parameters can be obtained from a RSA JWK.
+    Pkcs { 
+        /// RSA modulus
+        n: BigUint, 
+        /// RSA exponent
+        e: BigUint
+    },
 }
 
 impl Secret {
