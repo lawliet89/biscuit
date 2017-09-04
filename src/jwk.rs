@@ -519,12 +519,9 @@ pub struct JWKSet<T> {
 impl<T> JWKSet<T> {
     /// Find the key in the set that matches the given key id, if any.
     pub fn find(&self, kid: &str) -> Option<&JWK<T>> {
-        for jwk in &self.keys {
-            if let Some(id) = jwk.common.key_id.as_ref() {
-                if id == kid { return Some(jwk) }
-            }
-        }
-        None
+        self.keys.iter().find(|jwk| {
+            jwk.common.key_id.is_some() && jwk.common.key_id.as_ref().unwrap() == kid
+        })
     }
 }
 
@@ -1070,7 +1067,7 @@ mod tests {
                     },
                     additional: Default::default()
                 }
-            ]
+            ],
         }
     }
 
@@ -1079,7 +1076,9 @@ mod tests {
     fn jwk_set_find_some_test() {
         let keys = find_key_set();
         let key = keys.find("first").expect("Should have found key");
-        let kid = key.common.key_id.as_ref().expect("Key should have a key id");
+        let kid = key.common.key_id.as_ref().expect(
+            "Key should have a key id",
+        );
         assert_eq!(kid, "first");
     }
 
