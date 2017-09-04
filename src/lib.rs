@@ -157,7 +157,6 @@ use errors::{Error, ValidationError};
 ///
 /// ```
 /// extern crate biscuit;
-/// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 ///
@@ -239,7 +238,6 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// ```rust
 /// extern crate biscuit;
 /// extern crate num;
-/// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 ///
@@ -351,8 +349,6 @@ pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
 /// # Examples
 /// ```
 /// extern crate biscuit;
-/// extern crate serde;
-/// extern crate serde_json;
 ///
 /// use std::str::FromStr;
 /// use biscuit::*;
@@ -627,7 +623,6 @@ impl<'de> Deserialize<'de> for Compact {
 /// # Examples
 /// ```
 /// extern crate biscuit;
-/// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 /// extern crate serde_json;
@@ -709,7 +704,6 @@ where
 /// # Examples
 /// ```
 /// extern crate biscuit;
-/// extern crate serde;
 /// #[macro_use]
 /// extern crate serde_derive;
 /// extern crate serde_json;
