@@ -84,7 +84,7 @@ use std::ops::Deref;
 use std::str::{self, FromStr};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
-use data_encoding::base64url;
+use data_encoding::BASE64URL_NOPAD;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
 
@@ -361,14 +361,14 @@ pub trait CompactPart {
     where
         Self: Sized,
     {
-        let decoded = base64url::decode_nopad(encoded.as_ref())?;
+        let decoded = BASE64URL_NOPAD.decode(encoded.as_ref())?;
         Self::from_bytes(&decoded)
     }
 
     /// Serialize `Self` to some form and then base64URL Encode
     fn to_base64(&self) -> Result<Base64Url, Error> {
         let bytes = self.to_bytes()?;
-        Ok(Base64Url(base64url::encode_nopad(bytes.as_ref())))
+        Ok(Base64Url(BASE64URL_NOPAD.encode(bytes.as_ref())))
     }
 }
 
@@ -444,7 +444,7 @@ impl Borrow<str> for Base64Url {
 
 impl CompactPart for Base64Url {
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
-        Ok(base64url::decode_nopad(self.as_ref())?)
+        Ok(BASE64URL_NOPAD.decode(self.as_ref())?)
     }
 
     /// Convert a sequence of bytes into Self

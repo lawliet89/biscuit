@@ -812,7 +812,7 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn verify_ps256() {
-        use data_encoding::base64;
+        use data_encoding::BASE64;
 
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
@@ -821,7 +821,7 @@ mod tests {
                          tFNPZpz4/3pYQdxco/n6DpaR5206wsur/8H0FwoyiFKanhqLb1SgZqyc+SXRPepjKc28wzBnfWl4\
                          mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
-        let signature_bytes: Vec<u8> = not_err!(base64::decode(signature.as_bytes()));
+        let signature_bytes: Vec<u8> = not_err!(BASE64.decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, &public_key,));
     }
@@ -841,32 +841,32 @@ mod tests {
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
     #[test]
     fn verify_es256() {
-        use data_encoding::hex;
+        use data_encoding::HEXUPPER;
 
         let payload_bytes = Vec::<u8>::new();
         let public_key = "0430345FD47EA21A11129BE651B0884BFAC698377611ACC9F689458E13B9ED7D4B9D7599\
                           A68DCF125E7F31055CCB374CD04F6D6FD2B217438A63F6F667D50EF2F0";
-        let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
+        let public_key = Secret::PublicKey(not_err!(HEXUPPER.decode(public_key.as_bytes())));
         let signature = "341F6779B75E98BB42E01095DD48356CBF9002DC704AC8BD2A8240B88D3796C6555843B1B\
                          4E264FE6FFE6E2B705A376C05C09404303FFE5D2711F3E3B3A010A1";
-        let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
+        let signature_bytes: Vec<u8> = not_err!(HEXUPPER.decode(signature.as_bytes()));
         not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
     #[test]
     fn verify_es384() {
-        use data_encoding::hex;
+        use data_encoding::HEXUPPER;
 
         let payload_bytes = Vec::<u8>::new();
         let public_key = "045C5E788A805C77D34128B8401CB59B2373B8B468336C9318252BF39FD31D2507557987\
                           A5180A9435F9FB8EB971C426F1C485170DCB18FB688A257F89387A09FC4C5B8BD4B320616\
                           B54A0A7B1D1D7C6A0C59F6DFF78C78AD4E3D6FCA9C9A17B96";
-        let public_key = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
+        let public_key = Secret::PublicKey(not_err!(HEXUPPER.decode(public_key.as_bytes())));
         let signature = "85AC708D4B0126BAC1F5EEEBDF911409070A286FDDE5649582611B60046DE353761660DD0\
                          3903F58B44148F25142EEF8183475EC1F1392F3D6838ABC0C01724709C446888BED7F2CE4\
                          642C6839DC18044A2A6AB9DDC960BFAC79F6988E62D452";
-        let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
+        let signature_bytes: Vec<u8> = not_err!(HEXUPPER.decode(signature.as_bytes()));
         not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
     }
 

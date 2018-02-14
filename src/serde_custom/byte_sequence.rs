@@ -1,7 +1,7 @@
 //! Serialize a sequence of bytes as base64 URL encoding vice-versa for deserialization
 use std::fmt;
 
-use data_encoding::base64url;
+use data_encoding::BASE64URL_NOPAD;
 use serde::{Deserializer, Serializer};
 use serde::de;
 
@@ -10,7 +10,7 @@ pub fn serialize<S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let base64 = base64url::encode_nopad(value);
+    let base64 = BASE64URL_NOPAD.encode(value);
     serializer.serialize_str(&base64)
 }
 
@@ -32,7 +32,7 @@ where
         where
             E: de::Error,
         {
-            let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
+            let bytes = BASE64URL_NOPAD.decode(value.as_bytes()).map_err(E::custom)?;
             Ok(bytes)
         }
     }
