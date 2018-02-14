@@ -1,5 +1,26 @@
 # Changelog
 
+## Version 0.0.8 (2018-02-14)
+
+There are breaking changes in this release:
+
+- `ring` was upgraded to 0.12. Until [#619](https://github.com/briansmith/ring/pull/619) lands,
+this crate will now be incompatible with all other crates that uses a different version of `ring`.
+- `jwa::rng` is no longer public
+- [#84](https://github.com/lawliet89/biscuit/pull/84) All AES GCM encryption now requires a user
+provided nonce. See [this example](https://lawliet89.github.io/biscuit/biscuit/type.JWE.html).
+- `SignatureAlgorithm::verify` now returns `Result<(), Error>` instead of `Result<bool, Error>`.
+- Bumped various dependencies, although they should not break any user facing code: `lazy_static`,
+`data-encoding`.
+
+Other non-breaking changes include:
+
+- New helper
+[function](https://lawliet89.github.io/biscuit/biscuit/jwk/struct.JWKSet.html#method.find) in `JWKSet` to find key by Key ID
+- [New helper functions](https://github.com/lawliet89/biscuit/pull/88) in `jws::Compact` to retrieve
+parts without signature verification.
+
+
 ## Version 0.0.7 (2017-07-19)
 
 There are no breaking changes in this release.
