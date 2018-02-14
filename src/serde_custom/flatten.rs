@@ -140,7 +140,7 @@ use std::hash::Hash;
 use serde::{Serialize, Serializer};
 use serde_json;
 use serde_json::map::Map;
-use serde_json::value::{Value, to_value};
+use serde_json::value::{to_value, Value};
 
 /// Representation of any serializable data as a `serde_json::Value`.
 /// Stop gap trait since `serde_json` removed it: https://github.com/serde-rs/json/issues/294
@@ -404,7 +404,7 @@ macro_rules! impl_flatten_serde_generic {
 mod tests {
     use serde;
     use serde_json;
-    use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
+    use serde_test::{assert_ser_tokens_error, assert_tokens, Token};
 
     use super::*;
 
@@ -476,8 +476,12 @@ mod tests {
         generic: T,
     }
 
-    impl_flatten_serde_generic!(OuterGeneric<T>, DuplicateKeysBehaviour::RaiseError, one, generic);
-
+    impl_flatten_serde_generic!(
+        OuterGeneric<T>,
+        DuplicateKeysBehaviour::RaiseError,
+        one,
+        generic
+    );
 
     #[test]
     fn pairwise_intersection_for_one() {
@@ -487,51 +491,65 @@ mod tests {
 
     #[test]
     fn pairwise_intersection_for_two_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(), [3].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [3].iter().cloned().collect(),
+        ];
         assert!(pairwise_intersection(sets.as_slice()))
     }
 
     #[test]
     fn pairwise_non_intersection_for_two_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(), [99, 101].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [99, 101].iter().cloned().collect(),
+        ];
         assert!(!pairwise_intersection(sets.as_slice()))
     }
 
     /// Intersecting element is in the shortest set
     #[test]
     fn pairwise_intersection_for_three_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
-                                           [3, 5, 6, 10, 11, 23].iter().cloned().collect(),
-                                           [3].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [3, 5, 6, 10, 11, 23].iter().cloned().collect(),
+            [3].iter().cloned().collect(),
+        ];
         assert!(pairwise_intersection(sets.as_slice()))
     }
 
     #[test]
     fn pairwise_non_intersection_for_three_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
-                                           [4, 5, 6, 10, 11, 23].iter().cloned().collect(),
-                                           [0].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [4, 5, 6, 10, 11, 23].iter().cloned().collect(),
+            [0].iter().cloned().collect(),
+        ];
         assert!(!pairwise_intersection(sets.as_slice()))
     }
 
     /// Intersecting element is not in the shortest set
     #[test]
     fn pairwise_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
-                                           [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
-                                           [11, 12, 13, 14].iter().cloned().collect(),
-                                           [15, 16, 17].iter().cloned().collect(),
-                                           [18, 19, 20, 21, 22, 23, 4].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
+            [11, 12, 13, 14].iter().cloned().collect(),
+            [15, 16, 17].iter().cloned().collect(),
+            [18, 19, 20, 21, 22, 23, 4].iter().cloned().collect(),
+        ];
         assert!(pairwise_intersection(sets.as_slice()))
     }
 
     #[test]
     fn pairwise_non_intersection_for_five_sets() {
-        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(),
-                                           [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
-                                           [11, 12, 13, 14].iter().cloned().collect(),
-                                           [15, 16, 17].iter().cloned().collect(),
-                                           [18, 19, 20, 21, 22, 23, 24].iter().cloned().collect()];
+        let sets: Vec<HashSet<i32>> = vec![
+            [1, 2, 3].iter().cloned().collect(),
+            [4, 5, 6, 7, 8, 9, 10].iter().cloned().collect(),
+            [11, 12, 13, 14].iter().cloned().collect(),
+            [15, 16, 17].iter().cloned().collect(),
+            [18, 19, 20, 21, 22, 23, 24].iter().cloned().collect(),
+        ];
         assert!(!pairwise_intersection(sets.as_slice()))
     }
 
@@ -602,37 +620,27 @@ mod tests {
             &test_value,
             &[
                 Token::Map { len: Some(7) },
-
                 Token::Str("a"),
                 Token::U64(0),
-
                 Token::Str("b"),
                 Token::U64(0),
-
                 Token::Str("c"),
                 Token::U64(0),
-
                 Token::Str("d"),
-
                 // InnerTwo map
                 Token::Map { len: Some(3) },
-
                 Token::Str("a"),
                 Token::Bool(false),
-
                 Token::Str("e"),
                 Token::Bool(false),
-
                 Token::Str("f"),
                 Token::U64(0),
                 Token::MapEnd,
                 // End InnerTwo map
                 Token::Str("g"),
                 Token::Bool(false),
-
                 Token::Str("h"),
                 Token::Bool(false),
-
                 Token::Str("i"),
                 Token::Bool(false),
                 Token::MapEnd,
@@ -671,37 +679,27 @@ mod tests {
             &test_value,
             &[
                 Token::Map { len: Some(7) },
-
                 Token::Str("a"),
                 Token::U64(0),
-
                 Token::Str("b"),
                 Token::U64(0),
-
                 Token::Str("c"),
                 Token::U64(0),
-
                 Token::Str("d"),
-
                 // InnerTwo map
                 Token::Map { len: Some(3) },
-
                 Token::Str("a"),
                 Token::Bool(false),
-
                 Token::Str("e"),
                 Token::Bool(false),
-
                 Token::Str("f"),
                 Token::U64(0),
                 Token::MapEnd,
                 // End InnerTwo map
                 Token::Str("g"),
                 Token::Bool(false),
-
                 Token::Str("h"),
                 Token::Bool(false),
-
                 Token::Str("i"),
                 Token::Bool(false),
                 Token::MapEnd,

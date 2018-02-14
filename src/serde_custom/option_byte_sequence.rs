@@ -2,7 +2,7 @@
 use std::fmt;
 
 use data_encoding::base64url;
-use serde::{Serializer, Deserializer};
+use serde::{Deserializer, Serializer};
 use serde::de;
 
 /// Serialize a byte sequence into Base64 URL encoded string
@@ -37,7 +37,6 @@ where
         where
             E: de::Error,
         {
-
             Ok(None)
         }
 
@@ -45,7 +44,6 @@ where
         where
             D: Deserializer<'de>,
         {
-
             deserializer.deserialize_str(self)
         }
 
@@ -64,7 +62,7 @@ where
 #[cfg(test)]
 mod tests {
     use serde_json;
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct TestStruct {
@@ -74,7 +72,9 @@ mod tests {
 
     #[test]
     fn some_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
+        let test_value = TestStruct {
+            bytes: Some("hello world".to_string().into_bytes()),
+        };
 
         assert_tokens(
             &test_value,
@@ -86,7 +86,6 @@ mod tests {
                 Token::Str("bytes"),
                 Token::Some,
                 Token::Str("aGVsbG8gd29ybGQ"),
-
                 Token::StructEnd,
             ],
         );
@@ -105,7 +104,6 @@ mod tests {
                 },
                 Token::Str("bytes"),
                 Token::None,
-
                 Token::StructEnd,
             ],
         );
@@ -113,7 +111,9 @@ mod tests {
 
     #[test]
     fn some_json_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some("hello world".to_string().into_bytes()) };
+        let test_value = TestStruct {
+            bytes: Some("hello world".to_string().into_bytes()),
+        };
         let expected_json = r#"{"bytes":"aGVsbG8gd29ybGQ"}"#;
 
         let actual_json = not_err!(serde_json::to_string(&test_value));

@@ -84,10 +84,10 @@ where
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
-                let signature = header.registered.algorithm.sign(
-                    encoded_payload.as_bytes(),
-                    secret,
-                )?;
+                let signature = header
+                    .registered
+                    .algorithm
+                    .sign(encoded_payload.as_bytes(), secret)?;
                 compact.push(&signature)?;
                 Ok(Compact::Encoded(compact))
             }
@@ -163,7 +163,9 @@ where
     /// Convenience method to get a reference to the claims set from a decoded compact JWS
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decoded { ref mut payload, .. } => Ok(payload),
+            Compact::Decoded {
+                ref mut payload, ..
+            } => Ok(payload),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -382,8 +384,12 @@ pub struct Header<T> {
     pub private: T,
 }
 
-impl_flatten_serde_generic!(Header<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-                            registered, private);
+impl_flatten_serde_generic!(
+    Header<T>,
+    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+    registered,
+    private
+);
 
 impl<T: Serialize + DeserializeOwned> CompactJson for Header<T> {}
 
@@ -506,8 +512,8 @@ mod tests {
 
     use serde_json;
 
-    use {Empty, ClaimsSet, RegisteredClaims, SingleOrMultiple, CompactJson};
-    use super::{Secret, SignatureAlgorithm, Header, RegisteredHeader, Compact};
+    use {ClaimsSet, CompactJson, Empty, RegisteredClaims, SingleOrMultiple};
+    use super::{Compact, Header, RegisteredHeader, Secret, SignatureAlgorithm};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct PrivateClaims {
@@ -524,9 +530,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com/"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -567,9 +573,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -605,9 +611,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -627,8 +633,10 @@ mod tests {
         let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
-        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
-                                                  SignatureAlgorithm::HS256));
+        let biscuit = not_err!(token.into_decoded(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256
+        ));
         assert_eq!(expected_claims, *not_err!(biscuit.payload()));
     }
 
@@ -646,9 +654,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -705,9 +713,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -719,13 +727,17 @@ mod tests {
 
         let header = Header {
             registered: Default::default(),
-            private: CustomHeader { something: "foobar".to_string() },
+            private: CustomHeader {
+                something: "foobar".to_string(),
+            },
         };
 
         let expected_jwt = Compact::new_decoded(header.clone(), expected_claims);
         let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
-        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
-                                                  SignatureAlgorithm::HS256));
+        let biscuit = not_err!(token.into_decoded(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256
+        ));
         assert_eq!(header, *not_err!(biscuit.header()));
     }
 
@@ -788,10 +800,11 @@ mod tests {
         let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
                               eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
                               xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
-        let payload: Vec<u8> = vec![123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101,
-                                    120, 112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104,
-                                    116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47,
-                                    105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125];
+        let payload: Vec<u8> = vec![
+            123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101, 120, 112, 34, 58, 49, 51,
+            48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112,
+            108, 101, 46, 99, 111, 109, 47, 105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125,
+        ];
 
         let expected_jwt = Compact::new_decoded(
             From::from(RegisteredHeader {
@@ -804,8 +817,10 @@ mod tests {
         let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
-        let biscuit = not_err!(token.into_decoded(&Secret::Bytes("secret".to_string().into_bytes()),
-                                                  SignatureAlgorithm::HS256));
+        let biscuit = not_err!(token.into_decoded(
+            &Secret::Bytes("secret".to_string().into_bytes()),
+            SignatureAlgorithm::HS256
+        ));
         assert_eq!(payload, *not_err!(biscuit.payload()));
     }
 
@@ -864,9 +879,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -888,9 +903,10 @@ mod tests {
                      VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
 
         let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
-        let expected_signature: Vec<u8> = vec![118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98,
-                                               191, 46, 37, 189, 228, 211, 250, 204, 90, 203, 145,
-                                               106, 234, 246, 58, 142, 114, 111, 169, 226];
+        let expected_signature: Vec<u8> = vec![
+            118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98, 191, 46, 37, 189, 228, 211, 250, 204, 90, 203, 145, 106,
+            234, 246, 58, 142, 114, 111, 169, 226,
+        ];
 
         let signature = not_err!(encoded_token.signature());
         assert_eq!(signature, expected_signature);

@@ -5,13 +5,13 @@
 //! you will want to look at the  [`Compact`](enum.Compact.html) enum.
 use std::fmt;
 
-use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
 use serde_json;
 
 use {CompactJson, CompactPart, Empty};
 use errors::{Error, ValidationError};
-use jwa::{self, KeyManagementAlgorithm, ContentEncryptionAlgorithm, EncryptionResult, EncryptionOptions};
+use jwa::{self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm};
 use jwk;
 use serde_custom;
 
@@ -29,7 +29,6 @@ impl Serialize for CompressionAlgorithm {
     where
         S: Serializer,
     {
-
         let string = match *self {
             CompressionAlgorithm::Deflate => "DEF",
             CompressionAlgorithm::Other(ref other) => other,
@@ -44,7 +43,6 @@ impl<'de> Deserialize<'de> for CompressionAlgorithm {
     where
         D: Deserializer<'de>,
     {
-
         struct CompressionAlgorithmVisitor;
         impl<'de> de::Visitor<'de> for CompressionAlgorithmVisitor {
             type Value = CompressionAlgorithm;
@@ -179,8 +177,13 @@ pub struct Header<T> {
     pub private: T,
 }
 
-impl_flatten_serde_generic!(Header<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-                            registered, cek_algorithm, private);
+impl_flatten_serde_generic!(
+    Header<T>,
+    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+    registered,
+    cek_algorithm,
+    private
+);
 
 impl<T: Serialize + DeserializeOwned> CompactJson for Header<T> {}
 
@@ -384,22 +387,18 @@ where
                     KeyManagementAlgorithm::DirectSymmetricKey => {
                         (jwa::NONE_ENCRYPTION_OPTIONS, Cow::Borrowed(options))
                     }
-                    _ => {
-                        (
-                            options,
-                            Cow::Owned(header.registered.enc_algorithm.random_encryption_options()?),
-                        )
-                    }
+                    _ => (
+                        options,
+                        Cow::Owned(header.registered.enc_algorithm.random_encryption_options()?),
+                    ),
                 };
 
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
-                let cek = header.registered.cek_algorithm.cek(
-                    header
-                        .registered
-                        .enc_algorithm,
-                    key,
-                )?;
+                let cek = header
+                    .registered
+                    .cek_algorithm
+                    .cek(header.registered.enc_algorithm, key)?;
                 let encrypted_cek = header.registered.cek_algorithm.wrap_key(
                     cek.algorithm.octect_key()?,
                     key,
@@ -421,12 +420,11 @@ where
                 // Steps 12 to 14 involves the calculation of `Additional Authenticated Data` for encryption. In
                 // our compact example, our header is the AAD.
                 // Step 15 involves the actual encryption.
-                let encrypted_payload = header.registered.enc_algorithm.encrypt(
-                    &payload,
-                    &header.to_bytes()?,
-                    &cek,
-                    &content_option,
-                )?;
+                let encrypted_payload =
+                    header
+                        .registered
+                        .enc_algorithm
+                        .encrypt(&payload, &header.to_bytes()?, &cek, &content_option)?;
 
                 // Finally create the JWE
                 let mut compact = ::Compact::with_capacity(5);
@@ -492,9 +490,7 @@ where
                 let cek_encryption_result = header.extract_cek_encryption_result(&encrypted_cek);
                 let cek = header.registered.cek_algorithm.unwrap_key(
                     &cek_encryption_result,
-                    header
-                        .registered
-                        .enc_algorithm,
+                    header.registered.enc_algorithm,
                     key,
                 )?;
 
@@ -506,10 +502,10 @@ where
                     additional_data: encrypted.part(0)?,
                 };
 
-                let payload = header.registered.enc_algorithm.decrypt(
-                    &encrypted_payload_result,
-                    &cek,
-                )?;
+                let payload = header
+                    .registered
+                    .enc_algorithm
+                    .decrypt(&encrypted_payload_result, &cek)?;
 
                 // Decompression is not supported at the moment
                 if header.registered.compression_algorithm.is_some() {
@@ -551,7 +547,9 @@ where
     /// Convenience method to get a mutable reference to the payload from an Decrypted JWE
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decrypted { ref mut payload, .. } => Ok(payload),
+            Compact::Decrypted {
+                ref mut payload, ..
+            } => Ok(payload),
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -617,11 +615,11 @@ mod tests {
     use std::str::FromStr;
 
     use ring::rand::SecureRandom;
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     use JWE;
     use super::*;
-    use jwa::{self, rng, random_aes_gcm_nonce};
+    use jwa::{self, random_aes_gcm_nonce, rng};
     use jws;
     use test::assert_serde_json;
 
@@ -646,7 +644,9 @@ mod tests {
             test: CompressionAlgorithm,
         }
 
-        let test_value = Test { test: CompressionAlgorithm::Deflate };
+        let test_value = Test {
+            test: CompressionAlgorithm::Deflate,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -660,7 +660,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: CompressionAlgorithm::Other("xxx".to_string()) };
+        let test_value = Test {
+            test: CompressionAlgorithm::Other("xxx".to_string()),
+        };
         assert_tokens(
             &test_value,
             &[
@@ -684,13 +686,17 @@ mod tests {
 
         let test_json = r#"{"test": "DEF"}"#;
         assert_serde_json(
-            &Test { test: CompressionAlgorithm::Deflate },
+            &Test {
+                test: CompressionAlgorithm::Deflate,
+            },
             Some(&test_json),
         );
 
         let test_json = r#"{"test": "xxx"}"#;
         assert_serde_json(
-            &Test { test: CompressionAlgorithm::Other("xxx".to_string()) },
+            &Test {
+                test: CompressionAlgorithm::Other("xxx".to_string()),
+            },
             Some(&test_json),
         );
     }
@@ -736,7 +742,9 @@ mod tests {
                 ..Default::default()
             },
             cek_algorithm: Default::default(),
-            private: CustomHeader { something: "foobar".to_string() },
+            private: CustomHeader {
+                something: "foobar".to_string(),
+            },
         };
         let test_json = r#"{"alg":"RSA-OAEP","enc":"A256GCM","something":"foobar"}"#;
         assert_serde_json(&test_value, Some(&test_json));
@@ -759,7 +767,9 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -773,7 +783,7 @@ mod tests {
 
             // Check that the encrypted key part is not empty
             let cek: Vec<u8> = not_err!(compact.part(1));
-            assert_eq!(256/8, cek.len());
+            assert_eq!(256 / 8, cek.len());
         }
 
         // Serde test
@@ -782,9 +792,11 @@ mod tests {
         assert_eq!(deserialized_json, encrypted_jwe);
 
         // Decrypt
-        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
-                                                           KeyManagementAlgorithm::A256GCMKW,
-                                                           ContentEncryptionAlgorithm::A256GCM));
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(
+            &key,
+            KeyManagementAlgorithm::A256GCMKW,
+            ContentEncryptionAlgorithm::A256GCM
+        ));
         assert_eq!(jwe, decrypted_jwe);
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
@@ -799,9 +811,9 @@ mod tests {
             registered: ::RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(::SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(::SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -830,7 +842,9 @@ mod tests {
             }),
             jws.clone(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -844,7 +858,7 @@ mod tests {
 
             // Check that the encrypted key part is not empty
             let cek: Vec<u8> = not_err!(compact.part(1));
-            assert_eq!(256/8, cek.len());
+            assert_eq!(256 / 8, cek.len());
         }
 
         // Serde test
@@ -853,9 +867,11 @@ mod tests {
         assert_eq!(deserialized_json, encrypted_jwe);
 
         // Decrypt
-        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
-                                                           KeyManagementAlgorithm::A256GCMKW,
-                                                           ContentEncryptionAlgorithm::A256GCM));
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(
+            &key,
+            KeyManagementAlgorithm::A256GCMKW,
+            ContentEncryptionAlgorithm::A256GCM
+        ));
         assert_eq!(jwe, decrypted_jwe);
 
         let decrypted_jws = not_err!(decrypted_jwe.payload());
@@ -869,9 +885,9 @@ mod tests {
             registered: ::RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(::SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(::SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -900,7 +916,9 @@ mod tests {
             }),
             jws.clone(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -923,9 +941,11 @@ mod tests {
         assert_eq!(deserialized_json, encrypted_jwe);
 
         // Decrypt
-        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(&key,
-                                                           KeyManagementAlgorithm::DirectSymmetricKey,
-                                                           ContentEncryptionAlgorithm::A256GCM));
+        let decrypted_jwe = not_err!(encrypted_jwe.into_decrypted(
+            &key,
+            KeyManagementAlgorithm::DirectSymmetricKey,
+            ContentEncryptionAlgorithm::A256GCM
+        ));
         assert_eq!(jwe, decrypted_jwe);
 
         let decrypted_jws = not_err!(decrypted_jwe.payload());
@@ -948,7 +968,9 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -979,7 +1001,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
@@ -1023,14 +1047,16 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
         let mut header: Header<::Empty> = not_err!(compact.part(0));
-        header.cek_algorithm.nonce = Some(vec![0; 96/8]);
+        header.cek_algorithm.nonce = Some(vec![0; 96 / 8]);
         compact.parts[0] = not_err!(header.to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
@@ -1060,14 +1086,16 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
         // Modify the JWE
         let mut compact = encrypted_jwe.unwrap_encrypted();
         let mut header: Header<::Empty> = not_err!(compact.part(0));
-        header.cek_algorithm.tag = Some(vec![0; 96/8]);
+        header.cek_algorithm.tag = Some(vec![0; 96 / 8]);
         compact.parts[0] = not_err!(header.to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
@@ -1097,7 +1125,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
@@ -1132,7 +1162,9 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -1171,7 +1203,9 @@ mod tests {
             payload.as_bytes().to_vec(),
         );
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
 
@@ -1206,7 +1240,9 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -1244,7 +1280,9 @@ mod tests {
             }),
             payload.as_bytes().to_vec(),
         );
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         // Encrypt
         let encrypted_jwe = not_err!(jwe.encrypt(&key, &options));
@@ -1253,7 +1291,7 @@ mod tests {
         let mut compact = encrypted_jwe.unwrap_encrypted();
         let mut header: Header<::Empty> = not_err!(compact.part(0));
         header.registered.media_type = Some("JOSE+JSON".to_string());
-        compact.parts[2] = not_err!(vec![0u8; 96/8].to_base64());
+        compact.parts[2] = not_err!(vec![0u8; 96 / 8].to_base64());
 
         let encrypted_jwe = Compact::<::Empty, ::Empty>::new_encrypted(&compact.to_string());
         let _ = encrypted_jwe

@@ -318,12 +318,7 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
-        signing_state.sign(
-            padding_algorithm,
-            &rng,
-            data,
-            &mut signature,
-        )?;
+        signing_state.sign(padding_algorithm, &rng, data, &mut signature)?;
         Ok(signature)
     }
 
@@ -404,15 +399,8 @@ impl KeyManagementAlgorithm {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
-            A128KW |
-            A192KW |
-            A256KW |
-            A128GCMKW |
-            A192GCMKW |
-            A256GCMKW |
-            PBES2_HS256_A128KW |
-            PBES2_HS384_A192KW |
-            PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
+            A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW | PBES2_HS256_A128KW | PBES2_HS384_A192KW
+            | PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
             RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyEncryption,
             DirectSymmetricKey => KeyManagementAlgorithmType::DirectEncryption,
             ECDH_ES => KeyManagementAlgorithmType::DirectKeyAgreement,
@@ -475,17 +463,13 @@ impl KeyManagementAlgorithm {
 
         match *self {
             A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key, options),
-            DirectSymmetricKey => {
-                match *options {
-                    EncryptionOptions::None => Ok(Default::default()),
-                    ref other => {
-                        Err(unexpected_encryption_options_error!(
-                            EncryptionOptions::None,
-                            other
-                        ))
-                    }
-                }
-            }
+            DirectSymmetricKey => match *options {
+                EncryptionOptions::None => Ok(Default::default()),
+                ref other => Err(unexpected_encryption_options_error!(
+                    EncryptionOptions::None,
+                    other
+                )),
+            },
             _ => Err(Error::UnsupportedOperation),
         }
     }
@@ -522,12 +506,10 @@ impl KeyManagementAlgorithm {
 
         let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
-            ref others => {
-                Err(unexpected_encryption_options_error!(
-                    AES_GCM_ZEROED_NONCE,
-                    others
-                ))
-            }
+            ref others => Err(unexpected_encryption_options_error!(
+                AES_GCM_ZEROED_NONCE,
+                others
+            )),
         }?;
         // FIXME: Should we check the nonce length here or leave it to ring?
 
@@ -594,7 +576,6 @@ impl ContentEncryptionAlgorithm {
             A128GCM | A192GCM | A256GCM => self.aes_gcm_encrypt(payload, aad, key, options),
             _ => Err(Error::UnsupportedOperation),
         }
-
     }
 
     /// Decrypt some payload with the provided algorith,
@@ -615,11 +596,9 @@ impl ContentEncryptionAlgorithm {
     pub(crate) fn random_encryption_options(&self) -> Result<EncryptionOptions, Error> {
         use self::ContentEncryptionAlgorithm::*;
         match *self {
-            A128GCM | A192GCM | A256GCM => {
-                Ok(EncryptionOptions::AES_GCM {
-                    nonce: random_aes_gcm_nonce()?,
-                })
-            }
+            A128GCM | A192GCM | A256GCM => Ok(EncryptionOptions::AES_GCM {
+                nonce: random_aes_gcm_nonce()?,
+            }),
             _ => Err(Error::UnsupportedOperation),
         }
     }
@@ -641,12 +620,10 @@ impl ContentEncryptionAlgorithm {
 
         let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
-            ref others => {
-                Err(unexpected_encryption_options_error!(
-                    AES_GCM_ZEROED_NONCE,
-                    others
-                ))
-            }
+            ref others => Err(unexpected_encryption_options_error!(
+                AES_GCM_ZEROED_NONCE,
+                others
+            )),
         }?;
         // FIXME: Should we check the nonce length here or leave it to ring?
 
@@ -688,7 +665,6 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     aad: &[u8],
     key: &jwk::JWK<T>,
 ) -> Result<EncryptionResult, Error> {
-
     // JWA needs a 128 bit tag length. We need to assert that the algorithm has 128 bit tag length
     assert_eq!(algorithm.tag_len(), AES_GCM_TAG_SIZE);
     // Also the nonce (or initialization vector) needs to be 96 bits
@@ -753,10 +729,8 @@ mod tests {
     #[test]
     fn sign_and_verify_none() {
         let expected_signature: Vec<u8> = vec![];
-        let actual_signature = not_err!(SignatureAlgorithm::None.sign(
-            "payload".to_string().as_bytes(),
-            &Secret::None,
-        ));
+        let actual_signature =
+            not_err!(SignatureAlgorithm::None.sign("payload".to_string().as_bytes(), &Secret::None,));
         assert_eq!(expected_signature, actual_signature);
 
         not_err!(SignatureAlgorithm::None.verify(
@@ -825,11 +799,7 @@ mod tests {
         let actual_signature = not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, &private_key));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::PS256.verify(
-            actual_signature.as_slice(),
-            payload_bytes,
-            &public_key,
-        ));
+        not_err!(SignatureAlgorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, &public_key,));
     }
 
     /// To generate a (non-deterministic) signature:
@@ -853,11 +823,7 @@ mod tests {
                          9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(base64::decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::PS256.verify(
-            signature_bytes.as_slice(),
-            payload_bytes,
-            &public_key,
-        ));
+        not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, &public_key,));
     }
 
     #[test]
@@ -884,11 +850,7 @@ mod tests {
         let signature = "341F6779B75E98BB42E01095DD48356CBF9002DC704AC8BD2A8240B88D3796C6555843B1B\
                          4E264FE6FFE6E2B705A376C05C09404303FFE5D2711F3E3B3A010A1";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        not_err!(SignatureAlgorithm::ES256.verify(
-            signature_bytes.as_slice(),
-            &payload_bytes,
-            &public_key,
-        ));
+        not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
@@ -905,11 +867,7 @@ mod tests {
                          3903F58B44148F25142EEF8183475EC1F1392F3D6838ABC0C01724709C446888BED7F2CE4\
                          642C6839DC18044A2A6AB9DDC960BFAC79F6988E62D452";
         let signature_bytes: Vec<u8> = not_err!(hex::decode(signature.as_bytes()));
-        not_err!(SignatureAlgorithm::ES384.verify(
-            signature_bytes.as_slice(),
-            &payload_bytes,
-            &public_key,
-        ));
+        not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
     }
 
     #[test]
@@ -1144,7 +1102,9 @@ mod tests {
             },
         };
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
@@ -1175,7 +1135,9 @@ mod tests {
             },
         };
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
@@ -1222,17 +1184,14 @@ mod tests {
             },
         };
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(
-            payload.as_bytes(),
-            aad.as_bytes(),
-            &key,
-            &options,
-        ));
+        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
@@ -1252,17 +1211,14 @@ mod tests {
             },
         };
 
-        let options = EncryptionOptions::AES_GCM { nonce: random_aes_gcm_nonce().unwrap() };
+        let options = EncryptionOptions::AES_GCM {
+            nonce: random_aes_gcm_nonce().unwrap(),
+        };
 
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(
-            payload.as_bytes(),
-            aad.as_bytes(),
-            &key,
-            &options,
-        ));
+        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());

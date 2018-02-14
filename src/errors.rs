@@ -1,5 +1,5 @@
 //! Errors returned will be converted to one of the structs in this module.
-use std::{str, string, fmt, error, io};
+use std::{error, fmt, io, str, string};
 use data_encoding;
 use ring;
 use serde_json;
@@ -86,7 +86,6 @@ impl_from_error!(ValidationError, Error::ValidationError);
 impl_from_error!(io::Error, Error::IOError);
 impl_from_error!(ParseError, Error::UriParseError);
 
-
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
         Error::UnspecifiedCryptographicError
@@ -150,25 +149,19 @@ impl fmt::Display for Error {
             WrongKeyType {
                 ref actual,
                 ref expected,
-            } => {
-                write!(
-                    f,
-                    "{} was expected for this cryptographic operation but {} was provided",
-                    expected,
-                    actual
-                )
-            }
+            } => write!(
+                f,
+                "{} was expected for this cryptographic operation but {} was provided",
+                expected, actual
+            ),
             WrongEncryptionOptions {
                 ref actual,
                 ref expected,
-            } => {
-                write!(
-                    f,
-                    "{} was expected for this cryptographic operation but {} was provided",
-                    expected,
-                    actual
-                )
-            }
+            } => write!(
+                f,
+                "{} was expected for this cryptographic operation but {} was provided",
+                expected, actual
+            ),
             UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
             UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
         }
@@ -202,16 +195,12 @@ impl fmt::Display for ValidationError {
         match *self {
             MissingRequired(ref field) => write!(f, "{} is required but is missing", field),
             TemporalError(ref err) => write!(f, "{}: {}", self.description(), err),
-            PartsLengthError { expected, actual } => {
-                write!(
-                    f,
-                    "Expected {} parts in Compact JSON representation but got {}",
-                    expected,
-                    actual
-                )
-            }
+            PartsLengthError { expected, actual } => write!(
+                f,
+                "Expected {} parts in Compact JSON representation but got {}",
+                expected, actual
+            ),
             _ => write!(f, "{}", error::Error::description(self)),
         }
-
     }
 }
