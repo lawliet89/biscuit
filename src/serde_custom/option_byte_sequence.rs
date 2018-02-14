@@ -1,7 +1,7 @@
 //! Serialize or deserialize an `Option<Vec<u8>>`
 use std::fmt;
 
-use data_encoding::base64url;
+use data_encoding::BASE64URL_NOPAD;
 use serde::{Deserializer, Serializer};
 use serde::de;
 
@@ -12,7 +12,7 @@ where
 {
     match *value {
         Some(ref value) => {
-            let base64 = base64url::encode_nopad(value.as_slice());
+            let base64 = BASE64URL_NOPAD.encode(value.as_slice());
             serializer.serialize_some(&base64)
         }
         None => serializer.serialize_none(),
@@ -51,7 +51,7 @@ where
         where
             E: de::Error,
         {
-            let bytes = base64url::decode_nopad(value.as_bytes()).map_err(E::custom)?;
+            let bytes = BASE64URL_NOPAD.decode(value.as_bytes()).map_err(E::custom)?;
             Ok(Some(bytes))
         }
     }

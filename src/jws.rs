@@ -684,7 +684,7 @@ mod tests {
 
     #[test]
     fn compact_jws_verify_es256() {
-        use data_encoding::hex;
+        use data_encoding::HEXUPPER;
 
         // This is a ECDSA Public key in `SubjectPublicKey` form.
         // Conversion is not available in `ring` yet.
@@ -696,7 +696,7 @@ mod tests {
                    eyJ0b2tlbl90eXBlIjoic2VydmljZSIsImlhdCI6MTQ5MjkzODU4OH0.\
                    do_XppIOFthPWlTXL95CIBfgRdyAxbcIsUfM0YxMjCjqvp4ehHFA3I-JasABKzC8CAy4ndhCHsZdpAtK\
                    kqZMEA";
-        let signing_secret = Secret::PublicKey(not_err!(hex::decode(public_key.as_bytes())));
+        let signing_secret = Secret::PublicKey(not_err!(HEXUPPER.decode(public_key.as_bytes())));
 
         let token = Compact::<ClaimsSet<serde_json::Value>, ::Empty>::new_encoded(jwt);
         let _ = not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));

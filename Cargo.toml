@@ -1,6 +1,6 @@
 [package]
 name = "biscuit"
-version = "0.0.7"
+version = "0.0.8"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
@@ -24,14 +24,14 @@ doc = true
 
 [dependencies]
 chrono = "0.4"
-data-encoding = "1.2.0"
-lazy_static = "0.2"
+data-encoding = "2.1.1"
+lazy_static = "1.0.0"
 num = "0.1.37"
 ring = { version = "0.12.1", features = ["rsa_signing"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-untrusted = "0.5"
+untrusted = "0.5.1"
 url = "^1.0"
 
 [dev-dependencies]
