@@ -20,7 +20,6 @@ Other non-breaking changes include:
 - [New helper functions](https://github.com/lawliet89/biscuit/pull/88) in `jws::Compact` to retrieve
 parts without signature verification.
 
-
 ## Version 0.0.7 (2017-07-19)
 
 There are no breaking changes in this release.
