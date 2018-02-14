@@ -5,7 +5,7 @@ use std::fmt;
 
 use data_encoding::base64url;
 use num::BigUint;
-use serde::{Serializer, Deserializer};
+use serde::{Deserializer, Serializer};
 use serde::de;
 
 /// Serialize a `BigUint` into Base64 URL encoded big endian bytes
@@ -41,7 +41,6 @@ where
         where
             E: de::Error,
         {
-
             Ok(None)
         }
 
@@ -49,7 +48,6 @@ where
         where
             D: Deserializer<'de>,
         {
-
             deserializer.deserialize_str(self)
         }
 
@@ -70,7 +68,7 @@ mod tests {
     use num::BigUint;
     use num::cast::FromPrimitive;
     use serde_json;
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct TestStruct {
@@ -80,7 +78,9 @@ mod tests {
 
     #[test]
     fn some_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some(BigUint::from_u64(12345).unwrap()) };
+        let test_value = TestStruct {
+            bytes: Some(BigUint::from_u64(12345).unwrap()),
+        };
 
         assert_tokens(
             &test_value,
@@ -92,7 +92,6 @@ mod tests {
                 Token::Str("bytes"),
                 Token::Some,
                 Token::Str("MDk"),
-
                 Token::StructEnd,
             ],
         );
@@ -111,7 +110,6 @@ mod tests {
                 },
                 Token::Str("bytes"),
                 Token::None,
-
                 Token::StructEnd,
             ],
         );
@@ -119,7 +117,9 @@ mod tests {
 
     #[test]
     fn some_json_serialization_round_trip() {
-        let test_value = TestStruct { bytes: Some(BigUint::from_u64(12345).unwrap()) };
+        let test_value = TestStruct {
+            bytes: Some(BigUint::from_u64(12345).unwrap()),
+        };
         let expected_json = r#"{"bytes":"MDk"}"#;
 
         let actual_json = not_err!(serde_json::to_string(&test_value));

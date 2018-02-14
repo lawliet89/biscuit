@@ -2,7 +2,7 @@
 use std::fmt;
 
 use data_encoding::base64url;
-use serde::{Serializer, Deserializer};
+use serde::{Deserializer, Serializer};
 use serde::de;
 
 /// Serialize a byte sequence into Base64 URL encoded string
@@ -42,7 +42,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct TestStruct {
@@ -52,7 +52,9 @@ mod tests {
 
     #[test]
     fn serialization_round_trip() {
-        let test_value = TestStruct { bytes: "hello world".to_string().into_bytes() };
+        let test_value = TestStruct {
+            bytes: "hello world".to_string().into_bytes(),
+        };
 
         assert_tokens(
             &test_value,
@@ -63,7 +65,6 @@ mod tests {
                 },
                 Token::Str("bytes"),
                 Token::Str("aGVsbG8gd29ybGQ"),
-
                 Token::StructEnd,
             ],
         );

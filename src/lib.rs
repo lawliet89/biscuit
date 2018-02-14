@@ -4,6 +4,7 @@
 //! [![Crates.io](https://img.shields.io/crates/v/biscuit.svg)](https://crates.io/crates/biscuit)
 //! [![Repository](https://img.shields.io/github/tag/lawliet89/biscuit.svg)](https://github.com/lawliet89/biscuit)
 //! [![Documentation](https://docs.rs/biscuit/badge.svg)](https://docs.rs/biscuit)
+//! [![dependency status](https://deps.rs/repo/github/lawliet89/biscuit/status.svg)](https://deps.rs/repo/github/lawliet89/biscuit)
 //!
 //! - Documentation:  [stable](https://docs.rs/biscuit/) | [master branch](https://lawliet89.github.io/biscuit)
 //! - Changelog: [Link](https://github.com/lawliet89/biscuit/blob/master/CHANGELOG.md)
@@ -49,57 +50,15 @@
 //! - [JWS Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
-#![allow(
-    legacy_directory_ownership,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    unknown_lints,
-)]
-
-#![deny(
-    const_err,
-    dead_code,
-    deprecated,
-    exceeding_bitshifts,
-    fat_ptr_transmutes,
-    improper_ctypes,
-    missing_docs,
-    mutable_transmutes,
-    no_mangle_const_items,
-    non_camel_case_types,
-    non_shorthand_field_patterns,
-    non_upper_case_globals,
-    overflowing_literals,
-    path_statements,
-    plugin_as_library,
-    private_no_mangle_fns,
-    private_no_mangle_statics,
-    stable_features,
-    trivial_casts,
-    trivial_numeric_casts,
-    unconditional_recursion,
-    unknown_crate_types,
-    unreachable_code,
-    unused_allocation,
-    unused_assignments,
-    unused_attributes,
-    unused_comparisons,
-    unused_extern_crates,
-    unused_features,
-    unused_imports,
-    unused_import_braces,
-    unused_qualifications,
-    unused_must_use,
-    unused_mut,
-    unused_parens,
-    unused_results,
-    unused_unsafe,
-    unused_variables,
-    variant_size_differences,
-    warnings,
-    while_true,
-)]
-
+#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations, unknown_lints)]
+#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
+        no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
+        overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
+        stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
+        unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
+        unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications,
+        unused_must_use, unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables,
+        variant_size_differences, warnings, while_true)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -119,17 +78,17 @@ extern crate url;
 extern crate serde_test;
 
 use std::borrow::Borrow;
-use std::fmt::{self, Display, Debug};
+use std::fmt::{self, Debug, Display};
 use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use data_encoding::base64url;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
 
-pub use url::{Url, ParseError};
+pub use url::{ParseError, Url};
 
 #[cfg(test)]
 #[macro_use]
@@ -524,7 +483,9 @@ impl Compact {
 
     /// Create an empty struct with some expected capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { parts: Vec::with_capacity(capacity) }
+        Self {
+            parts: Vec::with_capacity(capacity),
+        }
     }
 
     /// Push a `CompactPart` to the end
@@ -563,9 +524,9 @@ impl Compact {
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts.get(index).ok_or_else(
-            || "Out of bounds".to_string(),
-        )?;
+        let part = self.parts
+            .get(index)
+            .ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
 
@@ -595,7 +556,6 @@ impl<'de> Deserialize<'de> for Compact {
     where
         D: Deserializer<'de>,
     {
-
         struct CompactVisitor;
 
         impl<'de> de::Visitor<'de> for CompactVisitor {
@@ -967,7 +927,6 @@ impl RegisteredClaims {
         Ok(())
     }
 
-
     /// Check `a` is after `b` within a tolerated duration of `e`, where `e` is unsigned: a - b >= -e
     fn is_after<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
     where
@@ -979,9 +938,7 @@ impl RegisteredClaims {
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e).map_err(|e| {
-            ValidationError::TemporalError(e.description().to_string())
-        })?;
+        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
         Ok(a.signed_duration_since(b) >= -e)
     }
 
@@ -996,9 +953,7 @@ impl RegisteredClaims {
         // So I am just going to `map_err`.
         use std::error::Error;
 
-        let e = chrono::Duration::from_std(e).map_err(|e| {
-            ValidationError::TemporalError(e.description().to_string())
-        })?;
+        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
         Ok(a.signed_duration_since(b) <= e)
     }
 }
@@ -1013,8 +968,12 @@ pub struct ClaimsSet<T> {
     pub private: T,
 }
 
-impl_flatten_serde_generic!(ClaimsSet<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-                            registered, private);
+impl_flatten_serde_generic!(
+    ClaimsSet<T>,
+    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+    registered,
+    private
+);
 
 impl<T> CompactJson for ClaimsSet<T>
 where
@@ -1027,9 +986,9 @@ mod tests {
     use std::str::{self, FromStr};
     use std::time::Duration;
 
-    use chrono::{Utc, TimeZone};
+    use chrono::{TimeZone, Utc};
     use serde_json;
-    use serde_test::{Token, assert_tokens, assert_ser_tokens_error};
+    use serde_test::{assert_ser_tokens_error, assert_tokens, Token};
 
     use super::*;
 
@@ -1064,7 +1023,9 @@ mod tests {
 
     #[test]
     fn string_or_uri_arbitrary_serialization_round_trip() {
-        let test = StringOrUriTest { string: not_err!(FromStr::from_str("Random")) };
+        let test = StringOrUriTest {
+            string: not_err!(FromStr::from_str("Random")),
+        };
         assert_matches!(test, StringOrUriTest{ string: StringOrUri::String(_) });
 
         let expected_json = r#"{"string":"Random"}"#;
@@ -1083,7 +1044,6 @@ mod tests {
                 },
                 Token::Str("string"),
                 Token::Str("Random"),
-
                 Token::StructEnd,
             ],
         );
@@ -1091,7 +1051,9 @@ mod tests {
 
     #[test]
     fn string_or_uri_uri_serialization_round_trip() {
-        let test = StringOrUriTest { string: not_err!(FromStr::from_str("https://www.example.com/")) };
+        let test = StringOrUriTest {
+            string: not_err!(FromStr::from_str("https://www.example.com/")),
+        };
         assert_matches!(test, StringOrUriTest{ string: StringOrUri::Uri(_) });
 
         let expected_json = r#"{"string":"https://www.example.com/"}"#;
@@ -1110,7 +1072,6 @@ mod tests {
                 },
                 Token::Str("string"),
                 Token::Str("https://www.example.com/"),
-
                 Token::StructEnd,
             ],
         );
@@ -1119,12 +1080,16 @@ mod tests {
     #[test]
     #[should_panic(expected = "UriParseError")]
     fn string_or_uri_will_fail_invalid_uris_containing_colons() {
-        let _ = StringOrUriTest { string: FromStr::from_str("Invalid URI: yes!").unwrap() };
+        let _ = StringOrUriTest {
+            string: FromStr::from_str("Invalid URI: yes!").unwrap(),
+        };
     }
 
     #[test]
     fn single_string_serialization_round_trip() {
-        let test = SingleOrMultipleStrings { values: SingleOrMultiple::Single("foobar".to_string()) };
+        let test = SingleOrMultipleStrings {
+            values: SingleOrMultiple::Single("foobar".to_string()),
+        };
         let expected_json = r#"{"values":"foobar"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
@@ -1139,9 +1104,11 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(
-                vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
-            ),
+            values: SingleOrMultiple::Multiple(vec![
+                "foo".to_string(),
+                "bar".to_string(),
+                "baz".to_string(),
+            ]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -1158,8 +1125,9 @@ mod tests {
 
     #[test]
     fn single_string_or_uri_string_serialization_round_trip() {
-        let test =
-            SingleOrMultipleStringOrUris { values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))) };
+        let test = SingleOrMultipleStringOrUris {
+            values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))),
+        };
         let expected_json = r#"{"values":"foobar"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
@@ -1167,8 +1135,14 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
-        assert!(!deserialized.values.contains(&FromStr::from_str("does not exist").unwrap()));
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("foobar").unwrap())
+        );
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("does not exist").unwrap()));
     }
 
     #[test]
@@ -1183,18 +1157,26 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(deserialized.values.contains(&FromStr::from_str("https://www.examples.com").unwrap()));
-        assert!(!deserialized.values.contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("https://www.examples.com").unwrap())
+        );
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
     fn multiple_string_or_uri_serialization_round_trip() {
         let test = SingleOrMultipleStringOrUris {
-            values: SingleOrMultiple::Multiple(vec![not_err!(FromStr::from_str("foo")),
-                                                    not_err!(FromStr::from_str("https://www.example.com/")),
-                                                    not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
-                                                    not_err!(FromStr::from_str("http://[::1]/")),
-                                                    not_err!(FromStr::from_str("baz"))]),
+            values: SingleOrMultiple::Multiple(vec![
+                not_err!(FromStr::from_str("foo")),
+                not_err!(FromStr::from_str("https://www.example.com/")),
+                not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
+                not_err!(FromStr::from_str("http://[::1]/")),
+                not_err!(FromStr::from_str("baz")),
+            ]),
         };
         let expected_json =
             r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
@@ -1205,12 +1187,34 @@ mod tests {
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
-        assert!(deserialized.values.contains(&FromStr::from_str("https://www.example.com").unwrap()));
-        assert!(deserialized.values.contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap()));
-        assert!(deserialized.values.contains(&FromStr::from_str("http://[::1]").unwrap()));
-        assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
-        assert!(!deserialized.values.contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("foo").unwrap())
+        );
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("https://www.example.com").unwrap())
+        );
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap())
+        );
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("http://[::1]").unwrap())
+        );
+        assert!(
+            deserialized
+                .values
+                .contains(&FromStr::from_str("baz").unwrap())
+        );
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
@@ -1245,9 +1249,9 @@ mod tests {
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
             issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
-            audience: Some(SingleOrMultiple::Single(
-                not_err!(FromStr::from_str("htts://acme-customer.com/")),
-            )),
+            audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                "htts://acme-customer.com/"
+            )))),
             not_before: Some(1234.into()),
             ..Default::default()
         };
@@ -1266,9 +1270,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com/"
+                )))),
                 not_before: Some((-1234).into()),
                 ..Default::default()
             },
@@ -1282,22 +1286,16 @@ mod tests {
             &claim,
             &[
                 Token::Map { len: Some(6) },
-
                 Token::Str("iss"),
                 Token::Str("https://www.acme.com/"),
-
                 Token::Str("sub"),
                 Token::Str("John Doe"),
-
                 Token::Str("aud"),
                 Token::Str("htts://acme-customer.com/"),
-
                 Token::Str("nbf"),
                 Token::I64(-1234),
-
                 Token::Str("company"),
                 Token::Str("ACME"),
-
                 Token::Str("department"),
                 Token::Str("Toilet Cleaning"),
                 Token::MapEnd,
@@ -1311,9 +1309,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1332,9 +1330,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com/")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com/"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1345,8 +1343,8 @@ mod tests {
         };
 
         let expected_json = "{\"iss\":\"https://www.acme.com/\",\"sub\":\"John Doe\",\
-                            \"aud\":\"htts://acme-customer.com/\",\
-                            \"nbf\":1234,\"company\":\"ACME\",\"department\":\"Toilet Cleaning\"}";
+                             \"aud\":\"htts://acme-customer.com/\",\
+                             \"nbf\":1234,\"company\":\"ACME\",\"department\":\"Toilet Cleaning\"}";
 
         let serialized = not_err!(serde_json::to_string(&claim));
         assert_eq!(expected_json, serialized);
@@ -1362,9 +1360,9 @@ mod tests {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(
-                    not_err!(FromStr::from_str("htts://acme-customer.com")),
-                )),
+                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                    "htts://acme-customer.com"
+                )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1380,59 +1378,83 @@ mod tests {
     #[test]
     fn is_after() {
         // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(2, 0),
-                                                    Utc.timestamp(0, 0),
-                                                    Duration::from_secs(0))));
-        assert!(!not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
-                                                     Utc.timestamp(3, 0),
-                                                     Duration::from_secs(0))));
+        assert!(not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(2, 0),
+            Utc.timestamp(0, 0),
+            Duration::from_secs(0)
+        )));
+        assert!(!not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(0, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(0)
+        )));
 
         // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
-                                                    Utc.timestamp(3, 0),
-                                                    Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(0, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
 
         // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_after(Utc.timestamp(0, 0),
-                                                     Utc.timestamp(3, 0),
-                                                     Duration::from_secs(1))));
+        assert!(!not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(0, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(1)
+        )));
 
         // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(7, 0),
-                                                    Utc.timestamp(3, 0),
-                                                    Duration::from_secs(5))));
-        assert!(not_err!(RegisteredClaims::is_after(Utc.timestamp(10, 0),
-                                                    Utc.timestamp(3, 0),
-                                                    Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(7, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
+        assert!(not_err!(RegisteredClaims::is_after(
+            Utc.timestamp(10, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
     }
 
     #[test]
     fn is_before() {
         // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(-10, 0),
-                                                     Utc.timestamp(0, 0),
-                                                     Duration::from_secs(0))));
-        assert!(!not_err!(RegisteredClaims::is_before(Utc.timestamp(10, 0),
-                                                      Utc.timestamp(3, 0),
-                                                      Duration::from_secs(0))));
+        assert!(not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(-10, 0),
+            Utc.timestamp(0, 0),
+            Duration::from_secs(0)
+        )));
+        assert!(!not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(10, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(0)
+        )));
 
         // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(5, 0),
-                                                     Utc.timestamp(3, 0),
-                                                     Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(5, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
 
         // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_before(Utc.timestamp(10, 0),
-                                                      Utc.timestamp(3, 0),
-                                                      Duration::from_secs(1))));
+        assert!(!not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(10, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(1)
+        )));
 
         // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(0, 0),
-                                                     Utc.timestamp(3, 0),
-                                                     Duration::from_secs(5))));
-        assert!(not_err!(RegisteredClaims::is_before(Utc.timestamp(-10, 0),
-                                                     Utc.timestamp(3, 0),
-                                                     Duration::from_secs(5))));
+        assert!(not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(0, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
+        assert!(not_err!(RegisteredClaims::is_before(
+            Utc.timestamp(-10, 0),
+            Utc.timestamp(3, 0),
+            Duration::from_secs(5)
+        )));
     }
 
     #[test]

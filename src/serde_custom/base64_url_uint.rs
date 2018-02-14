@@ -5,7 +5,7 @@ use std::fmt;
 
 use data_encoding::base64url;
 use num::BigUint;
-use serde::{Serializer, Deserializer};
+use serde::{Deserializer, Serializer};
 use serde::de;
 
 /// Serialize a `BigUint` into Base64 URL encoded big endian bytes
@@ -48,7 +48,7 @@ where
 mod tests {
     use num::BigUint;
     use num::cast::FromPrimitive;
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
     struct TestStruct {
@@ -58,7 +58,9 @@ mod tests {
 
     #[test]
     fn serialization_round_trip() {
-        let test_value = TestStruct { bytes: BigUint::from_u64(12345).unwrap() };
+        let test_value = TestStruct {
+            bytes: BigUint::from_u64(12345).unwrap(),
+        };
 
         assert_tokens(
             &test_value,
@@ -69,7 +71,6 @@ mod tests {
                 },
                 Token::Str("bytes"),
                 Token::Str("MDk"),
-
                 Token::StructEnd,
             ],
         );

@@ -4,7 +4,7 @@
 use std::fmt;
 
 use num::BigUint;
-use serde::{self, Serialize, Deserialize, Serializer, Deserializer};
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
 use serde_json;
 
@@ -61,7 +61,6 @@ impl Serialize for PublicKeyUse {
     where
         S: Serializer,
     {
-
         let string = match *self {
             PublicKeyUse::Signature => "sig",
             PublicKeyUse::Encryption => "enc",
@@ -77,7 +76,6 @@ impl<'de> Deserialize<'de> for PublicKeyUse {
     where
         D: Deserializer<'de>,
     {
-
         struct PublicKeyUseVisitor;
         impl<'de> de::Visitor<'de> for PublicKeyUseVisitor {
             type Value = PublicKeyUse;
@@ -130,7 +128,6 @@ impl Serialize for KeyOperations {
     where
         S: Serializer,
     {
-
         let string = match *self {
             KeyOperations::Sign => "sign",
             KeyOperations::Verify => "verify",
@@ -152,7 +149,6 @@ impl<'de> Deserialize<'de> for KeyOperations {
     where
         D: Deserializer<'de>,
     {
-
         struct KeyOperationsVisitor;
         impl<'de> de::Visitor<'de> for KeyOperationsVisitor {
             type Value = KeyOperations;
@@ -258,7 +254,6 @@ impl fmt::Debug for AlgorithmParameters {
         write!(f, "{} {{ .. }}", algo_type)
     }
 }
-
 
 impl AlgorithmParameters {
     /// Returns the type of key represented by this set of algorithm parameters
@@ -473,8 +468,13 @@ pub struct JWK<T> {
     pub additional: T,
 }
 
-impl_flatten_serde_generic!(JWK<T>, serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-                            common, algorithm, additional);
+impl_flatten_serde_generic!(
+    JWK<T>,
+    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
+    common,
+    algorithm,
+    additional
+);
 
 impl<T: Serialize + DeserializeOwned> JWK<T> {
     /// Convenience to create a new bare-bones Octect key
@@ -519,9 +519,9 @@ pub struct JWKSet<T> {
 impl<T> JWKSet<T> {
     /// Find the key in the set that matches the given key id, if any.
     pub fn find(&self, kid: &str) -> Option<&JWK<T>> {
-        self.keys.iter().find(|jwk| {
-            jwk.common.key_id.is_some() && jwk.common.key_id.as_ref().unwrap() == kid
-        })
+        self.keys
+            .iter()
+            .find(|jwk| jwk.common.key_id.is_some() && jwk.common.key_id.as_ref().unwrap() == kid)
     }
 }
 
@@ -529,7 +529,7 @@ impl<T> JWKSet<T> {
 mod tests {
     use std::str;
 
-    use serde_test::{Token, assert_tokens};
+    use serde_test::{assert_tokens, Token};
 
     use super::*;
     use jwa;
@@ -542,7 +542,9 @@ mod tests {
             test: PublicKeyUse,
         }
 
-        let test_value = Test { test: PublicKeyUse::Encryption };
+        let test_value = Test {
+            test: PublicKeyUse::Encryption,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -556,7 +558,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: PublicKeyUse::Encryption };
+        let test_value = Test {
+            test: PublicKeyUse::Encryption,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -570,7 +574,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: PublicKeyUse::Other("xxx".to_string()) };
+        let test_value = Test {
+            test: PublicKeyUse::Other("xxx".to_string()),
+        };
         assert_tokens(
             &test_value,
             &[
@@ -593,14 +599,26 @@ mod tests {
         }
 
         let test_json = r#"{"test": "enc"}"#;
-        assert_serde_json(&Test { test: PublicKeyUse::Encryption }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: PublicKeyUse::Encryption,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "sig"}"#;
-        assert_serde_json(&Test { test: PublicKeyUse::Signature }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: PublicKeyUse::Signature,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "xxx"}"#;
         assert_serde_json(
-            &Test { test: PublicKeyUse::Other("xxx".to_string()) },
+            &Test {
+                test: PublicKeyUse::Other("xxx".to_string()),
+            },
             Some(&test_json),
         );
     }
@@ -612,7 +630,9 @@ mod tests {
             test: KeyOperations,
         }
 
-        let test_value = Test { test: KeyOperations::Sign };
+        let test_value = Test {
+            test: KeyOperations::Sign,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -626,7 +646,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::Verify };
+        let test_value = Test {
+            test: KeyOperations::Verify,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -640,8 +662,9 @@ mod tests {
             ],
         );
 
-
-        let test_value = Test { test: KeyOperations::Encrypt };
+        let test_value = Test {
+            test: KeyOperations::Encrypt,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -655,7 +678,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::Decrypt };
+        let test_value = Test {
+            test: KeyOperations::Decrypt,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -669,7 +694,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::WrapKey };
+        let test_value = Test {
+            test: KeyOperations::WrapKey,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -683,7 +710,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::UnwrapKey };
+        let test_value = Test {
+            test: KeyOperations::UnwrapKey,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -697,7 +726,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::DeriveKey };
+        let test_value = Test {
+            test: KeyOperations::DeriveKey,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -711,7 +742,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::DeriveBits };
+        let test_value = Test {
+            test: KeyOperations::DeriveBits,
+        };
         assert_tokens(
             &test_value,
             &[
@@ -725,7 +758,9 @@ mod tests {
             ],
         );
 
-        let test_value = Test { test: KeyOperations::Other("xxx".to_string()) };
+        let test_value = Test {
+            test: KeyOperations::Other("xxx".to_string()),
+        };
         assert_tokens(
             &test_value,
             &[
@@ -748,32 +783,74 @@ mod tests {
         }
 
         let test_json = r#"{"test": "sign"}"#;
-        assert_serde_json(&Test { test: KeyOperations::Sign }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::Sign,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "verify"}"#;
-        assert_serde_json(&Test { test: KeyOperations::Verify }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::Verify,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "encrypt"}"#;
-        assert_serde_json(&Test { test: KeyOperations::Encrypt }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::Encrypt,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "decrypt"}"#;
-        assert_serde_json(&Test { test: KeyOperations::Decrypt }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::Decrypt,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "wrapKey"}"#;
-        assert_serde_json(&Test { test: KeyOperations::WrapKey }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::WrapKey,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "unwrapKey"}"#;
-        assert_serde_json(&Test { test: KeyOperations::UnwrapKey }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::UnwrapKey,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "deriveKey"}"#;
-        assert_serde_json(&Test { test: KeyOperations::DeriveKey }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::DeriveKey,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "deriveBits"}"#;
-        assert_serde_json(&Test { test: KeyOperations::DeriveBits }, Some(&test_json));
+        assert_serde_json(
+            &Test {
+                test: KeyOperations::DeriveBits,
+            },
+            Some(&test_json),
+        );
 
         let test_json = r#"{"test": "xxx"}"#;
         assert_serde_json(
-            &Test { test: KeyOperations::Other("xxx".to_string()) },
+            &Test {
+                test: KeyOperations::Other("xxx".to_string()),
+            },
             Some(&test_json),
         );
     }
@@ -783,18 +860,20 @@ mod tests {
     fn jwk_serde_smoke_test() {
         let test_value: JWK<::Empty> = JWK {
             common: CommonParameters {
-                key_id: Some(
-                    "Public key used in JWS spec Appendix A.3 example".to_string(),
-                ),
+                key_id: Some("Public key used in JWS spec Appendix A.3 example".to_string()),
                 ..Default::default()
             },
             algorithm: AlgorithmParameters::EllipticCurve(EllipticCurveKeyParameters {
                 key_type: Default::default(),
                 curve: EllipticCurve::P256,
-                x: vec![127, 205, 206, 39, 112, 246, 196, 93, 65, 131, 203, 238, 111, 219, 75, 123, 88, 7,
-                            51, 53, 123, 233, 239, 19, 186, 207, 110, 60, 123, 209, 84, 69],
-                y: vec![199, 241, 68, 205, 27, 189, 155, 126, 135, 44, 223, 237, 185, 238, 185, 244, 179,
-                            105, 93, 110, 169, 11, 36, 173, 138, 70, 35, 40, 133, 136, 229, 173],
+                x: vec![
+                    127, 205, 206, 39, 112, 246, 196, 93, 65, 131, 203, 238, 111, 219, 75, 123, 88, 7, 51, 53, 123,
+                    233, 239, 19, 186, 207, 110, 60, 123, 209, 84, 69,
+                ],
+                y: vec![
+                    199, 241, 68, 205, 27, 189, 155, 126, 135, 44, 223, 237, 185, 238, 185, 244, 179, 105, 93, 110,
+                    169, 11, 36, 173, 138, 70, 35, 40, 133, 136, 229, 173,
+                ],
                 d: None,
             }),
             additional: Default::default(),
@@ -814,31 +893,37 @@ mod tests {
     fn jwk_set_symmetric_key() {
         let test_value: JWKSet<::Empty> = JWKSet {
             keys: vec![
-                    JWK {
-                        common: CommonParameters {
-                            algorithm: Some(Algorithm::KeyManagement(jwa::KeyManagementAlgorithm::A128KW)),
-                            ..Default::default()
-                        },
-                        algorithm: AlgorithmParameters::OctectKey {
-                            key_type: Default::default(),
-                             value: vec![25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74, 82]
-                        },
-                        additional: Default::default()
+                JWK {
+                    common: CommonParameters {
+                        algorithm: Some(Algorithm::KeyManagement(
+                            jwa::KeyManagementAlgorithm::A128KW,
+                        )),
+                        ..Default::default()
                     },
-                    JWK {
-                        common: CommonParameters {
-                            key_id: Some("HMAC key used in JWS spec Appendix A.1 example".to_string()),
-                            ..Default::default()
-                        },
-                        algorithm: AlgorithmParameters::OctectKey {
-                            key_type: Default::default(),
-                            value: vec![3, 35, 53, 75, 43, 15, 165, 188, 131, 126, 6, 101, 119, 123, 166, 143,
-                                        90, 179, 40, 230, 240, 84, 201, 40, 169, 15, 132, 178, 210, 80, 46, 191,
-                                        211, 251, 90, 146, 210, 6, 71, 239, 150, 138, 180, 195, 119, 98, 61,
-                                        34, 61, 46, 33, 114, 5, 46, 79, 8, 192, 205, 154, 245, 103, 208, 128, 163]
-                        },
-                        additional: Default::default()
-                    }
+                    algorithm: AlgorithmParameters::OctectKey {
+                        key_type: Default::default(),
+                        value: vec![
+                            25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74, 82
+                        ],
+                    },
+                    additional: Default::default(),
+                },
+                JWK {
+                    common: CommonParameters {
+                        key_id: Some("HMAC key used in JWS spec Appendix A.1 example".to_string()),
+                        ..Default::default()
+                    },
+                    algorithm: AlgorithmParameters::OctectKey {
+                        key_type: Default::default(),
+                        value: vec![
+                            3, 35, 53, 75, 43, 15, 165, 188, 131, 126, 6, 101, 119, 123, 166, 143, 90, 179, 40, 230,
+                            240, 84, 201, 40, 169, 15, 132, 178, 210, 80, 46, 191, 211, 251, 90, 146, 210, 6, 71, 239,
+                            150, 138, 180, 195, 119, 98, 61, 34, 61, 46, 33, 114, 5, 46, 79, 8, 192, 205, 154, 245,
+                            103, 208, 128, 163,
+                        ],
+                    },
+                    additional: Default::default(),
+                },
             ],
         };
 
@@ -870,46 +955,45 @@ mod tests {
                         key_id: Some("1".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::EllipticCurve(
-                        EllipticCurveKeyParameters {
-                            key_type: Default::default(),
-                            curve: EllipticCurve::P256,
-                            x: vec![48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231,
-                                    110, 162, 13, 159, 0, 137, 58, 59, 78, 238, 138, 60, 10, 175, 236, 62],
-                            y: vec![224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189, 251, 213,
-                                    30, 232, 105, 239, 31, 15, 198, 91, 102, 89, 105, 91, 108, 206, 8, 23, 35],
-                            d: None
-                        }
-                    ),
-                    additional: Default::default()
+                    algorithm: AlgorithmParameters::EllipticCurve(EllipticCurveKeyParameters {
+                        key_type: Default::default(),
+                        curve: EllipticCurve::P256,
+                        x: vec![
+                            48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231, 110, 162, 13, 159,
+                            0, 137, 58, 59, 78, 238, 138, 60, 10, 175, 236, 62,
+                        ],
+                        y: vec![
+                            224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189, 251, 213, 30, 232, 105, 239,
+                            31, 15, 198, 91, 102, 89, 105, 91, 108, 206, 8, 23, 35,
+                        ],
+                        d: None,
+                    }),
+                    additional: Default::default(),
                 },
-
                 JWK {
                     common: CommonParameters {
                         algorithm: Some(Algorithm::Signature(jwa::SignatureAlgorithm::RS256)),
                         key_id: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::RSA(
-                        RSAKeyParameters {
-                            key_type: Default::default(),
-                            n: BigUint::new(vec![2661337731, 446995658, 1209332140, 183172752, 955894533,
-                                                3140848734, 581365968, 3217299938, 3520742369, 1559833632, 1548159735,
-                                                2303031139, 1726816051, 92775838, 37272772, 1817499268, 2876656510,
-                                                1328166076, 2779910671,4258539214, 2834014041, 3172137349, 4008354576,
-                                                121660540, 1941402830, 1620936445, 993798294, 47616683, 272681116,
-                                                983097263, 225284287, 3494334405, 4005126248, 1126447551, 2189379704,
-                                                4098746126, 3730484719, 3232696701, 2583545877, 428738419,
-                                                2533069420, 2922211325, 2227907999, 4154608099, 679827337, 1165541732,
-                                                2407118218, 3485541440, 799756961, 1854157941, 3062830172, 3270332715,
-                                                1431293619, 3068067851, 2238478449, 2704523019, 2826966453, 1548381401,
-                                                3719104923, 2605577849, 2293389158, 273345423, 169765991, 3539762026]),
-                            e: BigUint::new(vec![65537]),
-                            .. Default::default()
-                        }
-                    ),
-                    additional: Default::default()
-                }
+                    algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
+                        key_type: Default::default(),
+                        n: BigUint::new(vec![
+                            2661337731, 446995658, 1209332140, 183172752, 955894533, 3140848734, 581365968, 3217299938,
+                            3520742369, 1559833632, 1548159735, 2303031139, 1726816051, 92775838, 37272772, 1817499268,
+                            2876656510, 1328166076, 2779910671, 4258539214, 2834014041, 3172137349, 4008354576,
+                            121660540, 1941402830, 1620936445, 993798294, 47616683, 272681116, 983097263, 225284287,
+                            3494334405, 4005126248, 1126447551, 2189379704, 4098746126, 3730484719, 3232696701,
+                            2583545877, 428738419, 2533069420, 2922211325, 2227907999, 4154608099, 679827337,
+                            1165541732, 2407118218, 3485541440, 799756961, 1854157941, 3062830172, 3270332715,
+                            1431293619, 3068067851, 2238478449, 2704523019, 2826966453, 1548381401, 3719104923,
+                            2605577849, 2293389158, 273345423, 169765991, 3539762026,
+                        ]),
+                        e: BigUint::new(vec![65537]),
+                        ..Default::default()
+                    }),
+                    additional: Default::default(),
+                },
             ],
         };
 
@@ -928,22 +1012,23 @@ mod tests {
                         key_id: Some("1".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::EllipticCurve(
-                        EllipticCurveKeyParameters {
-                            key_type: Default::default(),
-                            curve: EllipticCurve::P256,
-                            x: vec![48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43,
-                                    55, 231, 110, 162, 13, 159, 0, 137, 58, 59, 78, 238, 138, 60,
-                                    10, 175, 236, 62],
-                            y: vec![224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189,
-                                    251, 213, 30, 232, 105, 239, 31, 15, 198, 91, 102, 89, 105,
-                                    91, 108, 206, 8, 23, 35],
-                            d: Some(vec![243, 189, 12, 7, 168, 31, 185, 50, 120, 30, 213, 39,
-                                        82, 246, 12, 200, 154, 107, 229, 229, 25, 52, 254, 1,
-                                        147, 141, 219, 85, 216, 247, 120, 1])
-                        }
-                    ),
-                    additional: Default::default()
+                    algorithm: AlgorithmParameters::EllipticCurve(EllipticCurveKeyParameters {
+                        key_type: Default::default(),
+                        curve: EllipticCurve::P256,
+                        x: vec![
+                            48, 160, 66, 76, 210, 28, 41, 68, 131, 138, 45, 117, 201, 43, 55, 231, 110, 162, 13, 159,
+                            0, 137, 58, 59, 78, 238, 138, 60, 10, 175, 236, 62,
+                        ],
+                        y: vec![
+                            224, 75, 101, 233, 36, 86, 217, 136, 139, 82, 179, 121, 189, 251, 213, 30, 232, 105, 239,
+                            31, 15, 198, 91, 102, 89, 105, 91, 108, 206, 8, 23, 35,
+                        ],
+                        d: Some(vec![
+                            243, 189, 12, 7, 168, 31, 185, 50, 120, 30, 213, 39, 82, 246, 12, 200, 154, 107, 229, 229,
+                            25, 52, 254, 1, 147, 141, 219, 85, 216, 247, 120, 1,
+                        ]),
+                    }),
+                    additional: Default::default(),
                 },
                 JWK {
                     common: CommonParameters {
@@ -951,82 +1036,69 @@ mod tests {
                         key_id: Some("2011-04-29".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::RSA(
-                        RSAKeyParameters {
-                            n: BigUint::new(vec![2661337731, 446995658, 1209332140, 183172752, 955894533,
-                                                 3140848734, 581365968, 3217299938, 3520742369, 1559833632,
-                                                 1548159735, 2303031139, 1726816051, 92775838, 37272772,
-                                                 1817499268, 2876656510, 1328166076, 2779910671, 4258539214,
-                                                 2834014041, 3172137349, 4008354576, 121660540, 1941402830,
-                                                 1620936445, 993798294, 47616683, 272681116, 983097263,
-                                                 225284287, 3494334405, 4005126248, 1126447551, 2189379704,
-                                                 4098746126, 3730484719, 3232696701, 2583545877, 428738419,
-                                                 2533069420, 2922211325, 2227907999, 4154608099, 679827337,
-                                                 1165541732, 2407118218, 3485541440, 799756961, 1854157941,
-                                                 3062830172, 3270332715, 1431293619, 3068067851, 2238478449,
-                                                 2704523019, 2826966453, 1548381401, 3719104923, 2605577849,
-                                                 2293389158, 273345423, 169765991, 3539762026]),
-                            e: BigUint::new(vec![65537]),
-                            d: Some(BigUint::new(vec![713032433, 400701404, 3861752269, 1672063644,
-                                                      3365010676, 3983790198, 2118218649, 1180059196,
-                                                      3214193513, 103331652, 3890363798, 149974729,
-                                                      3621157035, 3968873060, 2871316584, 4055377082,
-                                                      3404441811, 2991770705, 1288729501, 2747761153,
-                                                      3336623437, 2364731106, 1645984872, 1574081430,
-                                                      3820298762, 2596433775, 3693531604, 4039342668,
-                                                      3035475437, 3285541752, 3070172669, 2361416509,
-                                                      394294662, 2977738861, 2839890465, 841230222,
-                                                      883615744, 114031047, 1313725071, 2810669078,
-                                                      1097346134, 2647740217, 2124981186, 1406400018,
-                                                      1957909244, 3961425321, 3596839919, 2973771986,
-                                                      615724121, 3146071647, 471749184, 2647156653,
-                                                      991511652, 3077695114, 748748083, 354410955,
-                                                      2713339034, 932263697, 746803531, 2024924924,
-                                                      1545546613, 4162159596, 3797483017, 1602687925])),
-                            p: Some(BigUint::new(vec![1238724091, 318372667, 1355643853, 485701733,
-                                                      3341746677, 1035832885, 3721261079, 425089171,
-                                                      2054479354, 1436899400, 562311849, 4217170837,
-                                                      2023494776, 842246473, 1670171010, 3629471803,
-                                                      2613338008, 1336058667, 3907465950, 1278837722,
-                                                      301706526, 1508904813, 84700477, 281588688,
-                                                      1051290981, 4013685922, 1648080502, 3208306609,
-                                                      3216888618, 207366948, 2345408890, 4084776684])),
-                            q: Some(BigUint::new(vec![2896074521, 3807517807, 654326695, 805762229,
-                                                      302497825, 3687241987, 3756840608, 1743610977,
-                                                      2621828332, 419985079, 4047291779, 1029002427,
-                                                      752954010, 2324424862, 3992768900, 1440975207,
-                                                      2944332800, 1547302329, 661218096, 1997018012,
-                                                      248893995, 1789089172, 2712859322, 2862464495,
-                                                      3786711083, 2238161202, 1929865911, 3624669681,
-                                                      347922466, 3024873892, 3610141359, 3721907783])),
-                            dp: Some(BigUint::new(vec![1155663421, 4052197930, 2875421595, 3507788494,
-                                                       2881675167, 838917555, 2601651989, 459386695,
-                                                       3873213880, 2254232621, 4242124217, 15709214,
-                                                       292087504, 1069982818, 1853923539, 1580521844,
-                                                       4073993812, 2986647068, 2540273745, 2068123243,
-                                                       2660839470, 2352030253, 323625625, 2640279336,
-                                                       791777172, 531977105, 3029809343, 2356061851,
-                                                       4159835023, 1928495702, 1195008431, 462098270])),
-                            dq: Some(BigUint::new(vec![2218750473, 3313252599, 4264517421, 1492081333,
-                                                       1067765483, 232198298, 2314112310, 1187650374,
-                                                       3740239259, 1635257886, 1103093236, 2491201628,
-                                                       718947546, 1371343186, 141466945, 37198959,
-                                                       835764074, 2453692137, 970482580, 2037297103,
-                                                       698337642, 4078896579, 3927675986, 897186496,
-                                                       2305102129, 417341884, 917323172, 1302381423,
-                                                       1775079932, 672472846, 3621814299, 3017359391])),
-                            qi: Some(BigUint::new(vec![2822788373, 565097292, 169554874, 2338166229,
-                                                       3171059040, 2497414769, 2887328684, 1224315260,
-                                                       1462577079, 612121502, 660433863, 1066956358,
-                                                       2410265369, 3691215764, 1134057558, 843539511,
-                                                       694371854, 2599950644, 1558711302, 2053393907,
-                                                       1148250800, 1108939089, 377893761, 1098804084,
-                                                       1819782402, 3151682353, 3812854953, 1602843789,
-                                                       369269593, 2731498344, 2724945700, 455294887])),
-                            ..Default::default()
-                        }),
-                    additional: Default::default()
-                }
+                    algorithm: AlgorithmParameters::RSA(RSAKeyParameters {
+                        n: BigUint::new(vec![
+                            2661337731, 446995658, 1209332140, 183172752, 955894533, 3140848734, 581365968, 3217299938,
+                            3520742369, 1559833632, 1548159735, 2303031139, 1726816051, 92775838, 37272772, 1817499268,
+                            2876656510, 1328166076, 2779910671, 4258539214, 2834014041, 3172137349, 4008354576,
+                            121660540, 1941402830, 1620936445, 993798294, 47616683, 272681116, 983097263, 225284287,
+                            3494334405, 4005126248, 1126447551, 2189379704, 4098746126, 3730484719, 3232696701,
+                            2583545877, 428738419, 2533069420, 2922211325, 2227907999, 4154608099, 679827337,
+                            1165541732, 2407118218, 3485541440, 799756961, 1854157941, 3062830172, 3270332715,
+                            1431293619, 3068067851, 2238478449, 2704523019, 2826966453, 1548381401, 3719104923,
+                            2605577849, 2293389158, 273345423, 169765991, 3539762026,
+                        ]),
+                        e: BigUint::new(vec![65537]),
+                        d: Some(BigUint::new(vec![
+                            713032433, 400701404, 3861752269, 1672063644, 3365010676, 3983790198, 2118218649,
+                            1180059196, 3214193513, 103331652, 3890363798, 149974729, 3621157035, 3968873060,
+                            2871316584, 4055377082, 3404441811, 2991770705, 1288729501, 2747761153, 3336623437,
+                            2364731106, 1645984872, 1574081430, 3820298762, 2596433775, 3693531604, 4039342668,
+                            3035475437, 3285541752, 3070172669, 2361416509, 394294662, 2977738861, 2839890465,
+                            841230222, 883615744, 114031047, 1313725071, 2810669078, 1097346134, 2647740217,
+                            2124981186, 1406400018, 1957909244, 3961425321, 3596839919, 2973771986, 615724121,
+                            3146071647, 471749184, 2647156653, 991511652, 3077695114, 748748083, 354410955, 2713339034,
+                            932263697, 746803531, 2024924924, 1545546613, 4162159596, 3797483017, 1602687925,
+                        ])),
+                        p: Some(BigUint::new(vec![
+                            1238724091, 318372667, 1355643853, 485701733, 3341746677, 1035832885, 3721261079,
+                            425089171, 2054479354, 1436899400, 562311849, 4217170837, 2023494776, 842246473,
+                            1670171010, 3629471803, 2613338008, 1336058667, 3907465950, 1278837722, 301706526,
+                            1508904813, 84700477, 281588688, 1051290981, 4013685922, 1648080502, 3208306609,
+                            3216888618, 207366948, 2345408890, 4084776684,
+                        ])),
+                        q: Some(BigUint::new(vec![
+                            2896074521, 3807517807, 654326695, 805762229, 302497825, 3687241987, 3756840608,
+                            1743610977, 2621828332, 419985079, 4047291779, 1029002427, 752954010, 2324424862,
+                            3992768900, 1440975207, 2944332800, 1547302329, 661218096, 1997018012, 248893995,
+                            1789089172, 2712859322, 2862464495, 3786711083, 2238161202, 1929865911, 3624669681,
+                            347922466, 3024873892, 3610141359, 3721907783,
+                        ])),
+                        dp: Some(BigUint::new(vec![
+                            1155663421, 4052197930, 2875421595, 3507788494, 2881675167, 838917555, 2601651989,
+                            459386695, 3873213880, 2254232621, 4242124217, 15709214, 292087504, 1069982818, 1853923539,
+                            1580521844, 4073993812, 2986647068, 2540273745, 2068123243, 2660839470, 2352030253,
+                            323625625, 2640279336, 791777172, 531977105, 3029809343, 2356061851, 4159835023,
+                            1928495702, 1195008431, 462098270,
+                        ])),
+                        dq: Some(BigUint::new(vec![
+                            2218750473, 3313252599, 4264517421, 1492081333, 1067765483, 232198298, 2314112310,
+                            1187650374, 3740239259, 1635257886, 1103093236, 2491201628, 718947546, 1371343186,
+                            141466945, 37198959, 835764074, 2453692137, 970482580, 2037297103, 698337642, 4078896579,
+                            3927675986, 897186496, 2305102129, 417341884, 917323172, 1302381423, 1775079932, 672472846,
+                            3621814299, 3017359391,
+                        ])),
+                        qi: Some(BigUint::new(vec![
+                            2822788373, 565097292, 169554874, 2338166229, 3171059040, 2497414769, 2887328684,
+                            1224315260, 1462577079, 612121502, 660433863, 1066956358, 2410265369, 3691215764,
+                            1134057558, 843539511, 694371854, 2599950644, 1558711302, 2053393907, 1148250800,
+                            1108939089, 377893761, 1098804084, 1819782402, 3151682353, 3812854953, 1602843789,
+                            369269593, 2731498344, 2724945700, 455294887,
+                        ])),
+                        ..Default::default()
+                    }),
+                    additional: Default::default(),
+                },
             ],
         };
 
@@ -1046,7 +1118,7 @@ mod tests {
                         key_type: Default::default(),
                         value: Default::default(),
                     },
-                    additional: Default::default()
+                    additional: Default::default(),
                 },
                 JWK {
                     common: CommonParameters {
@@ -1057,7 +1129,7 @@ mod tests {
                         key_type: Default::default(),
                         value: Default::default(),
                     },
-                    additional: Default::default()
+                    additional: Default::default(),
                 },
                 JWK {
                     common: Default::default(),
@@ -1065,8 +1137,8 @@ mod tests {
                         key_type: Default::default(),
                         value: Default::default(),
                     },
-                    additional: Default::default()
-                }
+                    additional: Default::default(),
+                },
             ],
         }
     }
@@ -1076,9 +1148,10 @@ mod tests {
     fn jwk_set_find_some_test() {
         let keys = find_key_set();
         let key = keys.find("first").expect("Should have found key");
-        let kid = key.common.key_id.as_ref().expect(
-            "Key should have a key id",
-        );
+        let kid = key.common
+            .key_id
+            .as_ref()
+            .expect("Key should have a key id");
         assert_eq!(kid, "first");
     }
 
