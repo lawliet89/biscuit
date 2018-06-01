@@ -322,13 +322,20 @@ impl SignatureAlgorithm {
         Ok(signature)
     }
 
-    fn sign_ecdsa(_data: &[u8], _secret: &Secret, _algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
-        // Not supported at the moment by ring
-        // Tracking issues:
-        //  - P-256: https://github.com/briansmith/ring/issues/207
-        //  - P-384: https://github.com/briansmith/ring/issues/209
-        //  - P-521: Probably never: https://github.com/briansmith/ring/issues/268
-        Err(Error::UnsupportedOperation)
+    fn sign_ecdsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+        let key_pair = match *secret {
+            Secret::ECDSAKeyPair(ref key_pair) => key_pair,
+            _ => Err("Invalid secret type. An ECDSAKeyPair is required".to_string())?,
+        };
+        if let SignatureAlgorithm::ES512 = algorithm {
+            // See https://github.com/briansmith/ring/issues/268
+            Err(Error::UnsupportedOperation)
+        } else {
+            let rng = rand::SystemRandom::new();
+            let data = untrusted::Input::from(data);
+            let sig = key_pair.as_ref().sign(data, &rng)?;
+            Ok(sig.as_ref().to_vec())
+        }
     }
 
     fn verify_none(expected_signature: &[u8], secret: &Secret) -> Result<(), Error> {
@@ -826,16 +833,21 @@ mod tests {
         not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, &public_key,));
     }
 
+    /// This signature is non-deterministic.
     #[test]
-    #[should_panic(expected = "UnsupportedOperation")]
-    fn sign_ecdsa() {
-        let private_key = Secret::Bytes("secret".to_string().into_bytes()); // irrelevant
+    fn sign_and_verify_es256_round_trip() {
+        let private_key = Secret::ecdsa_keypair_from_file(SignatureAlgorithm::ES256, "test/fixtures/ecdsa_private_key.p8").unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        let _ = SignatureAlgorithm::ES256
-            .sign(payload_bytes, &private_key)
-            .unwrap();
+        let actual_signature = not_err!(SignatureAlgorithm::ES256.sign(payload_bytes, &private_key));
+
+        let public_key = Secret::public_key_from_file("test/fixtures/ecdsa_public_key.der").unwrap();
+        not_err!(SignatureAlgorithm::ES256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
