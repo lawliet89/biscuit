@@ -310,6 +310,22 @@ pub enum Secret {
     /// let secret = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der");
     /// ```
     RSAKeyPair(Arc<signature::RSAKeyPair>),
+    /// An ECDSA Key pair constructed from a PKCS8 DER encoded private key
+    ///
+    /// To generate a private key, use
+    ///
+    /// ```sh
+    /// openssl ecparam -genkey -name prime256v1 | \
+    /// openssl pkcs8 -topk8 -nocrypt -outform DER > ecdsa_private_key.p8
+    /// ```
+    ///
+    /// # Examples
+    /// ```
+    /// use biscuit::jws::Secret;
+    ///
+    /// let secret = Secret::ecdsa_keypair_from_file(biscuit::jwa::SignatureAlgorithm::ES256, "test/fixtures/ecdsa_private_key.p8");
+    /// ```
+    ECDSAKeyPair(Arc<signature::ECDSAKeyPair>),
     /// Bytes of a DER encoded RSA Public Key
     ///
     /// To generate the public key from your DER-encoded private key
@@ -365,6 +381,18 @@ impl Secret {
         let der = Self::read_bytes(path)?;
         let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der.as_slice()))?;
         Ok(Secret::RSAKeyPair(Arc::new(key_pair)))
+    }
+
+    /// Convenience function to get the ECDSA Keypair from a PKCS8-DER encoded EC private key.
+    pub fn ecdsa_keypair_from_file(algorithm: SignatureAlgorithm, path: &str) -> Result<Self, Error> {
+        let der = Self::read_bytes(path)?;
+        let ring_algorithm = match algorithm {
+            SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
+            _ => {return Err(Error::UnsupportedOperation)},
+        };
+        let key_pair = signature::ECDSAKeyPair::from_pkcs8(ring_algorithm, untrusted::Input::from(der.as_slice()))?;
+        Ok(Secret::ECDSAKeyPair(Arc::new(key_pair)))
     }
 
     /// Convenience function to create a Public key from a DER encoded RSA or ECDSA public key
