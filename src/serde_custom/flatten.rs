@@ -572,6 +572,7 @@ mod tests {
         let serialized = not_err!(serde_json::to_string_pretty(&test_value));
 
         let expected_json = r#"{
+  "a": false,
   "b": 0,
   "c": 0,
   "d": {
@@ -579,7 +580,6 @@ mod tests {
     "e": false,
     "f": 0
   },
-  "a": false,
   "e": false,
   "f": 0,
   "g": false,
