@@ -12,7 +12,7 @@ use serde_json;
 use untrusted;
 
 use {CompactJson, CompactPart, Empty};
-use errors::{Error, ValidationError};
+use errors::{Error, ValidationError, DecodeError};
 use jwa::SignatureAlgorithm;
 use serde_custom;
 
@@ -112,7 +112,7 @@ where
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref encoded) => {
                 if encoded.len() != 3 {
-                    Err(ValidationError::PartsLengthError {
+                    Err(DecodeError::PartsLengthError {
                         actual: encoded.len(),
                         expected: 3,
                     })?
@@ -251,8 +251,8 @@ where
     ///
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
-    pub fn validate_times(&self, options: Option<::TemporalValidationOptions>) -> Result<(), Error> {
-        Ok(self.payload()?.registered.validate_times(options)?)
+    pub fn validate(&self, options: ::ValidationOptions) -> Result<(), Error> {
+        Ok(self.payload()?.registered.validate(options)?)
     }
 }
 
