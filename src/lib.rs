@@ -91,7 +91,7 @@ use serde::de::{self, DeserializeOwned};
 pub use url::{ParseError, Url};
 
 mod helpers;
-use helpers::*;
+pub use helpers::*;
 
 #[cfg(test)]
 #[macro_use]
@@ -1119,7 +1119,7 @@ impl RegisteredClaims {
         self.validate_claim_presence(options.claim_presence_options)?;
         self.validate_exp(options.expiry.map( |_| options.temporal_options))?;
         self.validate_nbf(options.not_before.map( |_| options.temporal_options))?;
-        self.validate_iat(options.iat_validated.map( |dur| (dur, options.temporal_options)))?;
+        self.validate_iat(options.issued_at.map( |dur| (dur, options.temporal_options)))?;
 
         self.validate_iss(options.issuer)?;
         self.validate_aud(options.audience)?;
@@ -1690,7 +1690,7 @@ mod tests {
 
             expiry: Validation::Validate(()),
             not_before: Validation::Validate(()),
-            iat_validated: Validation::Validate(Duration::max_value()),
+            issued_at: Validation::Validate(Duration::max_value()),
 
             ..Default::default()
         };
@@ -1795,7 +1795,7 @@ mod tests {
 
             expiry: Validation::Validate(()),
             not_before: Validation::Validate(()),
-            iat_validated: Validation::Validate(Duration::max_value()),
+            issued_at: Validation::Validate(Duration::max_value()),
             audience: Validation::Validate(StringOrUri::String("audience".into())),
             issuer: Validation::Validate(StringOrUri::String("issuer".into()))
         };
@@ -1823,7 +1823,7 @@ mod tests {
 
             expiry: Validation::Validate(()),
             not_before: Validation::Validate(()),
-            iat_validated: Validation::Validate(Duration::max_value()),
+            issued_at: Validation::Validate(Duration::max_value()),
 
             ..Default::default()
         };

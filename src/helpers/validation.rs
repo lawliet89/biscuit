@@ -1,9 +1,10 @@
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
+/// Defines wether a claim is validated or not
 pub enum Validation<T> {
-    // This field is not validated
+    /// This field is not validated
     Ignored,
 
-    // This field is validated using the value T
+    /// This field is validated using the value T
     Validate(T)
 }
 
@@ -26,6 +27,7 @@ impl<T> Default for Validation<T> {
 }
 
 impl<T> Validation<T> {
+    /// Map the value to another validation requirement, similar to how .map works on iter()
     pub fn map<U, F>(self, f: F) -> Validation<U> where F: FnOnce(T) -> U {
         match self {
             Validation::Ignored => Validation::Ignored,
