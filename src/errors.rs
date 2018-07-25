@@ -1,8 +1,8 @@
 //! Errors returned will be converted to one of the structs in this module.
-use std::{error, fmt, io, str, string};
 use data_encoding;
 use ring;
 use serde_json;
+use std::{error, fmt, io, str, string};
 use url::ParseError;
 
 #[derive(Debug)]
@@ -71,11 +71,13 @@ pub enum ValidationError {
 }
 
 macro_rules! impl_from_error {
-    ($f: ty, $e: expr) => {
+    ($f:ty, $e:expr) => {
         impl From<$f> for Error {
-            fn from(f: $f) -> Error { $e(f) }
+            fn from(f: $f) -> Error {
+                $e(f)
+            }
         }
-    }
+    };
 }
 
 impl_from_error!(String, Error::GenericError);
@@ -189,8 +191,8 @@ impl error::Error for ValidationError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use ValidationError::*;
         use std::error::Error;
+        use ValidationError::*;
 
         match *self {
             MissingRequired(ref field) => write!(f, "{} is required but is missing", field),

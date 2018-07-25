@@ -5,15 +5,15 @@
 //! you will want to look at the  [`Compact`](enum.Compact.html) enum.
 use std::fmt;
 
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
-use {CompactJson, CompactPart, Empty};
 use errors::{Error, ValidationError};
 use jwa::{self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm};
 use jwk;
 use serde_custom;
+use {CompactJson, CompactPart, Empty};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 /// Compression algorithm applied to plaintext before encryption.
@@ -479,9 +479,7 @@ where
 
                 // Verify that the algorithms are expected
                 if header.registered.cek_algorithm != cek_alg || header.registered.enc_algorithm != enc_alg {
-                    Err(Error::ValidationError(
-                        ValidationError::WrongAlgorithmHeader,
-                    ))?;
+                    Err(Error::ValidationError(ValidationError::WrongAlgorithmHeader))?;
                 }
 
                 // TODO: Steps 4-5 not implemented at the moment.
@@ -547,9 +545,7 @@ where
     /// Convenience method to get a mutable reference to the payload from an Decrypted JWE
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decrypted {
-                ref mut payload, ..
-            } => Ok(payload),
+            Compact::Decrypted { ref mut payload, .. } => Ok(payload),
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -617,11 +613,11 @@ mod tests {
     use ring::rand::SecureRandom;
     use serde_test::{assert_tokens, Token};
 
-    use JWE;
     use super::*;
     use jwa::{self, random_aes_gcm_nonce, rng};
     use jws;
     use test::assert_serde_json;
+    use JWE;
 
     fn cek_oct_key(len: usize) -> jwk::JWK<::Empty> {
         // Construct the encryption key
@@ -650,10 +646,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("DEF"),
                 Token::StructEnd,
@@ -666,10 +659,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("xxx"),
                 Token::StructEnd,

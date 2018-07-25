@@ -1,21 +1,32 @@
-use std::fmt::Debug;
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use serde_json;
+use std::fmt::Debug;
 
 macro_rules! not_err {
-    ($e:expr) => (match $e {
-        Ok(e) => e,
-        Err(e) => panic!("{} failed with {}", stringify!($e), e),
-    })
+    ($e:expr) => {
+        match $e {
+            Ok(e) => e,
+            Err(e) => panic!("{} failed with {}", stringify!($e), e),
+        }
+    };
 }
 
 macro_rules! assert_matches {
-    ($e: expr, $p: pat) => (assert_matches!($e, $p, ()));
-    ($e: expr, $p: pat, $f: expr) => (match $e {
-        $p => $f,
-        e @ _ => panic!("{}: Expected pattern {} \ndoes not match {:?}", stringify!($e), stringify!($p), e)
-    })
+    ($e:expr, $p:pat) => {
+        assert_matches!($e, $p, ())
+    };
+    ($e:expr, $p:pat, $f:expr) => {
+        match $e {
+            $p => $f,
+            e @ _ => panic!(
+                "{}: Expected pattern {} \ndoes not match {:?}",
+                stringify!($e),
+                stringify!($p),
+                e
+            ),
+        }
+    };
 }
 
 /// Tests that `value` can be serialized to JSON, and then back to type `T` and that the deserialized type `T`

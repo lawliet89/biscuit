@@ -51,14 +51,16 @@
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
 #![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations, unknown_lints)]
-#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
-        no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
-        overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
-        stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
-        unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
-        unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications,
-        unused_must_use, unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables,
-        variant_size_differences, warnings, while_true)]
+#![deny(
+    const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
+    no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
+    overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
+    stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
+    unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
+    unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications, unused_must_use,
+    unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences, warnings,
+    while_true
+)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -85,8 +87,8 @@ use std::str::{self, FromStr};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
 use data_encoding::BASE64URL_NOPAD;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use url::{ParseError, Url};
 
@@ -102,9 +104,9 @@ mod macros;
 
 pub mod errors;
 pub mod jwa;
-pub mod jws;
-pub mod jwk;
 pub mod jwe;
+pub mod jwk;
+pub mod jws;
 
 use errors::{Error, ValidationError};
 
@@ -515,18 +517,13 @@ impl Compact {
     /// Convenience function to split an encoded compact representation into a list of `Base64Url`.
     pub fn decode(encoded: &str) -> Self {
         // Never fails
-        let parts = encoded
-            .split('.')
-            .map(|s| FromStr::from_str(s).unwrap())
-            .collect();
+        let parts = encoded.split('.').map(|s| FromStr::from_str(s).unwrap()).collect();
         Self { parts: parts }
     }
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts
-            .get(index)
-            .ok_or_else(|| "Out of bounds".to_string())?;
+        let part = self.parts.get(index).ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
 
@@ -913,15 +910,11 @@ impl RegisteredClaims {
         }
 
         if self.issued_at.is_some() && !Self::is_before(*self.issued_at.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError(
-                "Token issued in the future".to_string(),
-            ))?;
+            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
         }
 
         if self.not_before.is_some() && !Self::is_before(*self.not_before.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError(
-                "Token not valid yet".to_string(),
-            ))?;
+            Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
         }
 
         Ok(())
@@ -1104,11 +1097,7 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(vec![
-                "foo".to_string(),
-                "bar".to_string(),
-                "baz".to_string(),
-            ]),
+            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -1135,11 +1124,7 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("foobar").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("does not exist").unwrap()));
@@ -1187,11 +1172,7 @@ mod tests {
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("foo").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
         assert!(
             deserialized
                 .values
@@ -1207,11 +1188,7 @@ mod tests {
                 .values
                 .contains(&FromStr::from_str("http://[::1]").unwrap())
         );
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("baz").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
