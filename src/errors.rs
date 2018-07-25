@@ -258,7 +258,6 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::DecodeError::*;
         use std::error::Error;
-        use ValidationError::*;
 
         match *self {
             InvalidToken => write!(f, "{}", self.description()),
