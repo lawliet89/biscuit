@@ -2,8 +2,8 @@
 use std::fmt;
 
 use data_encoding::BASE64URL_NOPAD;
-use serde::{Deserializer, Serializer};
 use serde::de;
+use serde::{Deserializer, Serializer};
 
 /// Serialize a byte sequence into Base64 URL encoded string
 pub fn serialize<S>(value: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>

@@ -1,10 +1,10 @@
 //! Errors returned will be converted to one of the structs in this module.
-use std::{error, fmt, io, str, string};
+use chrono::Duration;
 use data_encoding;
 use ring;
 use serde_json;
+use std::{error, fmt, io, str, string};
 use url::ParseError;
-use chrono::Duration;
 use SingleOrMultiple;
 use StringOrUri;
 
@@ -64,7 +64,6 @@ pub enum DecodeError {
         /// Actual number of parts
         actual: usize,
     },
-
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -92,15 +91,17 @@ pub enum ValidationError {
     /// The token does not have or has the wrong issuer (iss check failed, RFC7523 3.1)
     InvalidIssuer(StringOrUri),
     /// The token does not have or has the wrong audience (aud check failed, RFC7523 3.3
-    InvalidAudience(SingleOrMultiple<StringOrUri>)
+    InvalidAudience(SingleOrMultiple<StringOrUri>),
 }
 
 macro_rules! impl_from_error {
-    ($f: ty, $e: expr) => {
+    ($f:ty, $e:expr) => {
         impl From<$f> for Error {
-            fn from(f: $f) -> Error { $e(f) }
+            fn from(f: $f) -> Error {
+                $e(f)
+            }
         }
-    }
+    };
 }
 
 impl_from_error!(String, Error::GenericError);
@@ -209,7 +210,7 @@ impl error::Error for ValidationError {
             NotYetValid(_) => "Token not yet valid",
             TooOld(_) => "Token is too old",
             InvalidIssuer(_) => "Issuer is invalid",
-            InvalidAudience(_) => "Audience of token is invalid"
+            InvalidAudience(_) => "Audience of token is invalid",
         }
     }
 
@@ -231,18 +232,24 @@ impl error::Error for DecodeError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use ValidationError::*;
         use std::error::Error;
+        use ValidationError::*;
 
         match *self {
-            MissingRequiredClaims(ref fields) => write!(f, "The following claims are required, but missing: {:?}", fields),
+            MissingRequiredClaims(ref fields) => {
+                write!(f, "The following claims are required, but missing: {:?}", fields)
+            }
             Expired(ago) => write!(f, "Token expired {} seconds ago", ago.num_seconds()),
             NotYetValid(nyv_for) => write!(f, "Token will be valid in {} seconds", nyv_for.num_seconds()),
-            TooOld(duration) => write!(f, "Token has been considered too old for {} seconds", duration.num_seconds()),
+            TooOld(duration) => write!(
+                f,
+                "Token has been considered too old for {} seconds",
+                duration.num_seconds()
+            ),
             InvalidIssuer(ref iss) => write!(f, "Issuer of token is invalid: {:?}", iss),
             InvalidAudience(ref aud) => write!(f, "Audience of token is invalid: {:?}", aud),
 
-            InvalidSignature | WrongAlgorithmHeader => write!(f, "{}", self.description())
+            InvalidSignature | WrongAlgorithmHeader => write!(f, "{}", self.description()),
         }
     }
 }
@@ -258,7 +265,7 @@ impl fmt::Display for DecodeError {
                 f,
                 "Expected {} parts in Compact JSON representation but got {}",
                 expected, actual
-            )
+            ),
         }
     }
 }

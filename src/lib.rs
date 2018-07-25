@@ -51,14 +51,16 @@
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
 #![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations, unknown_lints)]
-#![deny(const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
-        no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
-        overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
-        stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
-        unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
-        unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications,
-        unused_must_use, unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables,
-        variant_size_differences, warnings, while_true)]
+#![deny(
+    const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
+    no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
+    overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
+    stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
+    unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
+    unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications, unused_must_use,
+    unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences, warnings,
+    while_true
+)]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 extern crate chrono;
@@ -83,10 +85,10 @@ use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
-use chrono::{DateTime, NaiveDateTime, Utc, Duration};
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use data_encoding::BASE64URL_NOPAD;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use url::{ParseError, Url};
 
@@ -105,9 +107,9 @@ mod macros;
 
 pub mod errors;
 pub mod jwa;
-pub mod jws;
-pub mod jwk;
 pub mod jwe;
+pub mod jwk;
+pub mod jws;
 
 use errors::{Error, ValidationError};
 
@@ -518,18 +520,13 @@ impl Compact {
     /// Convenience function to split an encoded compact representation into a list of `Base64Url`.
     pub fn decode(encoded: &str) -> Self {
         // Never fails
-        let parts = encoded
-            .split('.')
-            .map(|s| FromStr::from_str(s).unwrap())
-            .collect();
+        let parts = encoded.split('.').map(|s| FromStr::from_str(s).unwrap()).collect();
         Self { parts: parts }
     }
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts
-            .get(index)
-            .ok_or_else(|| "Out of bounds".to_string())?;
+        let part = self.parts.get(index).ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
 
@@ -856,8 +853,6 @@ pub struct RegisteredClaims {
     pub id: Option<String>,
 }
 
-
-
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
 /// Options for claims presence validation
 ///
@@ -892,13 +887,10 @@ impl ClaimPresenceOptions {
             issuer: Required,
             audience: Required,
             subject: Required,
-            id: Required
+            id: Required,
         }
     }
 }
-
-
-
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
 /// Options for validating temporal claims
@@ -913,7 +905,7 @@ pub struct TemporalOptions {
     pub epsilon: Duration,
 
     /// Specify a time to use in temporal validation instead of `Now`
-    pub now: Option<DateTime<Utc>>
+    pub now: Option<DateTime<Utc>>,
 }
 
 impl Default for TemporalOptions {
@@ -924,7 +916,6 @@ impl Default for TemporalOptions {
         }
     }
 }
-
 
 #[derive(Eq, PartialEq, Clone)]
 /// Options for claims validation
@@ -956,7 +947,6 @@ pub struct ValidationOptions {
     /// Whether the `exp` or `Expiry` field is required
     pub expiry: Validation<()>,
 
-
     /// Whether the `iss` or `Issuer` field is required
     /// Parameter must match the issuer in the token exactly.
     pub issuer: Validation<StringOrUri>,
@@ -964,9 +954,8 @@ pub struct ValidationOptions {
     /// Whether the `aud` or `Audience` field is required
     /// Token must include an audience with the value of the parameter
     pub audience: Validation<StringOrUri>,
-
-//    pub subject_validated: Validation<Box<FnOnce(String) -> bool>>,
-//    pub custom_validation: Validation<Box<FnOnce(&RegisteredClaims) -> Result<(), ValidationError>>>
+    //    pub subject_validated: Validation<Box<FnOnce(String) -> bool>>,
+    //    pub custom_validation: Validation<Box<FnOnce(&RegisteredClaims) -> Result<(), ValidationError>>>
 }
 
 impl Default for ValidationOptions {
@@ -980,18 +969,13 @@ impl Default for ValidationOptions {
             temporal_options: Default::default(),
             audience: Default::default(),
             issuer: Default::default(),
-//            subject_validated: Default::default(),
-//            custom_validation: Default::default(),
+            //            subject_validated: Default::default(),
+            //            custom_validation: Default::default(),
         }
     }
 }
 
-
-
-
-
 impl RegisteredClaims {
-
     ///Validates that the token contains the claims defined as required
     pub fn validate_claim_presence(&self, options: ClaimPresenceOptions) -> Result<(), ValidationError> {
         use Presence::Required;
@@ -1029,7 +1013,9 @@ impl RegisteredClaims {
         if missing_claims.len() == 0 {
             Ok(())
         } else {
-            Err(ValidationError::MissingRequiredClaims(missing_claims.into_iter().map( |v| v.into()).collect()))
+            Err(ValidationError::MissingRequiredClaims(
+                missing_claims.into_iter().map(|v| v.into()).collect(),
+            ))
         }
     }
 
@@ -1041,8 +1027,10 @@ impl RegisteredClaims {
                 let now = temporal_options.now.unwrap_or(Utc::now());
 
                 match self.expiry {
-                    Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => Err(ValidationError::Expired(now - expiry)),
-                    _ => Ok(())
+                    Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => {
+                        Err(ValidationError::Expired(now - expiry))
+                    }
+                    _ => Ok(()),
                 }
             }
         }
@@ -1056,8 +1044,10 @@ impl RegisteredClaims {
                 let now = temporal_options.now.unwrap_or(Utc::now());
 
                 match self.not_before {
-                    Some(Timestamp(nbf)) if nbf - now > temporal_options.epsilon => Err(ValidationError::NotYetValid(nbf - now)),
-                    _ => Ok(())
+                    Some(Timestamp(nbf)) if nbf - now > temporal_options.epsilon => {
+                        Err(ValidationError::NotYetValid(nbf - now))
+                    }
+                    _ => Ok(()),
                 }
             }
         }
@@ -1071,11 +1061,13 @@ impl RegisteredClaims {
                 let now = temporal_options.now.unwrap_or(Utc::now());
 
                 match self.issued_at {
-                    Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => Err(ValidationError::NotYetValid(iat - now)),
-                    Some(Timestamp(iat)) if now - iat > max_age - temporal_options.epsilon =>  {
+                    Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => {
+                        Err(ValidationError::NotYetValid(iat - now))
+                    }
+                    Some(Timestamp(iat)) if now - iat > max_age - temporal_options.epsilon => {
                         Err(ValidationError::TooOld(now - iat - max_age))
-                    },
-                    _ => Ok(())
+                    }
+                    _ => Ok(()),
                 }
             }
         }
@@ -1085,13 +1077,15 @@ impl RegisteredClaims {
     pub fn validate_aud(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
-            Validation::Validate(expected_aud) => {
-                match self.audience {
-                    Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => Err(ValidationError::InvalidAudience(self.audience.clone().unwrap())),
-                    Some(SingleOrMultiple::Multiple(ref audiences)) if !audiences.contains(&expected_aud) => Err(ValidationError::InvalidAudience(self.audience.clone().unwrap())),
-                    _ => Ok(()),
+            Validation::Validate(expected_aud) => match self.audience {
+                Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => {
+                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
                 }
-            }
+                Some(SingleOrMultiple::Multiple(ref audiences)) if !audiences.contains(&expected_aud) => {
+                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
+                }
+                _ => Ok(()),
+            },
         }
     }
 
@@ -1099,16 +1093,14 @@ impl RegisteredClaims {
     pub fn validate_iss(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
-            Validation::Validate(expected_issuer) => {
-                match self.issuer {
-                    Some(ref iss) if iss != &expected_issuer => Err(ValidationError::InvalidIssuer(self.issuer.clone().unwrap())),
-                    _ => Ok(()),
+            Validation::Validate(expected_issuer) => match self.issuer {
+                Some(ref iss) if iss != &expected_issuer => {
+                    Err(ValidationError::InvalidIssuer(self.issuer.clone().unwrap()))
                 }
-            }
+                _ => Ok(()),
+            },
         }
     }
-
-
 
     /// Performs full validation of the token according to the `ValidationOptions` supplied
     ///
@@ -1117,15 +1109,15 @@ impl RegisteredClaims {
     /// (even those that are not marked as required, but are present).
     pub fn validate(&self, options: ValidationOptions) -> Result<(), ValidationError> {
         self.validate_claim_presence(options.claim_presence_options)?;
-        self.validate_exp(options.expiry.map( |_| options.temporal_options))?;
-        self.validate_nbf(options.not_before.map( |_| options.temporal_options))?;
-        self.validate_iat(options.issued_at.map( |dur| (dur, options.temporal_options)))?;
+        self.validate_exp(options.expiry.map(|_| options.temporal_options))?;
+        self.validate_nbf(options.not_before.map(|_| options.temporal_options))?;
+        self.validate_iat(options.issued_at.map(|dur| (dur, options.temporal_options)))?;
 
         self.validate_iss(options.issuer)?;
         self.validate_aud(options.audience)?;
 
-//        self.validate_sub(options.subject_validated)?;
-//        self.validate_custom(options.custom_validation)?;
+        //        self.validate_sub(options.subject_validated)?;
+        //        self.validate_custom(options.custom_validation)?;
 
         Ok(())
     }
@@ -1158,7 +1150,7 @@ where
 mod tests {
     use std::str::{self, FromStr};
 
-    use chrono::{TimeZone, Utc, Duration};
+    use chrono::{Duration, TimeZone, Utc};
     use serde_json;
     use serde_test::{assert_ser_tokens_error, assert_tokens, Token};
 
@@ -1276,11 +1268,7 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(vec![
-                "foo".to_string(),
-                "bar".to_string(),
-                "baz".to_string(),
-            ]),
+            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -1307,11 +1295,7 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("foobar").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("does not exist").unwrap()));
@@ -1359,11 +1343,7 @@ mod tests {
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("foo").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
         assert!(
             deserialized
                 .values
@@ -1379,11 +1359,7 @@ mod tests {
                 .values
                 .contains(&FromStr::from_str("http://[::1]").unwrap())
         );
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("baz").unwrap())
-        );
+        assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
@@ -1551,7 +1527,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"iat\"])")]
     fn validate_times_missing_iat() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { issued_at: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            issued_at: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1559,7 +1538,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"exp\"])")]
     fn validate_times_missing_exp() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { expiry: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            expiry: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1567,7 +1549,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"nbf\"])")]
     fn validate_times_missing_nbf() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { not_before: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            not_before: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1575,7 +1560,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"aud\"])")]
     fn validate_times_missing_aud() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { audience: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            audience: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1583,7 +1571,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"iss\"])")]
     fn validate_times_missing_iss() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { issuer: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            issuer: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1591,7 +1582,10 @@ mod tests {
     #[should_panic(expected = "MissingRequiredClaims([\"sub\"])")]
     fn validate_times_missing_sub() {
         let registered_claims: RegisteredClaims = Default::default();
-        let options = ClaimPresenceOptions { subject: Presence::Required, ..Default::default() };
+        let options = ClaimPresenceOptions {
+            subject: Presence::Required,
+            ..Default::default()
+        };
         registered_claims.validate_claim_presence(options).unwrap();
     }
 
@@ -1707,7 +1701,9 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::InvalidIssuer(StringOrUri::String("issuer".into()))),
-            registered_claims.validate_iss(Validation::Validate(StringOrUri::Uri(Url::parse("http://issuer").unwrap())))
+            registered_claims.validate_iss(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://issuer").unwrap()
+            )))
         );
     }
 
@@ -1722,7 +1718,9 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(Url::parse("http://audience").unwrap())))
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://audience").unwrap()
+            )))
         );
 
         assert_eq!(
@@ -1740,7 +1738,7 @@ mod tests {
     fn validate_audience_when_multiple() {
         let aud = SingleOrMultiple::Multiple(vec![
             StringOrUri::String("audience".into()),
-            StringOrUri::Uri(Url::parse("http://audience").unwrap())
+            StringOrUri::Uri(Url::parse("http://audience").unwrap()),
         ]);
 
         let registered_claims = RegisteredClaims {
@@ -1750,7 +1748,9 @@ mod tests {
 
         assert_eq!(
             Ok(()),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(Url::parse("http://audience").unwrap())))
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://audience").unwrap()
+            )))
         );
 
         assert_eq!(
@@ -1779,9 +1779,9 @@ mod tests {
             issuer: Some(StringOrUri::String("issuer".into())),
             audience: Some(SingleOrMultiple::Multiple(vec![
                 StringOrUri::Uri(Url::parse("http://audience").unwrap()),
-                StringOrUri::String("audience".into())
+                StringOrUri::String("audience".into()),
             ])),
-            id: Some("id".into())
+            id: Some("id".into()),
         };
 
         let temporal_options = TemporalOptions {
@@ -1797,7 +1797,7 @@ mod tests {
             not_before: Validation::Validate(()),
             issued_at: Validation::Validate(Duration::max_value()),
             audience: Validation::Validate(StringOrUri::String("audience".into())),
-            issuer: Validation::Validate(StringOrUri::String("issuer".into()))
+            issuer: Validation::Validate(StringOrUri::String("issuer".into())),
         };
 
         not_err!(registered_claims.validate(validation_options));
@@ -1814,7 +1814,7 @@ mod tests {
 
         let temporal_options = TemporalOptions {
             now: Some(Utc.timestamp(100, 0)),
-            epsilon: Duration::seconds(10)
+            epsilon: Duration::seconds(10),
         };
 
         let validation_options = ValidationOptions {

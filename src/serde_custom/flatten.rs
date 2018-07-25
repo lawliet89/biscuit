@@ -221,10 +221,7 @@ pub trait FlattenSerializable {
 
         if let DuplicateKeysBehaviour::RaiseError = self.duplicate_keys() {
             // We need to check for duplicate keys
-            let keys: Vec<HashSet<String>> = value_maps
-                .iter()
-                .map(|k| k.keys().cloned().collect())
-                .collect();
+            let keys: Vec<HashSet<String>> = value_maps.iter().map(|k| k.keys().cloned().collect()).collect();
             if pairwise_intersection(keys.as_slice()) {
                 Err(S::Error::custom("Structs have duplicate keys"))?
             }
@@ -438,13 +435,7 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(
-        OuterNoDuplicates,
-        DuplicateKeysBehaviour::RaiseError,
-        one,
-        two,
-        three
-    );
+    impl_flatten_serde!(OuterNoDuplicates, DuplicateKeysBehaviour::RaiseError, one, two, three);
 
     /// Will not deserialize due to conflicting keys
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
@@ -454,13 +445,7 @@ mod tests {
         three: InnerThree,
     }
 
-    impl_flatten_serde!(
-        OuterOverwrite,
-        DuplicateKeysBehaviour::Overwrite,
-        one,
-        two,
-        three
-    );
+    impl_flatten_serde!(OuterOverwrite, DuplicateKeysBehaviour::Overwrite, one, two, three);
 
     #[derive(Eq, PartialEq, Debug, Clone, Default)]
     struct Outer {
@@ -476,12 +461,7 @@ mod tests {
         generic: T,
     }
 
-    impl_flatten_serde_generic!(
-        OuterGeneric<T>,
-        DuplicateKeysBehaviour::RaiseError,
-        one,
-        generic
-    );
+    impl_flatten_serde_generic!(OuterGeneric<T>, DuplicateKeysBehaviour::RaiseError, one, generic);
 
     #[test]
     fn pairwise_intersection_for_one() {
@@ -491,19 +471,13 @@ mod tests {
 
     #[test]
     fn pairwise_intersection_for_two_sets() {
-        let sets: Vec<HashSet<i32>> = vec![
-            [1, 2, 3].iter().cloned().collect(),
-            [3].iter().cloned().collect(),
-        ];
+        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(), [3].iter().cloned().collect()];
         assert!(pairwise_intersection(sets.as_slice()))
     }
 
     #[test]
     fn pairwise_non_intersection_for_two_sets() {
-        let sets: Vec<HashSet<i32>> = vec![
-            [1, 2, 3].iter().cloned().collect(),
-            [99, 101].iter().cloned().collect(),
-        ];
+        let sets: Vec<HashSet<i32>> = vec![[1, 2, 3].iter().cloned().collect(), [99, 101].iter().cloned().collect()];
         assert!(!pairwise_intersection(sets.as_slice()))
     }
 

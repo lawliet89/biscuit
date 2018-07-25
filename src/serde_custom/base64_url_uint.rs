@@ -5,8 +5,8 @@ use std::fmt;
 
 use data_encoding::BASE64URL_NOPAD;
 use num::BigUint;
-use serde::{Deserializer, Serializer};
 use serde::de;
+use serde::{Deserializer, Serializer};
 
 /// Serialize a `BigUint` into Base64 URL encoded big endian bytes
 pub fn serialize<S>(value: &BigUint, serializer: S) -> Result<S::Ok, S::Error>
@@ -46,8 +46,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use num::BigUint;
     use num::cast::FromPrimitive;
+    use num::BigUint;
     use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]

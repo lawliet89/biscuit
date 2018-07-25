@@ -2,19 +2,19 @@
 //!
 //! Defined in [RFC 7515](https://tools.ietf.org/html/rfc7515). For most common use,
 //! you will want to look at the  [`Compact`](enum.Compact.html) enum.
-use std::sync::Arc;
 use std::str;
+use std::sync::Arc;
 
 use ring::signature;
-use serde::{self, Serialize};
 use serde::de::DeserializeOwned;
+use serde::{self, Serialize};
 use serde_json;
 use untrusted;
 
-use {CompactJson, CompactPart, Empty};
-use errors::{Error, ValidationError, DecodeError};
+use errors::{DecodeError, Error, ValidationError};
 use jwa::SignatureAlgorithm;
 use serde_custom;
+use {CompactJson, CompactPart, Empty};
 
 /// Compact representation of a JWS
 ///
@@ -84,10 +84,7 @@ where
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
-                let signature = header
-                    .registered
-                    .algorithm
-                    .sign(encoded_payload.as_bytes(), secret)?;
+                let signature = header.registered.algorithm.sign(encoded_payload.as_bytes(), secret)?;
                 compact.push(&signature)?;
                 Ok(Compact::Encoded(compact))
             }
@@ -163,9 +160,7 @@ where
     /// Convenience method to get a reference to the claims set from a decoded compact JWS
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decoded {
-                ref mut payload, ..
-            } => Ok(payload),
+            Compact::Decoded { ref mut payload, .. } => Ok(payload),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -359,8 +354,8 @@ pub enum Secret {
 
 impl Secret {
     fn read_bytes(path: &str) -> Result<Vec<u8>, Error> {
-        use std::io::prelude::*;
         use std::fs::File;
+        use std::io::prelude::*;
 
         let mut file = File::open(path)?;
         let metadata = file.metadata()?;
@@ -389,7 +384,7 @@ impl Secret {
         let ring_algorithm = match algorithm {
             SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
             SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
-            _ => {return Err(Error::UnsupportedOperation)},
+            _ => return Err(Error::UnsupportedOperation),
         };
         let key_pair = signature::ECDSAKeyPair::from_pkcs8(ring_algorithm, untrusted::Input::from(der.as_slice()))?;
         Ok(Secret::ECDSAKeyPair(Arc::new(key_pair)))
@@ -540,8 +535,8 @@ mod tests {
 
     use serde_json;
 
-    use {ClaimsSet, CompactJson, Empty, RegisteredClaims, SingleOrMultiple};
     use super::{Compact, Header, RegisteredHeader, Secret, SignatureAlgorithm};
+    use {ClaimsSet, CompactJson, Empty, RegisteredClaims, SingleOrMultiple};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct PrivateClaims {

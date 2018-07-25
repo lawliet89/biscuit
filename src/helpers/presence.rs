@@ -4,7 +4,7 @@ pub enum Presence {
     /// Claim is optional
     Optional,
     /// Claim is required
-    Required
+    Required,
 }
 
 impl Default for Presence {

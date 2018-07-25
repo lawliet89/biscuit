@@ -4,13 +4,13 @@
 use std::fmt;
 
 use num::BigUint;
-use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeOwned};
+use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
 use errors::Error;
-use serde_custom;
 use jwa::Algorithm;
+use serde_custom;
 
 /// Type of Key as specified in RFC 7518.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
@@ -548,10 +548,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("enc"),
                 Token::StructEnd,
@@ -564,10 +561,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("enc"),
                 Token::StructEnd,
@@ -580,10 +574,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("xxx"),
                 Token::StructEnd,
@@ -636,10 +627,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("sign"),
                 Token::StructEnd,
@@ -652,10 +640,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("verify"),
                 Token::StructEnd,
@@ -668,10 +653,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("encrypt"),
                 Token::StructEnd,
@@ -684,10 +666,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("decrypt"),
                 Token::StructEnd,
@@ -700,10 +679,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("wrapKey"),
                 Token::StructEnd,
@@ -716,10 +692,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("unwrapKey"),
                 Token::StructEnd,
@@ -732,10 +705,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("deriveKey"),
                 Token::StructEnd,
@@ -748,10 +718,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("deriveBits"),
                 Token::StructEnd,
@@ -764,10 +731,7 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct {
-                    name: "Test",
-                    len: 1,
-                },
+                Token::Struct { name: "Test", len: 1 },
                 Token::Str("test"),
                 Token::Str("xxx"),
                 Token::StructEnd,
@@ -895,16 +859,12 @@ mod tests {
             keys: vec![
                 JWK {
                     common: CommonParameters {
-                        algorithm: Some(Algorithm::KeyManagement(
-                            jwa::KeyManagementAlgorithm::A128KW,
-                        )),
+                        algorithm: Some(Algorithm::KeyManagement(jwa::KeyManagementAlgorithm::A128KW)),
                         ..Default::default()
                     },
                     algorithm: AlgorithmParameters::OctectKey {
                         key_type: Default::default(),
-                        value: vec![
-                            25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74, 82
-                        ],
+                        value: vec![25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74, 82],
                     },
                     additional: Default::default(),
                 },
@@ -1148,10 +1108,7 @@ mod tests {
     fn jwk_set_find_some_test() {
         let keys = find_key_set();
         let key = keys.find("first").expect("Should have found key");
-        let kid = key.common
-            .key_id
-            .as_ref()
-            .expect("Key should have a key id");
+        let kid = key.common.key_id.as_ref().expect("Key should have a key id");
         assert_eq!(kid, "first");
     }
 

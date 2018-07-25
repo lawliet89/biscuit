@@ -5,7 +5,7 @@ pub enum Validation<T> {
     Ignored,
 
     /// This field is validated using the value T
-    Validate(T)
+    Validate(T),
 }
 
 // This doesn't compile currently
@@ -18,8 +18,6 @@ pub enum Validation<T> {
 //    }
 //}
 
-
-
 impl<T> Default for Validation<T> {
     fn default() -> Self {
         Validation::Ignored
@@ -28,10 +26,13 @@ impl<T> Default for Validation<T> {
 
 impl<T> Validation<T> {
     /// Map the value to another validation requirement, similar to how .map works on iter()
-    pub fn map<U, F>(self, f: F) -> Validation<U> where F: FnOnce(T) -> U {
+    pub fn map<U, F>(self, f: F) -> Validation<U>
+    where
+        F: FnOnce(T) -> U,
+    {
         match self {
             Validation::Ignored => Validation::Ignored,
-            Validation::Validate(t) => Validation::Validate(f(t))
+            Validation::Validate(t) => Validation::Validate(f(t)),
         }
     }
 }
