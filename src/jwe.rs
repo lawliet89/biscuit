@@ -601,7 +601,7 @@ where
     ///
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
-    pub fn validate_times(&self, options: ::ValidationOptions) -> Result<(), Error> {
+    pub fn validate(&self, options: ::ValidationOptions) -> Result<(), Error> {
         Ok(self.payload()?.registered.validate(options)?)
     }
 }

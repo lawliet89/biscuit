@@ -1,22 +1,17 @@
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
-/// Defines wether a claim is validated or not
+/// Defines whether a claim is validated or not
+///
+/// The generic type T is used as the "options" for validating claims and is
+/// specific to each claim being validated. Refer to [`biscuit::ValidationOptions`]
+/// for the specifics of each claim.
 pub enum Validation<T> {
-    /// This field is not validated
+    /// This claim is not validated
     Ignored,
 
-    /// This field is validated using the value T
+    /// Validate this claim with type T.
+    /// Refer to [`biscuit::ValidationOptions`] for the specifics of each claim.
     Validate(T),
 }
-
-// This doesn't compile currently
-//impl<T> Debug for Validation<T> where T: ?Debug {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), Error> {
-//        match self {
-//            Validation::Ignored => write!(f, "Ignored"),
-//            Validation::Validate(_) => write!(f, "Validate")
-//        }
-//    }
-//}
 
 impl<T> Default for Validation<T> {
     fn default() -> Self {

@@ -858,7 +858,6 @@ pub struct RegisteredClaims {
 ///
 /// By default, no claims (namely `iat`, `exp`, `nbf`, `iss`, `aud`)
 /// are required, and they pass validation if they are missing.
-///
 pub struct ClaimPresenceOptions {
     /// Whether the `iat` or `Issued At` field is required
     pub issued_at: Presence,
@@ -892,31 +891,6 @@ impl ClaimPresenceOptions {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Copy)]
-/// Options for validating temporal claims
-///
-///
-/// Should any temporal claims be needed, set the appropriate fields.
-///
-/// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
-/// `chrono::Duration` to allow time comparisons to fall within the margin.
-pub struct TemporalOptions {
-    /// Allow for some leeway for clock drifts, limited to this duration during temporal validation
-    pub epsilon: Duration,
-
-    /// Specify a time to use in temporal validation instead of `Now`
-    pub now: Option<DateTime<Utc>>,
-}
-
-impl Default for TemporalOptions {
-    fn default() -> Self {
-        TemporalOptions {
-            epsilon: Duration::seconds(0),
-            now: None,
-        }
-    }
-}
-
 #[derive(Eq, PartialEq, Clone)]
 /// Options for claims validation
 ///
@@ -926,36 +900,37 @@ impl Default for TemporalOptions {
 /// By default only expiry-related claims are validated (namely `exp`, `nbf`, `iat`).
 ///
 ///
-/// are required, and they pass validation if they are missing.
+/// By default, no claims are required. If there are present, only expiry-related claims are validated
+/// (namely `exp`, `nbf`, `iat`) with zero epsilon and maximum age duration.
 ///
-/// Should any temporal claims be needed, set the appropriate fields.
+/// Should any temporal claims be required, set the appropriate fields.
 ///
 /// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
 /// `std::time::Duration` to allow time comparisons to fall within the margin.
 pub struct ValidationOptions {
-    ///Claims marked as required will trigger a validation failure if they are missing
+    /// Claims marked as required will trigger a validation failure if they are missing
     pub claim_presence_options: ClaimPresenceOptions,
 
-    ///Define how to validate temporal claims
+    /// Define how to validate temporal claims
     pub temporal_options: TemporalOptions,
 
-    /// Whether the `iat` or `Issued At` field is required
-    /// Parameter shows the maximum age of a token to be accepted.
+    /// Validation options for `iat` or `Issued At` claim if present
+    /// Parameter shows the maximum age of a token to be accepted,
+    /// use [```Duration::max_value()```] if you do not want to skip validating
+    /// the age of the token, and only validate it was not issued in the future
     pub issued_at: Validation<Duration>,
-    /// Whether the `nbf` or `Not Before` field is required
+    /// Validation options for `nbf` or `Not Before` claim if present
     pub not_before: Validation<()>,
-    /// Whether the `exp` or `Expiry` field is required
+    /// Validation options for `exp` or `Expiry` claim if present
     pub expiry: Validation<()>,
 
-    /// Whether the `iss` or `Issuer` field is required
+    /// Validation options for `iss` or `Issuer` claim if present
     /// Parameter must match the issuer in the token exactly.
     pub issuer: Validation<StringOrUri>,
 
-    /// Whether the `aud` or `Audience` field is required
+    /// Validation options for `aud` or `Audience` claim if present
     /// Token must include an audience with the value of the parameter
-    pub audience: Validation<StringOrUri>,
-    //    pub subject_validated: Validation<Box<FnOnce(String) -> bool>>,
-    //    pub custom_validation: Validation<Box<FnOnce(&RegisteredClaims) -> Result<(), ValidationError>>>
+    pub audience: Validation<StringOrUri>
 }
 
 impl Default for ValidationOptions {
@@ -968,15 +943,13 @@ impl Default for ValidationOptions {
             claim_presence_options: Default::default(),
             temporal_options: Default::default(),
             audience: Default::default(),
-            issuer: Default::default(),
-            //            subject_validated: Default::default(),
-            //            custom_validation: Default::default(),
+            issuer: Default::default()
         }
     }
 }
 
 impl RegisteredClaims {
-    ///Validates that the token contains the claims defined as required
+    /// Validates that the token contains the claims defined as required
     pub fn validate_claim_presence(&self, options: ClaimPresenceOptions) -> Result<(), ValidationError> {
         use Presence::Required;
 
@@ -1019,12 +992,12 @@ impl RegisteredClaims {
         }
     }
 
-    ///Validates that if the token has an `exp` claim, it has not passed.
+    /// Validates that if the token has an `exp` claim, it has not passed.
     pub fn validate_exp(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
-                let now = temporal_options.now.unwrap_or(Utc::now());
+                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
 
                 match self.expiry {
                     Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => {
@@ -1036,12 +1009,12 @@ impl RegisteredClaims {
         }
     }
 
-    ///Validates that if the token has an `nbf` claim, it has passed.
+    /// Validates that if the token has an `nbf` claim, it has passed.
     pub fn validate_nbf(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
-                let now = temporal_options.now.unwrap_or(Utc::now());
+                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
 
                 match self.not_before {
                     Some(Timestamp(nbf)) if nbf - now > temporal_options.epsilon => {
@@ -1053,12 +1026,12 @@ impl RegisteredClaims {
         }
     }
 
-    ///Validates that if the token has an `iat` claim, it is not in the future and not older than the Duration
+    /// Validates that if the token has an `iat` claim, it is not in the future and not older than the Duration
     pub fn validate_iat(&self, validation: Validation<(Duration, TemporalOptions)>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate((max_age, temporal_options)) => {
-                let now = temporal_options.now.unwrap_or(Utc::now());
+                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
 
                 match self.issued_at {
                     Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => {
@@ -1073,7 +1046,7 @@ impl RegisteredClaims {
         }
     }
 
-    ///Validates that if the token has an `aud` claim, it contains an entry which matches the expected audience
+    /// Validates that if the token has an `aud` claim, it contains an entry which matches the expected audience
     pub fn validate_aud(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
@@ -1089,7 +1062,7 @@ impl RegisteredClaims {
         }
     }
 
-    ///Validates that if the token has an `iss` claim, it matches the expected issuer
+    /// Validates that if the token has an `iss` claim, it matches the expected issuer
     pub fn validate_iss(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
