@@ -897,9 +897,6 @@ impl ClaimPresenceOptions {
 /// If a claim is missing, it passes validation unless the claim is marked as required within the
 /// `claim_presence_options`.
 ///
-/// By default only expiry-related claims are validated (namely `exp`, `nbf`, `iat`).
-///
-///
 /// By default, no claims are required. If there are present, only expiry-related claims are validated
 /// (namely `exp`, `nbf`, `iat`) with zero epsilon and maximum age duration.
 ///
