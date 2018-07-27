@@ -85,12 +85,15 @@ use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
 
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use data_encoding::BASE64URL_NOPAD;
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub use url::{ParseError, Url};
+
+mod helpers;
+pub use helpers::*;
 
 #[cfg(test)]
 #[macro_use]
@@ -851,103 +854,242 @@ pub struct RegisteredClaims {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Default)]
-/// Options for claims time validation
+/// Options for claims presence validation
 ///
-/// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
-/// are required, and they will pass validation if they are missing.
+/// By default, no claims (namely `iat`, `exp`, `nbf`, `iss`, `aud`)
+/// are required, and they pass validation if they are missing.
+pub struct ClaimPresenceOptions {
+    /// Whether the `iat` or `Issued At` field is required
+    pub issued_at: Presence,
+    /// Whether the `nbf` or `Not Before` field is required
+    pub not_before: Presence,
+    /// Whether the `exp` or `Expiry` field is required
+    pub expiry: Presence,
+    /// Whether the `iss` or `Issuer` field is required
+    pub issuer: Presence,
+    /// Whether the `aud` or `Audience` field is required
+    pub audience: Presence,
+    /// Whether the `sub` or `Subject` field is required
+    pub subject: Presence,
+    /// Whether the `jti` or `JWT ID` field is required
+    pub id: Presence,
+}
+
+impl ClaimPresenceOptions {
+    /// Returns a ClaimPresenceOptions where every claim is required as per [RFC7523](https://tools.ietf.org/html/rfc7523#section-3)
+    pub fn strict() -> Self {
+        use Presence::*;
+        ClaimPresenceOptions {
+            issued_at: Required,
+            not_before: Required,
+            expiry: Required,
+            issuer: Required,
+            audience: Required,
+            subject: Required,
+            id: Required,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone)]
+/// Options for claims validation
 ///
-/// Should any temporal claims be needed, set the appropriate fields.
+/// If a claim is missing, it passes validation unless the claim is marked as required within the
+/// `claim_presence_options`.
+///
+/// By default, no claims are required. If there are present, only expiry-related claims are validated
+/// (namely `exp`, `nbf`, `iat`) with zero epsilon and maximum age duration.
+///
+/// Should any temporal claims be required, set the appropriate fields.
 ///
 /// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
 /// `std::time::Duration` to allow time comparisons to fall within the margin.
-pub struct TemporalValidationOptions {
-    /// Whether the `iat` or `Issued At` field is required
-    pub issued_at_required: bool,
-    /// Whether the `nbf` or `Not Before` field is required
-    pub not_before_required: bool,
-    /// Whether the `exp` or `Expiry` field is required
-    pub expiry_required: bool,
-    /// Allow for some clock drifts, limited to this duration during temporal validation
-    pub epsilon: Option<std::time::Duration>,
-    /// Specify a time to use in temporal validation instead of `Now`.
-    pub now: Option<DateTime<Utc>>,
+pub struct ValidationOptions {
+    /// Claims marked as required will trigger a validation failure if they are missing
+    pub claim_presence_options: ClaimPresenceOptions,
+
+    /// Define how to validate temporal claims
+    pub temporal_options: TemporalOptions,
+
+    /// Validation options for `iat` or `Issued At` claim if present
+    /// Parameter shows the maximum age of a token to be accepted,
+    /// use [```Duration::max_value()```] if you do not want to skip validating
+    /// the age of the token, and only validate it was not issued in the future
+    pub issued_at: Validation<Duration>,
+    /// Validation options for `nbf` or `Not Before` claim if present
+    pub not_before: Validation<()>,
+    /// Validation options for `exp` or `Expiry` claim if present
+    pub expiry: Validation<()>,
+
+    /// Validation options for `iss` or `Issuer` claim if present
+    /// Parameter must match the issuer in the token exactly.
+    pub issuer: Validation<StringOrUri>,
+
+    /// Validation options for `aud` or `Audience` claim if present
+    /// Token must include an audience with the value of the parameter
+    pub audience: Validation<StringOrUri>
+}
+
+impl Default for ValidationOptions {
+    fn default() -> Self {
+        ValidationOptions {
+            expiry: Validation::Validate(()),
+            not_before: Validation::Validate(()),
+            issued_at: Validation::Validate(Duration::max_value()),
+
+            claim_presence_options: Default::default(),
+            temporal_options: Default::default(),
+            audience: Default::default(),
+            issuer: Default::default()
+        }
+    }
 }
 
 impl RegisteredClaims {
-    /// Validate the temporal claims in the token
+    /// Validates that the token contains the claims defined as required
+    pub fn validate_claim_presence(&self, options: ClaimPresenceOptions) -> Result<(), ValidationError> {
+        use Presence::Required;
+
+        let mut missing_claims: Vec<&str> = vec![];
+
+        if options.expiry == Required && self.expiry.is_none() {
+            missing_claims.push("exp");
+        }
+
+        if options.not_before == Required && self.not_before.is_none() {
+            missing_claims.push("nbf");
+        }
+
+        if options.issued_at == Required && self.issued_at.is_none() {
+            missing_claims.push("iat");
+        }
+
+        if options.audience == Required && self.audience.is_none() {
+            missing_claims.push("aud");
+        }
+
+        if options.issuer == Required && self.issuer.is_none() {
+            missing_claims.push("iss");
+        }
+
+        if options.subject == Required && self.subject.is_none() {
+            missing_claims.push("sub");
+        }
+
+        if options.id == Required && self.id.is_none() {
+            missing_claims.push("jti");
+        }
+
+        if missing_claims.len() == 0 {
+            Ok(())
+        } else {
+            Err(ValidationError::MissingRequiredClaims(
+                missing_claims.into_iter().map(|v| v.into()).collect(),
+            ))
+        }
+    }
+
+    /// Validates that if the token has an `exp` claim, it has not passed.
+    pub fn validate_exp(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
+        match validation {
+            Validation::Ignored => Ok(()),
+            Validation::Validate(temporal_options) => {
+                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
+
+                match self.expiry {
+                    Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => {
+                        Err(ValidationError::Expired(now - expiry))
+                    }
+                    _ => Ok(()),
+                }
+            }
+        }
+    }
+
+    /// Validates that if the token has an `nbf` claim, it has passed.
+    pub fn validate_nbf(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
+        match validation {
+            Validation::Ignored => Ok(()),
+            Validation::Validate(temporal_options) => {
+                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
+
+                match self.not_before {
+                    Some(Timestamp(nbf)) if nbf - now > temporal_options.epsilon => {
+                        Err(ValidationError::NotYetValid(nbf - now))
+                    }
+                    _ => Ok(()),
+                }
+            }
+        }
+    }
+
+    /// Validates that if the token has an `iat` claim, it is not in the future and not older than the Duration
+    pub fn validate_iat(&self, validation: Validation<(Duration, TemporalOptions)>) -> Result<(), ValidationError> {
+        match validation {
+            Validation::Ignored => Ok(()),
+            Validation::Validate((max_age, temporal_options)) => {
+                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
+
+                match self.issued_at {
+                    Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => {
+                        Err(ValidationError::NotYetValid(iat - now))
+                    }
+                    Some(Timestamp(iat)) if now - iat > max_age - temporal_options.epsilon => {
+                        Err(ValidationError::TooOld(now - iat - max_age))
+                    }
+                    _ => Ok(()),
+                }
+            }
+        }
+    }
+
+    /// Validates that if the token has an `aud` claim, it contains an entry which matches the expected audience
+    pub fn validate_aud(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
+        match validation {
+            Validation::Ignored => Ok(()),
+            Validation::Validate(expected_aud) => match self.audience {
+                Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => {
+                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
+                }
+                Some(SingleOrMultiple::Multiple(ref audiences)) if !audiences.contains(&expected_aud) => {
+                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
+                }
+                _ => Ok(()),
+            },
+        }
+    }
+
+    /// Validates that if the token has an `iss` claim, it matches the expected issuer
+    pub fn validate_iss(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
+        match validation {
+            Validation::Ignored => Ok(()),
+            Validation::Validate(expected_issuer) => match self.issuer {
+                Some(ref iss) if iss != &expected_issuer => {
+                    Err(ValidationError::InvalidIssuer(self.issuer.clone().unwrap()))
+                }
+                _ => Ok(()),
+            },
+        }
+    }
+
+    /// Performs full validation of the token according to the `ValidationOptions` supplied
     ///
-    /// If `None` is provided for options, the defaults will apply.
-    ///
-    /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
-    /// are required, and they will pass validation if they are missing.
-    pub fn validate_times(&self, options: Option<TemporalValidationOptions>) -> Result<(), ValidationError> {
-        let options = options.unwrap_or_default();
+    /// First it validates that all claims marked as required are present
+    /// Then it validates each claim marked to be validated if they are present in the token
+    /// (even those that are not marked as required, but are present).
+    pub fn validate(&self, options: ValidationOptions) -> Result<(), ValidationError> {
+        self.validate_claim_presence(options.claim_presence_options)?;
+        self.validate_exp(options.expiry.map(|_| options.temporal_options))?;
+        self.validate_nbf(options.not_before.map(|_| options.temporal_options))?;
+        self.validate_iat(options.issued_at.map(|dur| (dur, options.temporal_options)))?;
 
-        if options.issued_at_required && self.issued_at.is_none() {
-            Err(ValidationError::MissingRequired("iat".to_string()))?;
-        }
+        self.validate_iss(options.issuer)?;
+        self.validate_aud(options.audience)?;
 
-        if options.expiry_required && self.expiry.is_none() {
-            Err(ValidationError::MissingRequired("exp".to_string()))?;
-        }
-
-        if options.not_before_required && self.not_before.is_none() {
-            Err(ValidationError::MissingRequired("nbf".to_string()))?;
-        }
-
-        let now = match options.now {
-            None => Utc::now(),
-            Some(now) => now,
-        };
-
-        let e = match options.epsilon {
-            None => std::time::Duration::from_secs(0),
-            Some(e) => e,
-        };
-
-        if self.expiry.is_some() && !Self::is_after(*self.expiry.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError("Token expired".to_string()))?;
-        }
-
-        if self.issued_at.is_some() && !Self::is_before(*self.issued_at.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError("Token issued in the future".to_string()))?;
-        }
-
-        if self.not_before.is_some() && !Self::is_before(*self.not_before.unwrap(), now, e)? {
-            Err(ValidationError::TemporalError("Token not valid yet".to_string()))?;
-        }
+        //        self.validate_sub(options.subject_validated)?;
+        //        self.validate_custom(options.custom_validation)?;
 
         Ok(())
-    }
-
-    /// Check `a` is after `b` within a tolerated duration of `e`, where `e` is unsigned: a - b >= -e
-    fn is_after<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
-    where
-        Tz: chrono::offset::TimeZone,
-        Tz2: chrono::offset::TimeZone,
-    {
-        // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
-        // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
-        // So I am just going to `map_err`.
-        use std::error::Error;
-
-        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
-        Ok(a.signed_duration_since(b) >= -e)
-    }
-
-    /// Check that `a` is before `b` within a tolerated duration of `e`, where `e` is unsigned: a - b <= e
-    fn is_before<Tz, Tz2>(a: DateTime<Tz>, b: DateTime<Tz2>, e: std::time::Duration) -> Result<bool, ValidationError>
-    where
-        Tz: chrono::offset::TimeZone,
-        Tz2: chrono::offset::TimeZone,
-    {
-        // FIXME: `chrono::Duration` is a re-export of `time::Duration` and this returns has an error of type
-        // `time::OutOfRangeError`. We don't want to put `time` as a dependent crate just to `impl From` for this...
-        // So I am just going to `map_err`.
-        use std::error::Error;
-
-        let e = chrono::Duration::from_std(e).map_err(|e| ValidationError::TemporalError(e.description().to_string()))?;
-        Ok(a.signed_duration_since(b) <= e)
     }
 }
 
@@ -977,9 +1119,8 @@ where
 #[cfg(test)]
 mod tests {
     use std::str::{self, FromStr};
-    use std::time::Duration;
 
-    use chrono::{TimeZone, Utc};
+    use chrono::{Duration, TimeZone, Utc};
     use serde_json;
     use serde_test::{assert_ser_tokens_error, assert_tokens, Token};
 
@@ -1353,139 +1494,82 @@ mod tests {
     }
 
     #[test]
-    fn is_after() {
-        // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(2, 0),
-            Utc.timestamp(0, 0),
-            Duration::from_secs(0)
-        )));
-        assert!(!not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(0, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(0)
-        )));
-
-        // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(0, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-
-        // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(0, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(1)
-        )));
-
-        // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(7, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-        assert!(not_err!(RegisteredClaims::is_after(
-            Utc.timestamp(10, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-    }
-
-    #[test]
-    fn is_before() {
-        // Zero epsilon
-        assert!(not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(-10, 0),
-            Utc.timestamp(0, 0),
-            Duration::from_secs(0)
-        )));
-        assert!(!not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(10, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(0)
-        )));
-
-        // Valid only with epsilon
-        assert!(not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(5, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-
-        // Exceeds epsilon
-        assert!(!not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(10, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(1)
-        )));
-
-        // Should be valid regardless of epsilon
-        assert!(not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(0, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-        assert!(not_err!(RegisteredClaims::is_before(
-            Utc.timestamp(-10, 0),
-            Utc.timestamp(3, 0),
-            Duration::from_secs(5)
-        )));
-    }
-
-    #[test]
-    #[should_panic(expected = "MissingRequired")]
+    #[should_panic(expected = "MissingRequiredClaims([\"iat\"])")]
     fn validate_times_missing_iat() {
-        let options = TemporalValidationOptions {
-            issued_at_required: true,
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            issued_at: Presence::Required,
             ..Default::default()
         };
-
-        let registered_claims = RegisteredClaims {
-            expiry: Some(1.into()),
-            not_before: Some(1.into()),
-            ..Default::default()
-        };
-        registered_claims.validate_times(Some(options)).unwrap();
+        registered_claims.validate_claim_presence(options).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "MissingRequired")]
+    #[should_panic(expected = "MissingRequiredClaims([\"exp\"])")]
     fn validate_times_missing_exp() {
-        let options = TemporalValidationOptions {
-            expiry_required: true,
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            expiry: Presence::Required,
             ..Default::default()
         };
-
-        let registered_claims = RegisteredClaims {
-            not_before: Some(1.into()),
-            issued_at: Some(1.into()),
-            ..Default::default()
-        };
-        registered_claims.validate_times(Some(options)).unwrap();
+        registered_claims.validate_claim_presence(options).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "MissingRequired")]
+    #[should_panic(expected = "MissingRequiredClaims([\"nbf\"])")]
     fn validate_times_missing_nbf() {
-        let options = TemporalValidationOptions {
-            not_before_required: true,
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            not_before: Presence::Required,
             ..Default::default()
         };
-
-        let registered_claims = RegisteredClaims {
-            expiry: Some(1.into()),
-            issued_at: Some(1.into()),
-            ..Default::default()
-        };
-        registered_claims.validate_times(Some(options)).unwrap();
+        registered_claims.validate_claim_presence(options).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "TemporalError")]
+    #[should_panic(expected = "MissingRequiredClaims([\"aud\"])")]
+    fn validate_times_missing_aud() {
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            audience: Presence::Required,
+            ..Default::default()
+        };
+        registered_claims.validate_claim_presence(options).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequiredClaims([\"iss\"])")]
+    fn validate_times_missing_iss() {
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            issuer: Presence::Required,
+            ..Default::default()
+        };
+        registered_claims.validate_claim_presence(options).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequiredClaims([\"sub\"])")]
+    fn validate_times_missing_sub() {
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            subject: Presence::Required,
+            ..Default::default()
+        };
+        registered_claims.validate_claim_presence(options).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "MissingRequiredClaims([\"exp\", \"nbf\", \"iat\", \"aud\", \"iss\", \"sub\", \"jti\"])")]
+    fn validate_times_missing_all() {
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions::strict();
+        registered_claims.validate_claim_presence(options).unwrap();
+    }
+
+    #[test]
     fn validate_times_catch_future_token() {
-        let options = TemporalValidationOptions {
+        let temporal_options = TemporalOptions {
             now: Some(Utc.timestamp(0, 0)),
             ..Default::default()
         };
@@ -1494,13 +1578,34 @@ mod tests {
             issued_at: Some(10.into()),
             ..Default::default()
         };
-        registered_claims.validate_times(Some(options)).unwrap();
+
+        assert_eq!(
+            Err(ValidationError::NotYetValid(Duration::seconds(10))),
+            registered_claims.validate_iat(Validation::Validate((Duration::seconds(0), temporal_options)))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "TemporalError")]
+    fn validate_times_catch_too_old_token() {
+        let temporal_options = TemporalOptions {
+            now: Some(Utc.timestamp(40, 0)),
+            ..Default::default()
+        };
+
+        let registered_claims = RegisteredClaims {
+            issued_at: Some(10.into()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            Err(ValidationError::TooOld(Duration::seconds(5))),
+            registered_claims.validate_iat(Validation::Validate((Duration::seconds(25), temporal_options)))
+        );
+    }
+
+    #[test]
     fn validate_times_catch_expired_token() {
-        let options = TemporalValidationOptions {
+        let temporal_options = TemporalOptions {
             now: Some(Utc.timestamp(2, 0)),
             ..Default::default()
         };
@@ -1509,13 +1614,16 @@ mod tests {
             expiry: Some(1.into()),
             ..Default::default()
         };
-        registered_claims.validate_times(Some(options)).unwrap();
+
+        assert_eq!(
+            Err(ValidationError::Expired(Duration::seconds(1))),
+            registered_claims.validate_exp(Validation::Validate(temporal_options))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "TemporalError")]
     fn validate_times_catch_early_token() {
-        let options = TemporalValidationOptions {
+        let temporal_options = TemporalOptions {
             now: Some(Utc.timestamp(0, 0)),
             ..Default::default()
         };
@@ -1524,52 +1632,173 @@ mod tests {
             not_before: Some(1.into()),
             ..Default::default()
         };
-        registered_claims.validate_times(Some(options)).unwrap();
+
+        assert_eq!(
+            Err(ValidationError::NotYetValid(Duration::seconds(1))),
+            registered_claims.validate_nbf(Validation::Validate(temporal_options))
+        );
     }
 
     #[test]
     fn validate_times_valid_token_with_default_options() {
         let registered_claims = RegisteredClaims {
-            not_before: Some(1.into()),
+            not_before: Some(Timestamp(Utc::now() - Duration::days(2))),
+            issued_at: Some(Timestamp(Utc::now() - Duration::days(1))),
+            expiry: Some(Timestamp(Utc::now() + Duration::days(1))),
             ..Default::default()
         };
-        not_err!(registered_claims.validate_times(None));
+
+        let validation_options = ValidationOptions {
+            temporal_options: Default::default(),
+            claim_presence_options: Default::default(),
+
+            expiry: Validation::Validate(()),
+            not_before: Validation::Validate(()),
+            issued_at: Validation::Validate(Duration::max_value()),
+
+            ..Default::default()
+        };
+
+        not_err!(registered_claims.validate(validation_options));
     }
 
     #[test]
-    fn validate_times_valid_token_with_all_required() {
-        let options = TemporalValidationOptions {
-            now: Some(Utc.timestamp(100, 0)),
-            issued_at_required: true,
-            not_before_required: true,
-            expiry_required: true,
+    fn validate_issuer_catch_mismatch() {
+        let registered_claims = RegisteredClaims {
+            issuer: Some(StringOrUri::String("issuer".into())),
             ..Default::default()
         };
 
+        assert_eq!(
+            Err(ValidationError::InvalidIssuer(StringOrUri::String("issuer".into()))),
+            registered_claims.validate_iss(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://issuer").unwrap()
+            )))
+        );
+    }
+
+    #[test]
+    fn validate_audience_when_single() {
+        let aud = SingleOrMultiple::Single(StringOrUri::String("audience".into()));
+
+        let registered_claims = RegisteredClaims {
+            audience: Some(aud.clone()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            Err(ValidationError::InvalidAudience(aud.clone())),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://audience").unwrap()
+            )))
+        );
+
+        assert_eq!(
+            Err(ValidationError::InvalidAudience(aud.clone())),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience2".into())))
+        );
+
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+        );
+    }
+
+    #[test]
+    fn validate_audience_when_multiple() {
+        let aud = SingleOrMultiple::Multiple(vec![
+            StringOrUri::String("audience".into()),
+            StringOrUri::Uri(Url::parse("http://audience").unwrap()),
+        ]);
+
+        let registered_claims = RegisteredClaims {
+            audience: Some(aud.clone()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
+                Url::parse("http://audience").unwrap()
+            )))
+        );
+
+        assert_eq!(
+            Err(ValidationError::InvalidAudience(aud.clone())),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience2".into())))
+        );
+
+        assert_eq!(
+            Err(ValidationError::InvalidAudience(aud.clone())),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("https://audience".into())))
+        );
+
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+        );
+    }
+
+    #[test]
+    fn validate_valid_token_with_all_required() {
         let registered_claims = RegisteredClaims {
             expiry: Some(999.into()),
             not_before: Some(1.into()),
             issued_at: Some(95.into()),
+            subject: Some(StringOrUri::String("subject".into())),
+            issuer: Some(StringOrUri::String("issuer".into())),
+            audience: Some(SingleOrMultiple::Multiple(vec![
+                StringOrUri::Uri(Url::parse("http://audience").unwrap()),
+                StringOrUri::String("audience".into()),
+            ])),
+            id: Some("id".into()),
+        };
+
+        let temporal_options = TemporalOptions {
+            now: Some(Utc.timestamp(100, 0)),
             ..Default::default()
         };
-        not_err!(registered_claims.validate_times(Some(options)));
+
+        let validation_options = ValidationOptions {
+            temporal_options,
+            claim_presence_options: ClaimPresenceOptions::strict(),
+
+            expiry: Validation::Validate(()),
+            not_before: Validation::Validate(()),
+            issued_at: Validation::Validate(Duration::max_value()),
+            audience: Validation::Validate(StringOrUri::String("audience".into())),
+            issuer: Validation::Validate(StringOrUri::String("issuer".into())),
+        };
+
+        not_err!(registered_claims.validate(validation_options));
     }
 
     #[test]
     fn validate_times_valid_token_with_epsilon() {
-        let options = TemporalValidationOptions {
-            now: Some(Utc.timestamp(100, 0)),
-            epsilon: Some(Duration::from_secs(10)),
-            ..Default::default()
-        };
-
         let registered_claims = RegisteredClaims {
             expiry: Some(99.into()),
             not_before: Some(96.into()),
             issued_at: Some(96.into()),
             ..Default::default()
         };
-        not_err!(registered_claims.validate_times(Some(options)));
+
+        let temporal_options = TemporalOptions {
+            now: Some(Utc.timestamp(100, 0)),
+            epsilon: Duration::seconds(10),
+        };
+
+        let validation_options = ValidationOptions {
+            temporal_options,
+            claim_presence_options: Default::default(),
+
+            expiry: Validation::Validate(()),
+            not_before: Validation::Validate(()),
+            issued_at: Validation::Validate(Duration::max_value()),
+
+            ..Default::default()
+        };
+
+        not_err!(registered_claims.validate(validation_options));
     }
 
     #[test]

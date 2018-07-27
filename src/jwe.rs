@@ -9,7 +9,7 @@ use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
-use errors::{Error, ValidationError};
+use errors::{DecodeError, Error, ValidationError};
 use jwa::{self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm};
 use jwk;
 use serde_custom;
@@ -464,7 +464,7 @@ where
         match *self {
             Compact::Encrypted(ref encrypted) => {
                 if encrypted.len() != 5 {
-                    Err(ValidationError::PartsLengthError {
+                    Err(DecodeError::PartsLengthError {
                         actual: encrypted.len(),
                         expected: 5,
                     })?
@@ -601,8 +601,8 @@ where
     ///
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
-    pub fn validate_times(&self, options: Option<::TemporalValidationOptions>) -> Result<(), Error> {
-        Ok(self.payload()?.registered.validate_times(options)?)
+    pub fn validate(&self, options: ::ValidationOptions) -> Result<(), Error> {
+        Ok(self.payload()?.registered.validate(options)?)
     }
 }
 
