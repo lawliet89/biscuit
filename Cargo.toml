@@ -25,6 +25,7 @@ doc = true
 [dependencies]
 chrono = "0.4.2"
 data-encoding = "2.1.1"
+failure = "0.1.3"
 lazy_static = "1.0.0"
 num = "0.2"
 ring = { version = "0.13.2", features = ["rsa_signing"] }
