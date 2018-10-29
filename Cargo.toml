@@ -27,7 +27,7 @@ chrono = "0.4.2"
 data-encoding = "2.1.1"
 lazy_static = "1.0.0"
 num = "0.1.37"
-ring = { version = "0.13.0-alpha4", features = ["rsa_signing"] }
+ring = { version = "0.13.2", features = ["rsa_signing"] }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }

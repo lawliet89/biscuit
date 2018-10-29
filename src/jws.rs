@@ -14,6 +14,7 @@ use untrusted;
 
 use errors::{DecodeError, Error, ValidationError};
 use jwa::SignatureAlgorithm;
+use jwk;
 use serde_custom;
 use {CompactJson, CompactPart, Empty};
 
@@ -351,14 +352,15 @@ pub enum Secret {
     ///
     /// let secret = Secret::public_key_from_file("test/fixtures/rsa_public_key.der");
     PublicKey(Vec<u8>),
-    /// The (n, e) PKCS parameters pair of an RSA Public Key
+    /// Use the modulus (`n`) and exponent (`e`) of an RSA key directly
     ///
-    /// These parameters can be obtained from a RSA JWK.
-    Pkcs { 
+    /// These parameters can be obtained from a JWK directly using
+    /// [`jwk::RSAKeyParameters::jws_public_key_secret`]
+    RSAModulusExponent {
         /// RSA modulus
-        n: BigUint, 
+        n: BigUint,
         /// RSA exponent
-        e: BigUint
+        e: BigUint,
     },
 }
 
@@ -405,6 +407,12 @@ impl Secret {
     pub fn public_key_from_file(path: &str) -> Result<Self, Error> {
         let der = Self::read_bytes(path)?;
         Ok(Secret::PublicKey(der.to_vec()))
+    }
+}
+
+impl From<jwk::RSAKeyParameters> for Secret {
+    fn from(rsa: jwk::RSAKeyParameters) -> Self {
+        rsa.jws_public_key_secret()
     }
 }
 
