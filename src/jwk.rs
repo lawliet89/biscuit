@@ -10,6 +10,7 @@ use serde_json;
 
 use errors::Error;
 use jwa::Algorithm;
+use jws;
 use serde_custom;
 
 /// Type of Key as specified in RFC 7518.
@@ -385,6 +386,16 @@ pub struct RSAKeyParameters {
     /// information about any third and subsequent primes, should they exist.
     #[serde(rename = "oth", skip_serializing_if = "Option::is_none", default)]
     pub other_primes_info: Option<Vec<OtherPrimesInfo>>,
+}
+
+impl RSAKeyParameters {
+    /// Construct a `jws::Secret` RSA public key for signature verification
+    pub fn jws_public_key_secret(&self) -> jws::Secret {
+        jws::Secret::RSAModulusExponent {
+            n: self.n.clone(),
+            e: self.e.clone(),
+        }
+    }
 }
 
 /// The "oth" (other primes info) parameter contains an array of
