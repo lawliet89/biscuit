@@ -198,7 +198,8 @@ pub trait FlattenSerializable {
 
         // A "hack" to combine structs into one serialized JSON
         // First, we serialize each of them into JSON Value enum
-        let value_maps: Vec<Result<Value, String>> = self.yield_children()
+        let value_maps: Vec<Result<Value, String>> = self
+            .yield_children()
             .iter()
             .map(|child| child.to_json().map_err(|e| e.to_string()))
             .collect();
@@ -216,8 +217,7 @@ pub trait FlattenSerializable {
             .map(|value| match value {
                 Value::Object(map) => map,
                 _ => unreachable!("Child was not a struct: {:?}", value),
-            })
-            .collect();
+            }).collect();
 
         if let DuplicateKeysBehaviour::RaiseError = self.duplicate_keys() {
             // We need to check for duplicate keys

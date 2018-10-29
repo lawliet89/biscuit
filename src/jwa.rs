@@ -893,8 +893,7 @@ mod tests {
                 signature_bytes,
                 "payload".to_string().as_bytes(),
                 &Secret::Bytes("secret".to_string().into_bytes()),
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]

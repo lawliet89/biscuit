@@ -50,15 +50,52 @@
 //! - [JWS Unencoded Payload Option](https://tools.ietf.org/html/rfc7797)
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
-#![allow(legacy_directory_ownership, missing_copy_implementations, missing_debug_implementations, unknown_lints)]
+#![allow(
+    legacy_directory_ownership,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    unknown_lints
+)]
 #![deny(
-    const_err, dead_code, deprecated, exceeding_bitshifts, improper_ctypes, missing_docs, mutable_transmutes,
-    no_mangle_const_items, non_camel_case_types, non_shorthand_field_patterns, non_upper_case_globals,
-    overflowing_literals, path_statements, plugin_as_library, private_no_mangle_fns, private_no_mangle_statics,
-    stable_features, trivial_casts, trivial_numeric_casts, unconditional_recursion, unknown_crate_types,
-    unreachable_code, unused_allocation, unused_assignments, unused_attributes, unused_comparisons,
-    unused_extern_crates, unused_features, unused_imports, unused_import_braces, unused_qualifications, unused_must_use,
-    unused_mut, unused_parens, unused_results, unused_unsafe, unused_variables, variant_size_differences, warnings,
+    const_err,
+    dead_code,
+    deprecated,
+    exceeding_bitshifts,
+    improper_ctypes,
+    missing_docs,
+    mutable_transmutes,
+    no_mangle_const_items,
+    non_camel_case_types,
+    non_shorthand_field_patterns,
+    non_upper_case_globals,
+    overflowing_literals,
+    path_statements,
+    plugin_as_library,
+    private_no_mangle_fns,
+    private_no_mangle_statics,
+    stable_features,
+    trivial_casts,
+    trivial_numeric_casts,
+    unconditional_recursion,
+    unknown_crate_types,
+    unreachable_code,
+    unused_allocation,
+    unused_assignments,
+    unused_attributes,
+    unused_comparisons,
+    unused_extern_crates,
+    unused_features,
+    unused_imports,
+    unused_import_braces,
+    unused_qualifications,
+    unused_must_use,
+    unused_mut,
+    unused_parens,
+    unused_results,
+    unused_unsafe,
+    unused_variables,
+    variant_size_differences,
+    warnings,
     while_true
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
@@ -927,7 +964,7 @@ pub struct ValidationOptions {
 
     /// Validation options for `aud` or `Audience` claim if present
     /// Token must include an audience with the value of the parameter
-    pub audience: Validation<StringOrUri>
+    pub audience: Validation<StringOrUri>,
 }
 
 impl Default for ValidationOptions {
@@ -940,7 +977,7 @@ impl Default for ValidationOptions {
             claim_presence_options: Default::default(),
             temporal_options: Default::default(),
             audience: Default::default(),
-            issuer: Default::default()
+            issuer: Default::default(),
         }
     }
 }
@@ -994,7 +1031,7 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
-                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
+                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
 
                 match self.expiry {
                     Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => {
@@ -1028,7 +1065,7 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate((max_age, temporal_options)) => {
-                let now = temporal_options.now.unwrap_or_else( ||Utc::now());
+                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
 
                 match self.issued_at {
                     Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => {
@@ -1110,11 +1147,7 @@ impl_flatten_serde_generic!(
     private
 );
 
-impl<T> CompactJson for ClaimsSet<T>
-where
-    T: Serialize + DeserializeOwned,
-{
-}
+impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
 
 #[cfg(test)]
 mod tests {
@@ -1266,9 +1299,11 @@ mod tests {
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
         assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("does not exist").unwrap()));
+        assert!(
+            !deserialized
+                .values
+                .contains(&FromStr::from_str("does not exist").unwrap())
+        );
     }
 
     #[test]
@@ -1288,9 +1323,11 @@ mod tests {
                 .values
                 .contains(&FromStr::from_str("https://www.examples.com").unwrap())
         );
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(
+            !deserialized
+                .values
+                .contains(&FromStr::from_str("https://ecorp.com").unwrap())
+        );
     }
 
     #[test]
@@ -1330,9 +1367,11 @@ mod tests {
                 .contains(&FromStr::from_str("http://[::1]").unwrap())
         );
         assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(
+            !deserialized
+                .values
+                .contains(&FromStr::from_str("https://ecorp.com").unwrap())
+        );
     }
 
     #[test]

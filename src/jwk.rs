@@ -294,7 +294,11 @@ pub struct EllipticCurveKeyParameters {
     pub y: Vec<u8>,
     /// The "d" (ECC private key) parameter contains the Elliptic Curve
     /// private key value.
-    #[serde(with = "serde_custom::option_byte_sequence", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_byte_sequence",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub d: Option<Vec<u8>>,
 }
 
@@ -320,37 +324,61 @@ pub struct RSAKeyParameters {
     /// The "d" (private exponent) parameter contains the private exponent
     /// value for the RSA private key.
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub d: Option<BigUint>,
 
     /// The "p" (first prime factor) parameter contains the first prime
     /// factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub p: Option<BigUint>,
 
     /// The "q" (second prime factor) parameter contains the second prime
     /// factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub q: Option<BigUint>,
 
     /// The "dp" (first factor CRT exponent) parameter contains the Chinese
     /// Remainder Theorem (CRT) exponent of the first factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub dp: Option<BigUint>,
 
     /// The "dq" (second factor CRT exponent) parameter contains the CRT
     /// exponent of the second factor.
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub dq: Option<BigUint>,
 
     /// The "qi" (first CRT coefficient) parameter contains the CRT
     /// coefficient of the second factor
     /// It is serialized as a `Base64urlUInt`-encoded value.
-    #[serde(with = "serde_custom::option_base64_url_uint", skip_serializing_if = "Option::is_none", default)]
+    #[serde(
+        with = "serde_custom::option_base64_url_uint",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
     pub qi: Option<BigUint>,
 
     /// The "oth" (other primes info) parameter contains an array of

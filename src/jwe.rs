@@ -399,11 +399,11 @@ where
                     .registered
                     .cek_algorithm
                     .cek(header.registered.enc_algorithm, key)?;
-                let encrypted_cek = header.registered.cek_algorithm.wrap_key(
-                    cek.algorithm.octect_key()?,
-                    key,
-                    key_option,
-                )?;
+                let encrypted_cek =
+                    header
+                        .registered
+                        .cek_algorithm
+                        .wrap_key(cek.algorithm.octect_key()?, key, key_option)?;
                 // Update header
                 let mut header = header.clone();
                 header.update_cek_algorithm(&encrypted_cek);
@@ -970,8 +970,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A128GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]
@@ -1002,8 +1001,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A128GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]
@@ -1016,8 +1014,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A128GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]
@@ -1055,8 +1052,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]
@@ -1094,8 +1090,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     #[test]
@@ -1131,8 +1126,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     /// This test modifies the header so the tag (aad for the AES GCM) included becomes incorrect
@@ -1171,8 +1165,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     /// This test modifies the encrypted cek
@@ -1209,8 +1202,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     /// This test modifies the encrypted payload
@@ -1249,8 +1241,7 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 
     /// This test modifies the nonce
@@ -1289,7 +1280,6 @@ mod tests {
                 &key,
                 KeyManagementAlgorithm::A256GCMKW,
                 ContentEncryptionAlgorithm::A256GCM,
-            )
-            .unwrap();
+            ).unwrap();
     }
 }
