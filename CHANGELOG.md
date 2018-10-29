@@ -1,5 +1,18 @@
 # Changelog
 
+## Version 0.1.0 (2018-10-29)
+
+### Breaking Change
+
+- Minimum Rust 1.27.2 supported. Older versions might build, but this might not be supported.
+- Ring 0.13.2 minimum required. This breaks with other libraries using any other versions
+
+### Features
+
+- Add ECDSA support (https://github.com/lawliet89/biscuit/pull/95)
+- Additional claims validation (https://github.com/lawliet89/biscuit/pull/99)
+- RSA signature validation with only the exponent and modulus (https://github.com/lawliet89/biscuit/pull/100)
+
 ## Version 0.0.8 (2018-02-14)
 
 There are breaking changes in this release:
