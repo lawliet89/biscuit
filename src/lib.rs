@@ -101,8 +101,6 @@
 extern crate chrono;
 extern crate data_encoding;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate lazy_static;
 extern crate num;
 extern crate ring;
@@ -117,7 +115,7 @@ extern crate url;
 extern crate serde_test;
 
 use std::borrow::Borrow;
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::{self, Debug, Display};
 use std::iter;
 use std::ops::Deref;
 use std::str::{self, FromStr};
@@ -598,7 +596,7 @@ impl<'de> Deserialize<'de> for Compact {
         impl<'de> de::Visitor<'de> for CompactVisitor {
             type Value = Compact;
 
-            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a string containing a compact JOSE representation")
             }
 
@@ -691,25 +689,6 @@ where
         }
     }
 }
-
-impl<T: Display> Display for SingleOrMultiple<T> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            SingleOrMultiple::Single(ref value) => write!(f, "{}", value),
-            SingleOrMultiple::Multiple(ref values) => {
-                let mut iterator = values.iter().peekable();
-                for item in iterator.next() {
-                    write!(f, "{}", item)?;
-                    if iterator.peek().is_some() {
-                        write!(f, ", ")?;
-                    }
-                }
-                Ok(())
-            },
-        }
-    }
-}
-
 /// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
 /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
 /// will be deserialized as a URL. Any invalid URLs will be treated as a deserialization failure.
@@ -801,7 +780,7 @@ impl<'de> Deserialize<'de> for StringOrUri {
         impl<'de> de::Visitor<'de> for StringOrUriVisitor {
             type Value = StringOrUri;
 
-            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("an arbitrary string or URI")
             }
 
@@ -818,7 +797,7 @@ impl<'de> Deserialize<'de> for StringOrUri {
 }
 
 impl Display for StringOrUri {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             StringOrUri::String(ref string) => write!(f, "{}", string),
             StringOrUri::Uri(ref uri) => write!(f, "{}", uri),

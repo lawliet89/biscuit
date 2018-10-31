@@ -3,47 +3,34 @@ use chrono::Duration;
 use data_encoding;
 use ring;
 use serde_json;
-use std::{io, str, string};
+use std::{error, fmt, io, str, string};
 use url::ParseError;
 use SingleOrMultiple;
 use StringOrUri;
 
-#[derive(Fail, Debug)]
+#[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
 /// and a couple of custom one for when the token we are trying
 /// to verify is invalid
 pub enum Error {
     /// A generic error which is described by the contained string
-    #[fail(display = "An unknown error has occured: {}", _0)]
     GenericError(String),
     /// Error returned from failed token decoding
-    #[fail(display = "{}", _0)]
-    DecodeError(#[fail(cause)] DecodeError),
+    DecodeError(DecodeError),
     /// Error returned from failed token validation
-    #[fail(display = "{}", _0)]
-    ValidationError(#[fail(cause)] ValidationError),
+    ValidationError(ValidationError),
     /// Error during the serialization or deserialization of tokens
-    #[fail(display = "{}", _0)]
-    JsonError(#[fail(cause)] serde_json::error::Error),
+    JsonError(serde_json::error::Error),
     /// Error during base64 encoding or decoding
-    #[fail(display = "{}", _0)]
-    DecodeBase64(#[fail(cause)] data_encoding::DecodeError),
+    DecodeBase64(data_encoding::DecodeError),
     /// Error when decoding bytes to UTF8 string
-    #[fail(display = "{}", _0)]
-    Utf8(#[fail(cause)] str::Utf8Error),
+    Utf8(str::Utf8Error),
     /// Errors related to IO
-    #[fail(display = "{}", _0)]
-    IOError(#[fail(cause)] io::Error),
+    IOError(io::Error),
     /// Errors related to URI parsing
-    #[fail(display = "{}", _0)]
-    UriParseError(#[fail(cause)] ParseError),
+    UriParseError(ParseError),
 
     /// Wrong key type was provided for the cryptographic operation
-    #[fail(
-        display = "{} was expected for this cryptographic operation but {} was provided",
-        expected,
-        actual
-    )]
     WrongKeyType {
         /// Expected type of key
         expected: String,
@@ -52,11 +39,6 @@ pub enum Error {
     },
 
     /// Wrong variant of `EncryptionOptions` was provided for the encryption operation
-    #[fail(
-        display = "{} was expected for this cryptographic operation but {} was provided",
-        expected,
-        actual
-    )]
     WrongEncryptionOptions {
         /// Expected variant of options
         expected: String,
@@ -65,25 +47,17 @@ pub enum Error {
     },
 
     /// An unknown cryptographic error
-    #[fail(display = "An Unspecified Cryptographic Error")]
     UnspecifiedCryptographicError,
     /// An unsupported or invalid operation
-    #[fail(display = "This operation is not supported")]
     UnsupportedOperation,
 }
 
-#[derive(Fail, Debug, Eq, PartialEq, Clone)]
+#[derive(Debug)]
 /// Errors from decoding tokens
 pub enum DecodeError {
     /// Token is invalid in structure or form
-    #[fail(display = "Token is invalid or malformed")]
     InvalidToken,
     /// The number of compact parts is incorrect
-    #[fail(
-        display = "Expected {} parts but got {} parts compact JSON representation",
-        expected,
-        actual
-    )]
     PartsLengthError {
         /// Expected number of parts
         expected: usize,
@@ -92,39 +66,31 @@ pub enum DecodeError {
     },
 }
 
-#[derive(Fail, Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 /// Errors from validating tokens
 pub enum ValidationError {
     /// Token has an invalid signature (RFC7523 3.9)
-    #[fail(display = "Token has an invalid signature")]
     InvalidSignature,
     /// Token provided was signed or encrypted with an unexpected algorithm
-    #[fail(display = "Token provided was signed or encrypted with an unexpected algorithm")]
     WrongAlgorithmHeader,
     /// A field required is missing from the token
     /// The parameter shows the name of the missing claim
-    #[fail(display = "Token is missing required claims: {:?}", _0)]
     MissingRequiredClaims(Vec<String>),
     /// The token's expiry has passed (exp check failled, RFC7523 3.4)
     /// The parameter show how long the token has expired
-    #[fail(display = "Token expired {} ago", _0)]
     Expired(Duration),
     /// The token is not yet valid (nbf check failed, RFC7523 3.5)
     /// The parameter show how much longer the token will start to be valid
-    #[fail(display = "Token will be valid in {}", _0)]
     NotYetValid(Duration),
     /// The token has been created too far in the past (iat check failed, RFC7523 3.6)
     /// This is different from Expired because the token may not be expired yet, but the
     /// acceptor of the token may impose more strict requirement for the age of the token for
     /// some more sensitive operations.
     /// The parameter show how much older the token is than required
-    #[fail(display = "Token has been considered too old for {}", _0)]
     TooOld(Duration),
     /// The token does not have or has the wrong issuer (iss check failed, RFC7523 3.1)
-    #[fail(display = "Issuer of token is invalid: {}", _0)]
     InvalidIssuer(StringOrUri),
     /// The token does not have or has the wrong audience (aud check failed, RFC7523 3.3
-    #[fail(display = "Audience of token is invalid: {}", _0)]
     InvalidAudience(SingleOrMultiple<StringOrUri>),
 }
 
@@ -156,5 +122,150 @@ impl From<ring::error::Unspecified> for Error {
 impl From<string::FromUtf8Error> for Error {
     fn from(e: string::FromUtf8Error) -> Self {
         Error::Utf8(e.utf8_error())
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        use Error::*;
+
+        match *self {
+            GenericError(ref err) => err,
+            JsonError(ref err) => err.description(),
+            DecodeBase64(ref err) => err.description(),
+            Utf8(ref err) => err.description(),
+            ValidationError(ref err) => err.description(),
+            DecodeError(ref err) => err.description(),
+            IOError(ref err) => err.description(),
+            UriParseError(ref err) => err.description(),
+            WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
+            WrongEncryptionOptions { .. } => {
+                "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
+            }
+            UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
+            UnsupportedOperation => "This operation is not supported",
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        use Error::*;
+
+        Some(match *self {
+            JsonError(ref err) => err,
+            DecodeBase64(ref err) => err,
+            Utf8(ref err) => err,
+            DecodeError(ref err) => err,
+            ValidationError(ref err) => err,
+            IOError(ref err) => err,
+            UriParseError(ref err) => err,
+            ref err => err,
+        })
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Error::*;
+
+        match *self {
+            GenericError(ref err) => fmt::Display::fmt(err, f),
+            JsonError(ref err) => fmt::Display::fmt(err, f),
+            DecodeBase64(ref err) => fmt::Display::fmt(err, f),
+            Utf8(ref err) => fmt::Display::fmt(err, f),
+            DecodeError(ref err) => fmt::Display::fmt(err, f),
+            ValidationError(ref err) => fmt::Display::fmt(err, f),
+            IOError(ref err) => fmt::Display::fmt(err, f),
+            UriParseError(ref err) => fmt::Display::fmt(err, f),
+            WrongKeyType {
+                ref actual,
+                ref expected,
+            } => write!(
+                f,
+                "{} was expected for this cryptographic operation but {} was provided",
+                expected, actual
+            ),
+            WrongEncryptionOptions {
+                ref actual,
+                ref expected,
+            } => write!(
+                f,
+                "{} was expected for this cryptographic operation but {} was provided",
+                expected, actual
+            ),
+            UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
+            UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
+        }
+    }
+}
+
+impl error::Error for ValidationError {
+    fn description(&self) -> &str {
+        use ValidationError::*;
+
+        match *self {
+            InvalidSignature => "Invalid Signature",
+            WrongAlgorithmHeader => "Token provided was signed or encrypted with an unexpected algorithm",
+            MissingRequiredClaims(_) => "Missing required claim",
+            Expired(_) => "Token expired",
+            NotYetValid(_) => "Token not yet valid",
+            TooOld(_) => "Token is too old",
+            InvalidIssuer(_) => "Issuer is invalid",
+            InvalidAudience(_) => "Audience of token is invalid",
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        Some(self)
+    }
+}
+
+impl error::Error for DecodeError {
+    fn description(&self) -> &str {
+        use self::DecodeError::*;
+
+        match *self {
+            InvalidToken => "Invalid Token",
+            PartsLengthError { .. } => "Unexpected number of parts in compact JSON representation",
+        }
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use std::error::Error;
+        use ValidationError::*;
+
+        match *self {
+            MissingRequiredClaims(ref fields) => {
+                write!(f, "The following claims are required, but missing: {:?}", fields)
+            }
+            Expired(ago) => write!(f, "Token expired {} seconds ago", ago.num_seconds()),
+            NotYetValid(nyv_for) => write!(f, "Token will be valid in {} seconds", nyv_for.num_seconds()),
+            TooOld(duration) => write!(
+                f,
+                "Token has been considered too old for {} seconds",
+                duration.num_seconds()
+            ),
+            InvalidIssuer(ref iss) => write!(f, "Issuer of token is invalid: {:?}", iss),
+            InvalidAudience(ref aud) => write!(f, "Audience of token is invalid: {:?}", aud),
+
+            InvalidSignature | WrongAlgorithmHeader => write!(f, "{}", self.description()),
+        }
+    }
+}
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::DecodeError::*;
+        use std::error::Error;
+
+        match *self {
+            InvalidToken => write!(f, "{}", self.description()),
+            PartsLengthError { expected, actual } => write!(
+                f,
+                "Expected {} parts in Compact JSON representation but got {}",
+                expected, actual
+            ),
+        }
     }
 }
