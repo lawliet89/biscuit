@@ -23,8 +23,8 @@ const AES_GCM_TAG_SIZE: usize = 128 / 8;
 /// AES GCM Nonce length, in bytes
 const AES_GCM_NONCE_LENGTH: usize = 96 / 8;
 
-/// A zeroed AES GCM Nonce EncryptionOptions
 lazy_static! {
+    /// A zeroed AES GCM Nonce EncryptionOptions
     static ref AES_GCM_ZEROED_NONCE: EncryptionOptions = EncryptionOptions::AES_GCM {
         nonce: vec![0; AES_GCM_NONCE_LENGTH],
     };
