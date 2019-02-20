@@ -96,7 +96,6 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-
 use data_encoding;
 #[macro_use]
 extern crate lazy_static;
@@ -105,7 +104,6 @@ use serde;
 #[macro_use]
 extern crate serde_derive;
 use serde_json;
-
 
 #[cfg(test)]
 extern crate serde_test;
@@ -1293,11 +1291,9 @@ mod tests {
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
         assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
-        assert!(
-            !deserialized
-                .values
-                .contains(&FromStr::from_str("does not exist").unwrap())
-        );
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("does not exist").unwrap()));
     }
 
     #[test]
@@ -1312,16 +1308,12 @@ mod tests {
 
         let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("https://www.examples.com").unwrap())
-        );
-        assert!(
-            !deserialized
-                .values
-                .contains(&FromStr::from_str("https://ecorp.com").unwrap())
-        );
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("https://www.examples.com").unwrap()));
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
@@ -1345,27 +1337,19 @@ mod tests {
         assert_eq!(deserialized, test);
 
         assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("https://www.example.com").unwrap())
-        );
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap())
-        );
-        assert!(
-            deserialized
-                .values
-                .contains(&FromStr::from_str("http://[::1]").unwrap())
-        );
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("https://www.example.com").unwrap()));
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap()));
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("http://[::1]").unwrap()));
         assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
-        assert!(
-            !deserialized
-                .values
-                .contains(&FromStr::from_str("https://ecorp.com").unwrap())
-        );
+        assert!(!deserialized
+            .values
+            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
     }
 
     #[test]
