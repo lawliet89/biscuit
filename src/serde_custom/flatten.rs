@@ -178,7 +178,7 @@ pub enum DuplicateKeysBehaviour {
 pub trait FlattenSerializable {
     /// Yield references to children that needs serializing. The order matters. The later children who have
     /// duplicate keys will overwrite earlier keys, or raise errors, depending on the `duplicate_keys` behaviour.
-    fn yield_children(&self) -> Vec<Box<&ToJson>>;
+    fn yield_children(&self) -> Vec<Box<&dyn ToJson>>;
 
     /// The behaviour the serializer should adopt when encountering duplicate keys. The default implementation
     /// is to raise errors.
@@ -264,8 +264,8 @@ macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         #[allow(unused_qualifications)]
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
-                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<Box<&dyn $crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&dyn $crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -336,8 +336,8 @@ macro_rules! impl_flatten_serialize_generic {
         impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
             where T: serde::Serialize
         {
-            fn yield_children(&self) -> Vec<Box<&$crate::serde_custom::flatten::ToJson>> {
-                vec![$( Box::<&$crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<Box<&dyn $crate::serde_custom::flatten::ToJson>> {
+                vec![$( Box::<&dyn $crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -564,7 +564,7 @@ mod tests {
     }
 
     #[test]
-    fn serde_json() {
+    fn serde_json_is_correct() {
         let test_value = Outer::default();
         let expected_json = r#"{
   "a": 0,

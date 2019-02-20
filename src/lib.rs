@@ -69,8 +69,6 @@
     overflowing_literals,
     path_statements,
     plugin_as_library,
-    private_no_mangle_fns,
-    private_no_mangle_statics,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
@@ -98,18 +96,16 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-extern crate chrono;
-extern crate data_encoding;
+
+use data_encoding;
 #[macro_use]
 extern crate lazy_static;
-extern crate num;
-extern crate ring;
-extern crate serde;
+
+use serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate untrusted;
-extern crate url;
+use serde_json;
+
 
 #[cfg(test)]
 extern crate serde_test;
@@ -322,7 +318,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// // Now, send `token` to your clients
 ///
 /// // ... some time later, we get token back!
-/// let token: JWE<PrivateClaims, ::Empty, ::Empty> = JWE::new_encrypted(&token);
+/// let token: JWE<PrivateClaims, Empty, Empty> = JWE::new_encrypted(&token);
 ///
 /// // Decrypt
 /// let decrypted_jwe = token
@@ -529,7 +525,7 @@ impl Compact {
     }
 
     /// Push a `CompactPart` to the end
-    pub fn push(&mut self, part: &CompactPart) -> Result<(), Error> {
+    pub fn push(&mut self, part: &dyn CompactPart) -> Result<(), Error> {
         let base64 = part.to_base64()?;
         self.parts.push(base64);
         Ok(())
@@ -596,7 +592,7 @@ impl<'de> Deserialize<'de> for Compact {
         impl<'de> de::Visitor<'de> for CompactVisitor {
             type Value = Compact;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("a string containing a compact JOSE representation")
             }
 
@@ -682,7 +678,7 @@ where
     }
 
     /// Yields an iterator for the single value or the list
-    pub fn iter<'a>(&'a self) -> Box<Iterator<Item = &'a T> + 'a> {
+    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a T> + 'a> {
         match *self {
             SingleOrMultiple::Single(ref single) => Box::new(iter::once(single)),
             SingleOrMultiple::Multiple(ref vector) => Box::new(vector.iter()),
@@ -780,7 +776,7 @@ impl<'de> Deserialize<'de> for StringOrUri {
         impl<'de> de::Visitor<'de> for StringOrUriVisitor {
             type Value = StringOrUri;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str("an arbitrary string or URI")
             }
 
@@ -797,7 +793,7 @@ impl<'de> Deserialize<'de> for StringOrUri {
 }
 
 impl Display for StringOrUri {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             StringOrUri::String(ref string) => write!(f, "{}", string),
             StringOrUri::Uri(ref uri) => write!(f, "{}", uri),

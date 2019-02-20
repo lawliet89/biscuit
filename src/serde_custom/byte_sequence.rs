@@ -24,7 +24,7 @@ where
     impl<'de> de::Visitor<'de> for BytesVisitor {
         type Value = Vec<u8>;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("a URL safe base64 encoding of a byte sequence")
         }
 

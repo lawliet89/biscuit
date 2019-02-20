@@ -28,7 +28,7 @@ where
     impl<'de> de::Visitor<'de> for BigUintVisitor {
         type Value = BigUint;
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
             formatter.write_str("a Base64urlUInt string")
         }
 
