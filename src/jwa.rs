@@ -12,10 +12,10 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use untrusted;
 
-use crate::Empty;
 use crate::errors::Error;
 use crate::jwk;
 use crate::jws::Secret;
+use crate::Empty;
 
 pub use ring::rand::SecureRandom;
 
@@ -817,7 +817,8 @@ mod tests {
                                       7F422B4C66E8EB53FF5E6DC4D3C92952D8413E06E2D9EB1DF50D8224FF3BD\
                                       319FF5E4258D06C578B9527B",
                 16,
-            ).unwrap(),
+            )
+            .unwrap(),
             e: BigUint::from(65537u32),
         };
         let payload = "payload".to_string();
@@ -945,7 +946,8 @@ mod tests {
                 signature_bytes,
                 "payload".to_string().as_bytes(),
                 &Secret::Bytes("secret".to_string().into_bytes()),
-            ).unwrap();
+            )
+            .unwrap();
     }
 
     #[test]

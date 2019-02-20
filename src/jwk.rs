@@ -8,11 +8,11 @@ use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
-use crate::Empty;
 use crate::errors::Error;
 use crate::jwa::Algorithm;
 use crate::jws;
 use crate::serde_custom;
+use crate::Empty;
 
 /// Type of Key as specified in RFC 7518.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]

@@ -1,12 +1,12 @@
 //! Errors returned will be converted to one of the structs in this module.
+use crate::SingleOrMultiple;
+use crate::StringOrUri;
 use chrono::Duration;
 use data_encoding;
 use ring;
 use serde_json;
 use std::{error, fmt, io, str, string};
 use url::ParseError;
-use crate::SingleOrMultiple;
-use crate::StringOrUri;
 
 #[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
@@ -232,8 +232,8 @@ impl error::Error for DecodeError {
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use std::error::Error;
         use crate::ValidationError::*;
+        use std::error::Error;
 
         match *self {
             MissingRequiredClaims(ref fields) => {
