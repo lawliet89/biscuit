@@ -5,8 +5,8 @@ use ring;
 use serde_json;
 use std::{error, fmt, io, str, string};
 use url::ParseError;
-use SingleOrMultiple;
-use StringOrUri;
+use crate::SingleOrMultiple;
+use crate::StringOrUri;
 
 #[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
@@ -127,7 +127,7 @@ impl From<string::FromUtf8Error> for Error {
 
 impl error::Error for Error {
     fn description(&self) -> &str {
-        use Error::*;
+        use crate::Error::*;
 
         match *self {
             GenericError(ref err) => err,
@@ -148,7 +148,7 @@ impl error::Error for Error {
     }
 
     fn cause(&self) -> Option<&error::Error> {
-        use Error::*;
+        use crate::Error::*;
 
         Some(match *self {
             JsonError(ref err) => err,
@@ -165,7 +165,7 @@ impl error::Error for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
+        use crate::Error::*;
 
         match *self {
             GenericError(ref err) => fmt::Display::fmt(err, f),
@@ -200,7 +200,7 @@ impl fmt::Display for Error {
 
 impl error::Error for ValidationError {
     fn description(&self) -> &str {
-        use ValidationError::*;
+        use crate::ValidationError::*;
 
         match *self {
             InvalidSignature => "Invalid Signature",
@@ -233,7 +233,7 @@ impl error::Error for DecodeError {
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use std::error::Error;
-        use ValidationError::*;
+        use crate::ValidationError::*;
 
         match *self {
             MissingRequiredClaims(ref fields) => {
