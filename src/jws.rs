@@ -739,7 +739,7 @@ mod tests {
                    kqZMEA";
         let signing_secret = Secret::PublicKey(not_err!(HEXUPPER.decode(public_key.as_bytes())));
 
-        let token = Compact::<ClaimsSet<serde_json::Value>, crate::Empty>::new_encoded(jwt);
+        let token = Compact::<ClaimsSet<serde_json::Value>, Empty>::new_encoded(jwt);
         let _ = not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));
     }
 

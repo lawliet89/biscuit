@@ -8,6 +8,7 @@ use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
+use crate::Empty;
 use crate::errors::Error;
 use crate::jwa::Algorithm;
 use crate::jws;
@@ -41,7 +42,7 @@ impl KeyType {
 }
 
 impl fmt::Display for KeyType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.description())
     }
 }
@@ -81,7 +82,7 @@ impl<'de> Deserialize<'de> for PublicKeyUse {
         impl<'de> de::Visitor<'de> for PublicKeyUseVisitor {
             type Value = PublicKeyUse;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(formatter, "a string")
             }
 
@@ -154,7 +155,7 @@ impl<'de> Deserialize<'de> for KeyOperations {
         impl<'de> de::Visitor<'de> for KeyOperationsVisitor {
             type Value = KeyOperations;
 
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 write!(formatter, "a string")
             }
 
@@ -246,7 +247,7 @@ pub enum AlgorithmParameters {
 }
 
 impl fmt::Debug for AlgorithmParameters {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let algo_type = match *self {
             AlgorithmParameters::EllipticCurve(_) => "EllipticCurve",
             AlgorithmParameters::RSA(_) => "RSA",
@@ -529,7 +530,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
     }
 
     /// Convenience function to strip out the additional fields
-    pub fn clone_without_additional(&self) -> JWK<crate::Empty> {
+    pub fn clone_without_additional(&self) -> JWK<Empty> {
         JWK {
             common: self.common.clone(),
             algorithm: self.algorithm.clone(),
@@ -861,7 +862,7 @@ mod tests {
     /// Serialize and deserialize example JWK given in the RFC
     #[test]
     fn jwk_serde_smoke_test() {
-        let test_value: JWK<crate::Empty> = JWK {
+        let test_value: JWK<Empty> = JWK {
             common: CommonParameters {
                 key_id: Some("Public key used in JWS spec Appendix A.3 example".to_string()),
                 ..Default::default()
@@ -894,7 +895,7 @@ mod tests {
 
     #[test]
     fn jwk_set_symmetric_key() {
-        let test_value: JWKSet<crate::Empty> = JWKSet {
+        let test_value: JWKSet<Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -944,7 +945,7 @@ mod tests {
     /// Example public key set
     #[test]
     fn jwk_set_public_key_serde_test() {
-        let test_value: JWKSet<crate::Empty> = JWKSet {
+        let test_value: JWKSet<Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -1003,7 +1004,7 @@ mod tests {
     /// Example private key set
     #[test]
     fn jwk_set_private_key_serde_test() {
-        let test_value: JWKSet<crate::Empty> = JWKSet {
+        let test_value: JWKSet<Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -1105,7 +1106,7 @@ mod tests {
         assert_serde_json(&test_value, Some(&expected_json));
     }
 
-    fn find_key_set() -> JWKSet<crate::Empty> {
+    fn find_key_set() -> JWKSet<Empty> {
         JWKSet {
             keys: vec![
                 JWK {
