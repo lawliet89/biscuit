@@ -8,10 +8,10 @@ use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
-use errors::Error;
-use jwa::Algorithm;
-use jws;
-use serde_custom;
+use crate::errors::Error;
+use crate::jwa::Algorithm;
+use crate::jws;
+use crate::serde_custom;
 
 /// Type of Key as specified in RFC 7518.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
@@ -529,7 +529,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
     }
 
     /// Convenience function to strip out the additional fields
-    pub fn clone_without_additional(&self) -> JWK<::Empty> {
+    pub fn clone_without_additional(&self) -> JWK<crate::Empty> {
         JWK {
             common: self.common.clone(),
             algorithm: self.algorithm.clone(),
@@ -571,8 +571,8 @@ mod tests {
     use serde_test::{assert_tokens, Token};
 
     use super::*;
-    use jwa;
-    use test::assert_serde_json;
+    use crate::jwa;
+    use crate::test::assert_serde_json;
 
     #[test]
     fn public_key_use_serde_token() {
@@ -861,7 +861,7 @@ mod tests {
     /// Serialize and deserialize example JWK given in the RFC
     #[test]
     fn jwk_serde_smoke_test() {
-        let test_value: JWK<::Empty> = JWK {
+        let test_value: JWK<crate::Empty> = JWK {
             common: CommonParameters {
                 key_id: Some("Public key used in JWS spec Appendix A.3 example".to_string()),
                 ..Default::default()
@@ -894,7 +894,7 @@ mod tests {
 
     #[test]
     fn jwk_set_symmetric_key() {
-        let test_value: JWKSet<::Empty> = JWKSet {
+        let test_value: JWKSet<crate::Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -944,7 +944,7 @@ mod tests {
     /// Example public key set
     #[test]
     fn jwk_set_public_key_serde_test() {
-        let test_value: JWKSet<::Empty> = JWKSet {
+        let test_value: JWKSet<crate::Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -1003,7 +1003,7 @@ mod tests {
     /// Example private key set
     #[test]
     fn jwk_set_private_key_serde_test() {
-        let test_value: JWKSet<::Empty> = JWKSet {
+        let test_value: JWKSet<crate::Empty> = JWKSet {
             keys: vec![
                 JWK {
                     common: CommonParameters {
@@ -1105,7 +1105,7 @@ mod tests {
         assert_serde_json(&test_value, Some(&expected_json));
     }
 
-    fn find_key_set() -> JWKSet<::Empty> {
+    fn find_key_set() -> JWKSet<crate::Empty> {
         JWKSet {
             keys: vec![
                 JWK {

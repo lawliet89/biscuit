@@ -128,7 +128,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub use url::{ParseError, Url};
 
 mod helpers;
-pub use helpers::*;
+pub use crate::helpers::*;
 
 #[cfg(test)]
 #[macro_use]
@@ -146,7 +146,7 @@ pub mod jwe;
 pub mod jwk;
 pub mod jws;
 
-use errors::{Error, ValidationError};
+use crate::errors::{Error, ValidationError};
 
 /// A convenience type alias of the common "JWT" which is a secured/unsecured compact JWS.
 /// Type `T` is the type of the private claims, and type `H` is the type of private header fields
@@ -913,7 +913,7 @@ pub struct ClaimPresenceOptions {
 impl ClaimPresenceOptions {
     /// Returns a ClaimPresenceOptions where every claim is required as per [RFC7523](https://tools.ietf.org/html/rfc7523#section-3)
     pub fn strict() -> Self {
-        use Presence::*;
+        use crate::Presence::*;
         ClaimPresenceOptions {
             issued_at: Required,
             not_before: Required,
@@ -983,7 +983,7 @@ impl Default for ValidationOptions {
 impl RegisteredClaims {
     /// Validates that the token contains the claims defined as required
     pub fn validate_claim_presence(&self, options: ClaimPresenceOptions) -> Result<(), ValidationError> {
-        use Presence::Required;
+        use crate::Presence::Required;
 
         let mut missing_claims: Vec<&str> = vec![];
 

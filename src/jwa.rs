@@ -12,9 +12,9 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use untrusted;
 
-use errors::Error;
-use jwk;
-use jws::Secret;
+use crate::errors::Error;
+use crate::jwk;
+use crate::jws::Secret;
 
 pub use ring::rand::SecureRandom;
 
@@ -442,7 +442,7 @@ impl KeyManagementAlgorithm {
     /// If the algorithm is `dir` or `DirectSymmetricKey`, the key provided is the CEK.
     /// Otherwise, the appropriate algorithm will be used to derive or generate the required CEK
     /// using the provided key.
-    pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
+    pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<crate::Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -455,7 +455,7 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn cek_direct<T>(&self, key: &jwk::JWK<T>) -> Result<jwk::JWK<::Empty>, Error>
+    fn cek_direct<T>(&self, key: &jwk::JWK<T>) -> Result<jwk::JWK<crate::Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -465,7 +465,7 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn cek_aes_gcm(&self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<::Empty>, Error> {
+    fn cek_aes_gcm(&self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<crate::Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -506,7 +506,7 @@ impl KeyManagementAlgorithm {
         encrypted: &EncryptionResult,
         content_alg: ContentEncryptionAlgorithm,
         key: &jwk::JWK<T>,
-    ) -> Result<jwk::JWK<::Empty>, Error> {
+    ) -> Result<jwk::JWK<crate::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         match *self {
@@ -544,7 +544,7 @@ impl KeyManagementAlgorithm {
         encrypted: &EncryptionResult,
         content_alg: ContentEncryptionAlgorithm,
         key: &jwk::JWK<T>,
-    ) -> Result<jwk::JWK<::Empty>, Error> {
+    ) -> Result<jwk::JWK<crate::Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
         let algorithm = match *self {
@@ -743,8 +743,8 @@ mod tests {
     use ring::constant_time::verify_slices_are_equal;
 
     use super::*;
-    use jwa;
-    use CompactPart;
+    use crate::jwa;
+    use crate::CompactPart;
 
     #[test]
     fn sign_and_verify_none() {
@@ -993,7 +993,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1021,7 +1021,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1049,7 +1049,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1070,7 +1070,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1095,7 +1095,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1119,7 +1119,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1147,7 +1147,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1191,7 +1191,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -1218,7 +1218,7 @@ mod tests {
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
-        let key = jwk::JWK::<::Empty> {
+        let key = jwk::JWK::<crate::Empty> {
             common: Default::default(),
             additional: Default::default(),
             algorithm: jwk::AlgorithmParameters::OctectKey {

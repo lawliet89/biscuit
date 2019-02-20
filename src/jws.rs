@@ -12,11 +12,11 @@ use serde::{self, Serialize};
 use serde_json;
 use untrusted;
 
-use errors::{DecodeError, Error, ValidationError};
-use jwa::SignatureAlgorithm;
-use jwk;
-use serde_custom;
-use {CompactJson, CompactPart, Empty};
+use crate::errors::{DecodeError, Error, ValidationError};
+use crate::jwa::SignatureAlgorithm;
+use crate::jwk;
+use crate::serde_custom;
+use crate::{CompactJson, CompactPart, Empty};
 
 /// Compact representation of a JWS
 ///
@@ -43,7 +43,7 @@ pub enum Compact<T, H> {
         payload: T,
     },
     /// Encoded and (optionally) signed JWT. Use this form to send to your clients
-    Encoded(::Compact),
+    Encoded(crate::Compact),
 }
 
 impl<T, H> Compact<T, H>
@@ -61,7 +61,7 @@ where
 
     /// New encoded JWT
     pub fn new_encoded(token: &str) -> Self {
-        Compact::Encoded(::Compact::decode(token))
+        Compact::Encoded(crate::Compact::decode(token))
     }
 
     /// Consumes self and convert into encoded form. If the token is already encoded,
@@ -82,7 +82,7 @@ where
                 ref header,
                 ref payload,
             } => {
-                let mut compact = ::Compact::with_capacity(3);
+                let mut compact = crate::Compact::with_capacity(3);
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
@@ -136,7 +136,7 @@ where
     }
 
     /// Convenience method to get a reference to the encoded string from an encoded compact JWS
-    pub fn encoded(&self) -> Result<&::Compact, Error> {
+    pub fn encoded(&self) -> Result<&crate::Compact, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref encoded) => Ok(encoded),
@@ -144,7 +144,7 @@ where
     }
 
     /// Convenience method to get a mutable reference to the encoded string from an encoded compact JWS
-    pub fn encoded_mut(&mut self) -> Result<&mut ::Compact, Error> {
+    pub fn encoded_mut(&mut self) -> Result<&mut crate::Compact, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref mut encoded) => Ok(encoded),
@@ -198,7 +198,7 @@ where
     ///
     /// # Panics
     /// Panics if the JWS is not encoded
-    pub fn unwrap_encoded(self) -> ::Compact {
+    pub fn unwrap_encoded(self) -> crate::Compact {
         match self {
             Compact::Decoded { .. } => panic!("JWS is decoded"),
             Compact::Encoded(encoded) => encoded,
@@ -237,9 +237,9 @@ where
 }
 
 /// Convenience implementation for a Compact that contains a `ClaimsSet`
-impl<P, H> Compact<::ClaimsSet<P>, H>
+impl<P, H> Compact<crate::ClaimsSet<P>, H>
 where
-    ::ClaimsSet<P>: CompactPart,
+    crate::ClaimsSet<P>: CompactPart,
     H: Serialize + DeserializeOwned,
 {
     /// Validate the temporal claims in the decoded token
@@ -248,7 +248,7 @@ where
     ///
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
-    pub fn validate(&self, options: ::ValidationOptions) -> Result<(), Error> {
+    pub fn validate(&self, options: crate::ValidationOptions) -> Result<(), Error> {
         Ok(self.payload()?.registered.validate(options)?)
     }
 }
@@ -554,7 +554,7 @@ mod tests {
     use serde_json;
 
     use super::{Compact, Header, RegisteredHeader, Secret, SignatureAlgorithm};
-    use {ClaimsSet, CompactJson, Empty, RegisteredClaims, SingleOrMultiple};
+    use crate::{ClaimsSet, CompactJson, Empty, RegisteredClaims, SingleOrMultiple};
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
     struct PrivateClaims {
@@ -739,7 +739,7 @@ mod tests {
                    kqZMEA";
         let signing_secret = Secret::PublicKey(not_err!(HEXUPPER.decode(public_key.as_bytes())));
 
-        let token = Compact::<ClaimsSet<serde_json::Value>, ::Empty>::new_encoded(jwt);
+        let token = Compact::<ClaimsSet<serde_json::Value>, crate::Empty>::new_encoded(jwt);
         let _ = not_err!(token.into_decoded(&signing_secret, SignatureAlgorithm::ES256));
     }
 
