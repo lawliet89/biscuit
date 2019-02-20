@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0 (Unreleased)
+
+- Minimum Rust 1.31 is needed for editions support on dependencies
+
 ## Version 0.1.0 (2018-10-29)
 
 ### Breaking Change
