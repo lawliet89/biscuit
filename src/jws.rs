@@ -306,7 +306,7 @@ pub enum Secret {
     ///
     /// let secret = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der");
     /// ```
-    RSAKeyPair(Arc<signature::RSAKeyPair>),
+    RsaKeyPair(Arc<signature::RsaKeyPair>),
     /// An ECDSA Key pair constructed from a PKCS8 DER encoded private key
     ///
     /// To generate a private key, use
@@ -322,7 +322,7 @@ pub enum Secret {
     ///
     /// let secret = Secret::ecdsa_keypair_from_file(biscuit::jwa::SignatureAlgorithm::ES256, "test/fixtures/ecdsa_private_key.p8");
     /// ```
-    ECDSAKeyPair(Arc<signature::ECDSAKeyPair>),
+    EcdsaKeyPair(Arc<signature::EcdsaKeyPair>),
     /// Bytes of a DER encoded RSA Public Key
     ///
     /// To generate the public key from your DER-encoded private key
@@ -383,11 +383,11 @@ impl Secret {
     }
 
     /// Convenience function to get the RSA Keypair from a DER encoded RSA private key.
-    /// See example in the [`Secret::RSAKeyPair`] variant documentation for usage.
+    /// See example in the [`Secret::RsaKeyPair`] variant documentation for usage.
     pub fn rsa_keypair_from_file(path: &str) -> Result<Self, Error> {
         let der = Self::read_bytes(path)?;
-        let key_pair = signature::RSAKeyPair::from_der(untrusted::Input::from(der.as_slice()))?;
-        Ok(Secret::RSAKeyPair(Arc::new(key_pair)))
+        let key_pair = signature::RsaKeyPair::from_der(untrusted::Input::from(der.as_slice()))?;
+        Ok(Secret::RsaKeyPair(Arc::new(key_pair)))
     }
 
     /// Convenience function to get the ECDSA Keypair from a PKCS8-DER encoded EC private key.
@@ -398,8 +398,8 @@ impl Secret {
             SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
             _ => return Err(Error::UnsupportedOperation),
         };
-        let key_pair = signature::ECDSAKeyPair::from_pkcs8(ring_algorithm, untrusted::Input::from(der.as_slice()))?;
-        Ok(Secret::ECDSAKeyPair(Arc::new(key_pair)))
+        let key_pair = signature::EcdsaKeyPair::from_pkcs8(ring_algorithm, untrusted::Input::from(der.as_slice()))?;
+        Ok(Secret::EcdsaKeyPair(Arc::new(key_pair)))
     }
 
     /// Convenience function to create a Public key from a DER encoded RSA or ECDSA public key

@@ -29,6 +29,8 @@ pub enum Error {
     IOError(io::Error),
     /// Errors related to URI parsing
     UriParseError(ParseError),
+    /// Key was rejected by Ring
+    KeyRejected(ring::error::KeyRejected),
 
     /// Wrong key type was provided for the cryptographic operation
     WrongKeyType {
@@ -112,6 +114,7 @@ impl_from_error!(ValidationError, Error::ValidationError);
 impl_from_error!(DecodeError, Error::DecodeError);
 impl_from_error!(io::Error, Error::IOError);
 impl_from_error!(ParseError, Error::UriParseError);
+impl_from_error!(ring::error::KeyRejected, Error::KeyRejected);
 
 impl From<ring::error::Unspecified> for Error {
     fn from(_: ring::error::Unspecified) -> Self {
@@ -138,6 +141,7 @@ impl error::Error for Error {
             DecodeError(ref err) => err.description(),
             IOError(ref err) => err.description(),
             UriParseError(ref err) => err.description(),
+            KeyRejected(ref err) => err.description(),
             WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
             WrongEncryptionOptions { .. } => {
                 "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
@@ -158,6 +162,7 @@ impl error::Error for Error {
             ValidationError(ref err) => err,
             IOError(ref err) => err,
             UriParseError(ref err) => err,
+            KeyRejected(ref err) => err,
             ref err => err,
         })
     }
@@ -176,6 +181,7 @@ impl fmt::Display for Error {
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             IOError(ref err) => fmt::Display::fmt(err, f),
             UriParseError(ref err) => fmt::Display::fmt(err, f),
+            KeyRejected(ref err) => fmt::Display::fmt(err, f),
             WrongKeyType {
                 ref actual,
                 ref expected,
