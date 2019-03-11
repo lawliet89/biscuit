@@ -1,8 +1,9 @@
 # Changelog
 
-## 0.2.0 (Unreleased)
+## 0.2.0 (2019-03-11)
 
 - Minimum Rust 1.31 is needed for editions support on dependencies
+- biscuit now depends on ring 0.14
 
 ## Version 0.1.0 (2018-10-29)
 
