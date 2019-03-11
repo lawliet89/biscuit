@@ -305,13 +305,13 @@ impl SignatureAlgorithm {
 
     fn sign_rsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
         let key_pair = match *secret {
-            Secret::RSAKeyPair(ref key_pair) => key_pair,
-            _ => Err("Invalid secret type. A RSAKeyPair is required".to_string())?,
+            Secret::RsaKeyPair(ref key_pair) => key_pair,
+            _ => Err("Invalid secret type. A RsaKeyPair is required".to_string())?,
         };
-        let mut signing_state = signature::RSASigningState::new(key_pair.clone())?;
+
         let rng = rand::SystemRandom::new();
-        let mut signature = vec![0; signing_state.key_pair().public_modulus_len()];
-        let padding_algorithm: &dyn signature::RSAEncoding = match *algorithm {
+        let mut signature = vec![0; key_pair.public_modulus_len()];
+        let padding_algorithm: &dyn signature::RsaEncoding = match *algorithm {
             SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_SHA256,
             SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_SHA384,
             SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_SHA512,
@@ -320,14 +320,15 @@ impl SignatureAlgorithm {
             SignatureAlgorithm::PS512 => &signature::RSA_PSS_SHA512,
             _ => unreachable!("Should not happen"),
         };
-        signing_state.sign(padding_algorithm, &rng, data, &mut signature)?;
+
+        key_pair.sign(padding_algorithm, &rng, data, &mut signature)?;
         Ok(signature)
     }
 
     fn sign_ecdsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
         let key_pair = match *secret {
-            Secret::ECDSAKeyPair(ref key_pair) => key_pair,
-            _ => Err("Invalid secret type. An ECDSAKeyPair is required".to_string())?,
+            Secret::EcdsaKeyPair(ref key_pair) => key_pair,
+            _ => Err("Invalid secret type. An EcdsaKeyPair is required".to_string())?,
         };
         if let SignatureAlgorithm::ES512 = algorithm {
             // See https://github.com/briansmith/ring/issues/268
@@ -335,7 +336,7 @@ impl SignatureAlgorithm {
         } else {
             let rng = rand::SystemRandom::new();
             let data = untrusted::Input::from(data);
-            let sig = key_pair.as_ref().sign(data, &rng)?;
+            let sig = key_pair.as_ref().sign(&rng, data)?;
             Ok(sig.as_ref().to_vec())
         }
     }
@@ -697,7 +698,13 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     let mut in_out: Vec<u8> = payload.to_vec();
     in_out.append(&mut vec![0; AES_GCM_TAG_SIZE]);
 
-    let size = aead::seal_in_place(&sealing_key, nonce, aad, &mut in_out, AES_GCM_TAG_SIZE)?;
+    let size = aead::seal_in_place(
+        &sealing_key,
+        aead::Nonce::try_assume_unique_for_key(nonce)?,
+        aead::Aad::from(aad),
+        &mut in_out,
+        AES_GCM_TAG_SIZE,
+    )?;
     Ok(EncryptionResult {
         nonce: nonce.to_vec(),
         encrypted: in_out[0..(size - AES_GCM_TAG_SIZE)].to_vec(),
@@ -725,8 +732,8 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
 
     let plaintext = aead::open_in_place(
         &opening_key,
-        &encrypted.nonce,
-        &encrypted.additional_data,
+        aead::Nonce::try_assume_unique_for_key(&encrypted.nonce)?,
+        aead::Aad::from(&encrypted.additional_data),
         0,
         &mut in_out,
     )?;
