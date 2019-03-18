@@ -217,7 +217,7 @@ impl Header<Empty> {
     /// Convenience function to create a header with only registered headers
     pub fn from_registered_header(registered: RegisteredHeader) -> Self {
         Self {
-            registered: registered,
+            registered,
             ..Default::default()
         }
     }
@@ -327,10 +327,7 @@ where
 {
     /// Create a new encrypted JWE
     pub fn new_decrypted(header: Header<H>, payload: T) -> Self {
-        Compact::Decrypted {
-            header: header,
-            payload: payload,
-        }
+        Compact::Decrypted { header, payload }
     }
 
     /// Create a new encrypted JWE
@@ -494,8 +491,8 @@ where
 
                 // Build encryption result as per steps 14-15
                 let encrypted_payload_result = EncryptionResult {
-                    nonce: nonce,
-                    tag: tag,
+                    nonce,
+                    tag,
                     encrypted: encrypted_payload,
                     additional_data: encrypted.part(0)?,
                 };
@@ -602,7 +599,8 @@ where
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
     pub fn validate(&self, options: crate::ValidationOptions) -> Result<(), Error> {
-        Ok(self.payload()?.registered.validate(options)?)
+        self.payload()?.registered.validate(options)?;
+        Ok(())
     }
 }
 

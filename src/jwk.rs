@@ -1,6 +1,9 @@
 //! JSON Web Key
 //!
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
+
+#![allow(clippy::trivially_copy_pass_by_ref)]
+
 use std::fmt;
 
 use num::BigUint;
@@ -32,7 +35,7 @@ pub enum KeyType {
 impl KeyType {
     /// Description of the type of key
     pub fn description(&self) -> &'static str {
-        match *self {
+        match self {
             KeyType::EllipticCurve => "Elliptic curve (EC) key",
             KeyType::RSA => "RSA Key",
             KeyType::Octect => "Key byte sequence",
@@ -525,7 +528,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
                 key_type: Default::default(),
             },
             common: Default::default(),
-            additional: additional,
+            additional,
         }
     }
 
@@ -566,6 +569,7 @@ impl<T> JWKSet<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)]
 mod tests {
     use std::str;
 

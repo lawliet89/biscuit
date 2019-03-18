@@ -19,7 +19,7 @@ macro_rules! assert_matches {
     ($e:expr, $p:pat, $f:expr) => {
         match $e {
             $p => $f,
-            e @ _ => panic!(
+            e => panic!(
                 "{}: Expected pattern {} \ndoes not match {:?}",
                 stringify!($e),
                 stringify!($p),

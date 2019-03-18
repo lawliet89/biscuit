@@ -178,7 +178,7 @@ pub enum DuplicateKeysBehaviour {
 pub trait FlattenSerializable {
     /// Yield references to children that needs serializing. The order matters. The later children who have
     /// duplicate keys will overwrite earlier keys, or raise errors, depending on the `duplicate_keys` behaviour.
-    fn yield_children(&self) -> Vec<Box<&dyn ToJson>>;
+    fn yield_children(&self) -> Vec<&dyn ToJson>;
 
     /// The behaviour the serializer should adopt when encountering duplicate keys. The default implementation
     /// is to raise errors.
@@ -207,13 +207,13 @@ pub trait FlattenSerializable {
         let (value_maps, errors): (Vec<_>, Vec<_>) = value_maps.into_iter().partition(Result::is_ok);
 
         if !errors.is_empty() {
-            let errors: Vec<String> = errors.into_iter().map(|r| r.unwrap_err()).collect();
+            let errors: Vec<String> = errors.into_iter().map(std::result::Result::unwrap_err).collect();
             Err(S::Error::custom(errors.join("; ")))?;
         }
 
         let value_maps: Vec<Map<String, Value>> = value_maps
             .into_iter()
-            .map(|r| r.unwrap())
+            .map(std::result::Result::unwrap)
             .map(|value| match value {
                 Value::Object(map) => map,
                 _ => unreachable!("Child was not a struct: {:?}", value),
@@ -228,7 +228,10 @@ pub trait FlattenSerializable {
             }
         }
 
-        let map: Map<String, Value> = value_maps.into_iter().flat_map(|m| m.into_iter()).collect();
+        let map: Map<String, Value> = value_maps
+            .into_iter()
+            .flat_map(std::iter::IntoIterator::into_iter)
+            .collect();
         map.serialize(serializer)
     }
 }
@@ -265,8 +268,8 @@ macro_rules! impl_flatten_serialize {
     ($t:ty, $behaviour:expr, $( $child:ident ),*) => {
         #[allow(unused_qualifications)]
         impl $crate::serde_custom::flatten::FlattenSerializable for $t {
-            fn yield_children(&self) -> Vec<Box<&dyn $crate::serde_custom::flatten::ToJson>> {
-                vec![$( Box::<&dyn $crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<&dyn $crate::serde_custom::flatten::ToJson> {
+                vec![$( &self.$child ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {
@@ -337,8 +340,8 @@ macro_rules! impl_flatten_serialize_generic {
         impl<T> $crate::serde_custom::flatten::FlattenSerializable for $t
             where T: serde::Serialize
         {
-            fn yield_children(&self) -> Vec<Box<&dyn $crate::serde_custom::flatten::ToJson>> {
-                vec![$( Box::<&dyn $crate::serde_custom::flatten::ToJson>::new(&self.$child) ),*]
+            fn yield_children(&self) -> Vec<&dyn $crate::serde_custom::flatten::ToJson> {
+                vec![$( &self.$child ),*]
             }
 
             fn duplicate_keys(&self) -> $crate::serde_custom::flatten::DuplicateKeysBehaviour {

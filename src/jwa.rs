@@ -3,6 +3,9 @@
 //! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518).
 //!
 //! Typically, you will not use these directly, but as part of a JWS or JWE.
+
+#![allow(clippy::trivially_copy_pass_by_ref)]
+
 use std::fmt;
 
 use ring::constant_time::verify_slices_are_equal;
@@ -239,7 +242,7 @@ impl Default for ContentEncryptionAlgorithm {
 impl EncryptionOptions {
     /// Description of the type of key
     pub fn description(&self) -> &'static str {
-        match *self {
+        match self {
             EncryptionOptions::None => "None",
             EncryptionOptions::AES_GCM { .. } => "AES GCM Nonce/Initialization Vector",
         }
@@ -257,7 +260,7 @@ impl SignatureAlgorithm {
     pub fn sign(&self, data: &[u8], secret: &Secret) -> Result<Vec<u8>, Error> {
         use self::SignatureAlgorithm::*;
 
-        match *self {
+        match self {
             None => Self::sign_none(secret),
             HS256 | HS384 | HS512 => Self::sign_hmac(data, secret, self),
             RS256 | RS384 | RS512 | PS256 | PS384 | PS512 => Self::sign_rsa(data, secret, self),
@@ -269,7 +272,7 @@ impl SignatureAlgorithm {
     pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: &Secret) -> Result<(), Error> {
         use self::SignatureAlgorithm::*;
 
-        match *self {
+        match self {
             None => Self::verify_none(expected_signature, secret),
             HS256 | HS384 | HS512 => Self::verify_hmac(expected_signature, data, secret, self),
             RS256 | RS384 | RS512 | PS256 | PS384 | PS512 | ES256 | ES384 | ES512 => {
@@ -293,7 +296,7 @@ impl SignatureAlgorithm {
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
         };
 
-        let digest = match *algorithm {
+        let digest = match algorithm {
             SignatureAlgorithm::HS256 => &digest::SHA256,
             SignatureAlgorithm::HS384 => &digest::SHA384,
             SignatureAlgorithm::HS512 => &digest::SHA512,
@@ -311,7 +314,7 @@ impl SignatureAlgorithm {
 
         let rng = rand::SystemRandom::new();
         let mut signature = vec![0; key_pair.public_modulus_len()];
-        let padding_algorithm: &dyn signature::RsaEncoding = match *algorithm {
+        let padding_algorithm: &dyn signature::RsaEncoding = match algorithm {
             SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_SHA256,
             SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_SHA384,
             SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_SHA512,
@@ -361,10 +364,8 @@ impl SignatureAlgorithm {
         algorithm: &SignatureAlgorithm,
     ) -> Result<(), Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
-        Ok(verify_slices_are_equal(
-            expected_signature.as_ref(),
-            actual_signature.as_ref(),
-        )?)
+        verify_slices_are_equal(expected_signature, actual_signature.as_ref())?;
+        Ok(())
     }
 
     fn verify_public_key(
@@ -392,12 +393,8 @@ impl SignatureAlgorithm {
 
                 let message = untrusted::Input::from(data);
                 let expected_signature = untrusted::Input::from(expected_signature);
-                Ok(signature::verify(
-                    verification_algorithm,
-                    public_key_der,
-                    message,
-                    expected_signature,
-                )?)
+                signature::verify(verification_algorithm, public_key_der, message, expected_signature)?;
+                Ok(())
             }
             Secret::RSAModulusExponent { ref n, ref e } => {
                 let params = match *algorithm {
@@ -417,7 +414,8 @@ impl SignatureAlgorithm {
                 let message = untrusted::Input::from(data);
                 let signature = untrusted::Input::from(expected_signature);
 
-                Ok(signature::primitive::verify_rsa(params, (n, e), message, signature)?)
+                signature::primitive::verify_rsa(params, (n, e), message, signature)?;
+                Ok(())
             }
             _ => unreachable!("This is a private method and should not be called erroneously."),
         }
@@ -429,7 +427,7 @@ impl KeyManagementAlgorithm {
     pub fn algorithm_type(&self) -> KeyManagementAlgorithmType {
         use self::KeyManagementAlgorithm::*;
 
-        match *self {
+        match self {
             A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW | PBES2_HS256_A128KW | PBES2_HS384_A192KW
             | PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
             RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyEncryption,
@@ -450,7 +448,7 @@ impl KeyManagementAlgorithm {
     {
         use self::KeyManagementAlgorithm::*;
 
-        match *self {
+        match self {
             DirectSymmetricKey => self.cek_direct(key),
             A128GCMKW | A256GCMKW => self.cek_aes_gcm(content_alg),
             _ => Err(Error::UnsupportedOperation),
@@ -492,7 +490,7 @@ impl KeyManagementAlgorithm {
     ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
-        match *self {
+        match self {
             A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key, options),
             DirectSymmetricKey => match *options {
                 EncryptionOptions::None => Ok(Default::default()),
@@ -511,7 +509,7 @@ impl KeyManagementAlgorithm {
     ) -> Result<jwk::JWK<Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
-        match *self {
+        match self {
             A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_decrypt(encrypted, content_alg, key),
             DirectSymmetricKey => Ok(key.clone_without_additional()),
             _ => Err(Error::UnsupportedOperation),
@@ -526,7 +524,7 @@ impl KeyManagementAlgorithm {
     ) -> Result<EncryptionResult, Error> {
         use self::KeyManagementAlgorithm::*;
 
-        let algorithm = match *self {
+        let algorithm = match self {
             A128GCMKW => &aead::AES_128_GCM,
             A256GCMKW => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
@@ -549,7 +547,7 @@ impl KeyManagementAlgorithm {
     ) -> Result<jwk::JWK<Empty>, Error> {
         use self::KeyManagementAlgorithm::*;
 
-        let algorithm = match *self {
+        let algorithm = match self {
             A128GCMKW => &aead::AES_128_GCM,
             A256GCMKW => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
@@ -576,7 +574,7 @@ impl ContentEncryptionAlgorithm {
     pub fn generate_key(&self) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
-        let length: usize = match *self {
+        let length: usize = match self {
             A128GCM => 128 / 8,
             A256GCM => 256 / 8,
             _ => Err(Error::UnsupportedOperation)?,
@@ -597,7 +595,7 @@ impl ContentEncryptionAlgorithm {
     ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
-        match *self {
+        match self {
             A128GCM | A192GCM | A256GCM => self.aes_gcm_encrypt(payload, aad, key, options),
             _ => Err(Error::UnsupportedOperation),
         }
@@ -611,7 +609,7 @@ impl ContentEncryptionAlgorithm {
     ) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
-        match *self {
+        match self {
             A128GCM | A192GCM | A256GCM => self.aes_gcm_decrypt(encrypted, key),
             _ => Err(Error::UnsupportedOperation),
         }
@@ -620,7 +618,7 @@ impl ContentEncryptionAlgorithm {
     /// Generate a new random `EncryptionOptions` based on the algorithm
     pub(crate) fn random_encryption_options(&self) -> Result<EncryptionOptions, Error> {
         use self::ContentEncryptionAlgorithm::*;
-        match *self {
+        match self {
             A128GCM | A192GCM | A256GCM => Ok(EncryptionOptions::AES_GCM {
                 nonce: random_aes_gcm_nonce()?,
             }),
@@ -637,7 +635,7 @@ impl ContentEncryptionAlgorithm {
     ) -> Result<EncryptionResult, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
-        let algorithm = match *self {
+        let algorithm = match self {
             A128GCM => &aead::AES_128_GCM,
             A256GCM => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
@@ -659,7 +657,7 @@ impl ContentEncryptionAlgorithm {
     ) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
-        let algorithm = match *self {
+        let algorithm = match self {
             A128GCM => &aead::AES_128_GCM,
             A256GCM => &aead::AES_256_GCM,
             _ => Err(Error::UnsupportedOperation)?,
@@ -928,7 +926,7 @@ mod tests {
         let payload: Vec<u8> = vec![];
         let signature: Vec<u8> = vec![];
         let public_key = Secret::PublicKey(vec![]);
-        let _ = SignatureAlgorithm::ES512
+        SignatureAlgorithm::ES512
             .verify(signature.as_slice(), payload.as_slice(), &public_key)
             .unwrap();
     }
@@ -938,7 +936,7 @@ mod tests {
     fn invalid_none() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::None
+        SignatureAlgorithm::None
             .verify(signature_bytes, "payload".to_string().as_bytes(), &Secret::None)
             .unwrap();
     }
@@ -948,7 +946,7 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::HS256
+        SignatureAlgorithm::HS256
             .verify(
                 signature_bytes,
                 "payload".to_string().as_bytes(),
@@ -963,7 +961,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::RS256
+        SignatureAlgorithm::RS256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -974,7 +972,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::PS256
+        SignatureAlgorithm::PS256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -985,7 +983,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::ES256
+        SignatureAlgorithm::ES256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -999,7 +997,7 @@ mod tests {
 
     #[test]
     fn aes_gcm_128_encryption_round_trip() {
-        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
@@ -1016,7 +1014,7 @@ mod tests {
             &aead::AES_128_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
-            &vec![],
+            &[],
             &key,
         ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
@@ -1027,7 +1025,7 @@ mod tests {
 
     #[test]
     fn aes_gcm_256_encryption_round_trip() {
-        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
@@ -1044,7 +1042,7 @@ mod tests {
             &aead::AES_256_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
-            &vec![],
+            &[],
             &key,
         ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
