@@ -542,7 +542,7 @@ impl Compact {
     /// Encodes the various parts into Base64 URL encoding and then concatenates them with period '.'
     /// This corresponds to the various `Compact` representation in JWE and JWS, for example
     pub fn encode(&self) -> String {
-        let strings: Vec<&str> = self.parts.iter().map(|s| s.deref()).collect();
+        let strings: Vec<&str> = self.parts.iter().map(Deref::deref).collect();
         strings.join(".")
     }
 
