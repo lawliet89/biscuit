@@ -1,6 +1,9 @@
 //! JSON Web Key
 //!
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
+
+#![allow(clippy::trivially_copy_pass_by_ref)]
+
 use std::fmt;
 
 use num::BigUint;
@@ -566,6 +569,7 @@ impl<T> JWKSet<T> {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)]
 mod tests {
     use std::str;
 

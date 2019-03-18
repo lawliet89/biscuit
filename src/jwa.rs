@@ -3,6 +3,9 @@
 //! Code for implementing JWA according to [RFC 7518](https://tools.ietf.org/html/rfc7518).
 //!
 //! Typically, you will not use these directly, but as part of a JWS or JWE.
+
+#![allow(clippy::trivially_copy_pass_by_ref)]
+
 use std::fmt;
 
 use ring::constant_time::verify_slices_are_equal;
