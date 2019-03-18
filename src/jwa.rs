@@ -254,7 +254,7 @@ impl fmt::Display for EncryptionOptions {
 
 impl SignatureAlgorithm {
     /// Take some bytes and sign it according to the algorithm and secret provided.
-    pub fn sign(self, data: &[u8], secret: &Secret) -> Result<Vec<u8>, Error> {
+    pub fn sign(&self, data: &[u8], secret: &Secret) -> Result<Vec<u8>, Error> {
         use self::SignatureAlgorithm::*;
 
         match self {
@@ -266,7 +266,7 @@ impl SignatureAlgorithm {
     }
 
     /// Verify signature based on the algorithm and secret provided.
-    pub fn verify(self, expected_signature: &[u8], data: &[u8], secret: &Secret) -> Result<(), Error> {
+    pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: &Secret) -> Result<(), Error> {
         use self::SignatureAlgorithm::*;
 
         match self {
@@ -280,15 +280,15 @@ impl SignatureAlgorithm {
 
     /// Returns the type of operations the key is meant for
     fn sign_none(secret: &Secret) -> Result<Vec<u8>, Error> {
-        match secret {
+        match *secret {
             Secret::None => {}
             _ => Err("Invalid secret type. `None` should be provided".to_string())?,
         };
         Ok(vec![])
     }
 
-    fn sign_hmac(data: &[u8], secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Vec<u8>, Error> {
-        let secret = match secret {
+    fn sign_hmac(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+        let secret = match *secret {
             Secret::Bytes(ref secret) => secret,
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
         };
@@ -303,8 +303,8 @@ impl SignatureAlgorithm {
         Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
-    fn sign_rsa(data: &[u8], secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Vec<u8>, Error> {
-        let key_pair = match secret {
+    fn sign_rsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+        let key_pair = match *secret {
             Secret::RsaKeyPair(ref key_pair) => key_pair,
             _ => Err("Invalid secret type. A RsaKeyPair is required".to_string())?,
         };
@@ -325,8 +325,8 @@ impl SignatureAlgorithm {
         Ok(signature)
     }
 
-    fn sign_ecdsa(data: &[u8], secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Vec<u8>, Error> {
-        let key_pair = match secret {
+    fn sign_ecdsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+        let key_pair = match *secret {
             Secret::EcdsaKeyPair(ref key_pair) => key_pair,
             _ => Err("Invalid secret type. An EcdsaKeyPair is required".to_string())?,
         };
@@ -342,7 +342,7 @@ impl SignatureAlgorithm {
     }
 
     fn verify_none(expected_signature: &[u8], secret: &Secret) -> Result<(), Error> {
-        match secret {
+        match *secret {
             Secret::None => {}
             _ => Err("Invalid secret type. `None` should be provided".to_string())?,
         };
@@ -358,7 +358,7 @@ impl SignatureAlgorithm {
         expected_signature: &[u8],
         data: &[u8],
         secret: &Secret,
-        algorithm: SignatureAlgorithm,
+        algorithm: &SignatureAlgorithm,
     ) -> Result<(), Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
         verify_slices_are_equal(expected_signature, actual_signature.as_ref())?;
@@ -369,13 +369,13 @@ impl SignatureAlgorithm {
         expected_signature: &[u8],
         data: &[u8],
         secret: &Secret,
-        algorithm: SignatureAlgorithm,
+        algorithm: &SignatureAlgorithm,
     ) -> Result<(), Error> {
-        match secret {
+        match *secret {
             Secret::PublicKey(ref public_key) => {
                 let public_key_der = untrusted::Input::from(public_key.as_slice());
 
-                let verification_algorithm: &dyn signature::VerificationAlgorithm = match algorithm {
+                let verification_algorithm: &dyn signature::VerificationAlgorithm = match *algorithm {
                     SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
                     SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
                     SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
@@ -394,7 +394,7 @@ impl SignatureAlgorithm {
                 Ok(())
             }
             Secret::RSAModulusExponent { ref n, ref e } => {
-                let params = match algorithm {
+                let params = match *algorithm {
                     SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
                     SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
                     SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
@@ -421,7 +421,7 @@ impl SignatureAlgorithm {
 
 impl KeyManagementAlgorithm {
     /// Returns the type of operations that the algorithm is intended to support
-    pub fn algorithm_type(self) -> KeyManagementAlgorithmType {
+    pub fn algorithm_type(&self) -> KeyManagementAlgorithmType {
         use self::KeyManagementAlgorithm::*;
 
         match self {
@@ -439,7 +439,7 @@ impl KeyManagementAlgorithm {
     /// If the algorithm is `dir` or `DirectSymmetricKey`, the key provided is the CEK.
     /// Otherwise, the appropriate algorithm will be used to derive or generate the required CEK
     /// using the provided key.
-    pub fn cek<T>(self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<Empty>, Error>
+    pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -452,7 +452,7 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn cek_direct<T>(self, key: &jwk::JWK<T>) -> Result<jwk::JWK<Empty>, Error>
+    fn cek_direct<T>(&self, key: &jwk::JWK<T>) -> Result<jwk::JWK<Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -462,7 +462,7 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn cek_aes_gcm(self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<Empty>, Error> {
+    fn cek_aes_gcm(&self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -480,7 +480,7 @@ impl KeyManagementAlgorithm {
 
     /// Encrypt or wrap a Content Encryption Key with the provided algorithm
     pub fn wrap_key<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         payload: &[u8],
         key: &jwk::JWK<T>,
         options: &EncryptionOptions,
@@ -489,7 +489,7 @@ impl KeyManagementAlgorithm {
 
         match self {
             A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key, options),
-            DirectSymmetricKey => match options {
+            DirectSymmetricKey => match *options {
                 EncryptionOptions::None => Ok(Default::default()),
                 ref other => Err(unexpected_encryption_options_error!(EncryptionOptions::None, other)),
             },
@@ -499,7 +499,7 @@ impl KeyManagementAlgorithm {
 
     /// Decrypt or unwrap a CEK with the provided algorithm
     pub fn unwrap_key<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         encrypted: &EncryptionResult,
         content_alg: ContentEncryptionAlgorithm,
         key: &jwk::JWK<T>,
@@ -514,7 +514,7 @@ impl KeyManagementAlgorithm {
     }
 
     fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         payload: &[u8],
         key: &jwk::JWK<T>,
         options: &EncryptionOptions,
@@ -527,7 +527,7 @@ impl KeyManagementAlgorithm {
             _ => Err(Error::UnsupportedOperation)?,
         };
 
-        let nonce = match options {
+        let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
             ref others => Err(unexpected_encryption_options_error!(AES_GCM_ZEROED_NONCE, others)),
         }?;
@@ -537,7 +537,7 @@ impl KeyManagementAlgorithm {
     }
 
     fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         encrypted: &EncryptionResult,
         content_alg: ContentEncryptionAlgorithm,
         key: &jwk::JWK<T>,
@@ -568,7 +568,7 @@ impl KeyManagementAlgorithm {
 
 impl ContentEncryptionAlgorithm {
     /// Convenience function to generate a new random key with the required length
-    pub fn generate_key(self) -> Result<Vec<u8>, Error> {
+    pub fn generate_key(&self) -> Result<Vec<u8>, Error> {
         use self::ContentEncryptionAlgorithm::*;
 
         let length: usize = match self {
@@ -584,7 +584,7 @@ impl ContentEncryptionAlgorithm {
 
     /// Encrypt some payload with the provided algorith
     pub fn encrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         payload: &[u8],
         aad: &[u8],
         key: &jwk::JWK<T>,
@@ -600,7 +600,7 @@ impl ContentEncryptionAlgorithm {
 
     /// Decrypt some payload with the provided algorith,
     pub fn decrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         encrypted: &EncryptionResult,
         key: &jwk::JWK<T>,
     ) -> Result<Vec<u8>, Error> {
@@ -613,7 +613,7 @@ impl ContentEncryptionAlgorithm {
     }
 
     /// Generate a new random `EncryptionOptions` based on the algorithm
-    pub(crate) fn random_encryption_options(self) -> Result<EncryptionOptions, Error> {
+    pub(crate) fn random_encryption_options(&self) -> Result<EncryptionOptions, Error> {
         use self::ContentEncryptionAlgorithm::*;
         match self {
             A128GCM | A192GCM | A256GCM => Ok(EncryptionOptions::AES_GCM {
@@ -624,7 +624,7 @@ impl ContentEncryptionAlgorithm {
     }
 
     fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         payload: &[u8],
         aad: &[u8],
         key: &jwk::JWK<T>,
@@ -638,7 +638,7 @@ impl ContentEncryptionAlgorithm {
             _ => Err(Error::UnsupportedOperation)?,
         };
 
-        let nonce = match options {
+        let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
             ref others => Err(unexpected_encryption_options_error!(AES_GCM_ZEROED_NONCE, others)),
         }?;
@@ -648,7 +648,7 @@ impl ContentEncryptionAlgorithm {
     }
 
     fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
-        self,
+        &self,
         encrypted: &EncryptionResult,
         key: &jwk::JWK<T>,
     ) -> Result<Vec<u8>, Error> {
