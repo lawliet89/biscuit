@@ -361,7 +361,7 @@ impl SignatureAlgorithm {
         algorithm: &SignatureAlgorithm,
     ) -> Result<(), Error> {
         let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
-        verify_slices_are_equal(expected_signature.as_ref(), actual_signature.as_ref())?;
+        verify_slices_are_equal(expected_signature, actual_signature.as_ref())?;
         Ok(())
     }
 
@@ -923,7 +923,7 @@ mod tests {
         let payload: Vec<u8> = vec![];
         let signature: Vec<u8> = vec![];
         let public_key = Secret::PublicKey(vec![]);
-        let _ = SignatureAlgorithm::ES512
+        SignatureAlgorithm::ES512
             .verify(signature.as_slice(), payload.as_slice(), &public_key)
             .unwrap();
     }
@@ -933,7 +933,7 @@ mod tests {
     fn invalid_none() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::None
+        SignatureAlgorithm::None
             .verify(signature_bytes, "payload".to_string().as_bytes(), &Secret::None)
             .unwrap();
     }
@@ -943,7 +943,7 @@ mod tests {
     fn invalid_hs256() {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::HS256
+        SignatureAlgorithm::HS256
             .verify(
                 signature_bytes,
                 "payload".to_string().as_bytes(),
@@ -958,7 +958,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::RS256
+        SignatureAlgorithm::RS256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -969,7 +969,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::PS256
+        SignatureAlgorithm::PS256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -980,7 +980,7 @@ mod tests {
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
-        let _ = SignatureAlgorithm::ES256
+        SignatureAlgorithm::ES256
             .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
             .unwrap();
     }
@@ -994,7 +994,7 @@ mod tests {
 
     #[test]
     fn aes_gcm_128_encryption_round_trip() {
-        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 128 / 8];
         not_err!(rng().fill(&mut key));
 
@@ -1011,7 +1011,7 @@ mod tests {
             &aead::AES_128_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
-            &vec![],
+            &[],
             &key,
         ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
@@ -1022,7 +1022,7 @@ mod tests {
 
     #[test]
     fn aes_gcm_256_encryption_round_trip() {
-        const PAYLOAD: &'static str = "这个世界值得我们奋战！";
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 256 / 8];
         not_err!(rng().fill(&mut key));
 
@@ -1039,7 +1039,7 @@ mod tests {
             &aead::AES_256_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
-            &vec![],
+            &[],
             &key,
         ));
         let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
