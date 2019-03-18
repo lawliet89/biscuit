@@ -18,7 +18,9 @@ before_script:
 - |
   pip install 'travis-cargo<0.2' --user &&
   export PATH=$HOME/.local/bin:$PATH
+- rustup component add clippy
 script:
+- cargo clippy --all-targets --all-features -- -D warnings
 - |
   travis-cargo build &&
   travis-cargo test &&

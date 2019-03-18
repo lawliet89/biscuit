@@ -32,7 +32,7 @@ pub enum KeyType {
 impl KeyType {
     /// Description of the type of key
     pub fn description(&self) -> &'static str {
-        match *self {
+        match self {
             KeyType::EllipticCurve => "Elliptic curve (EC) key",
             KeyType::RSA => "RSA Key",
             KeyType::Octect => "Key byte sequence",
@@ -525,7 +525,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
                 key_type: Default::default(),
             },
             common: Default::default(),
-            additional: additional,
+            additional,
         }
     }
 

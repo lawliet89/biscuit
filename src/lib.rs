@@ -550,7 +550,7 @@ impl Compact {
     pub fn decode(encoded: &str) -> Self {
         // Never fails
         let parts = encoded.split('.').map(|s| FromStr::from_str(s).unwrap()).collect();
-        Self { parts: parts }
+        Self { parts }
     }
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
@@ -1009,7 +1009,7 @@ impl RegisteredClaims {
             missing_claims.push("jti");
         }
 
-        if missing_claims.len() == 0 {
+        if missing_claims.is_empty() {
             Ok(())
         } else {
             Err(ValidationError::MissingRequiredClaims(
@@ -1023,7 +1023,7 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
-                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
+                let now = temporal_options.now.unwrap_or_else(Utc::now);
 
                 match self.expiry {
                     Some(Timestamp(expiry)) if now - expiry > temporal_options.epsilon => {
@@ -1040,7 +1040,7 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
-                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
+                let now = temporal_options.now.unwrap_or_else(Utc::now);
 
                 match self.not_before {
                     Some(Timestamp(nbf)) if nbf - now > temporal_options.epsilon => {
@@ -1057,7 +1057,7 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate((max_age, temporal_options)) => {
-                let now = temporal_options.now.unwrap_or_else(|| Utc::now());
+                let now = temporal_options.now.unwrap_or_else(Utc::now);
 
                 match self.issued_at {
                     Some(Timestamp(iat)) if iat - now > temporal_options.epsilon => {

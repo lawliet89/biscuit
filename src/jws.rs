@@ -53,10 +53,7 @@ where
 {
     /// New decoded JWT
     pub fn new_decoded(header: Header<H>, payload: T) -> Self {
-        Compact::Decoded {
-            header: header,
-            payload: payload,
-        }
+        Compact::Decoded { header, payload }
     }
 
     /// New encoded JWT
@@ -249,7 +246,8 @@ where
     /// By default, no temporal claims (namely `iat`, `exp`, `nbf`)
     /// are required, and they will pass validation if they are missing.
     pub fn validate(&self, options: crate::ValidationOptions) -> Result<(), Error> {
-        Ok(self.payload()?.registered.validate(options)?)
+        self.payload()?.registered.validate(options)?;
+        Ok(())
     }
 }
 
@@ -438,7 +436,7 @@ impl Header<Empty> {
     /// Convenience function to create a header with only registered headers
     pub fn from_registered_header(registered: RegisteredHeader) -> Self {
         Self {
-            registered: registered,
+            registered,
             ..Default::default()
         }
     }
