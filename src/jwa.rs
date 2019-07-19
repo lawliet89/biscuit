@@ -745,8 +745,8 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
     let mut in_out = encrypted.encrypted.to_vec();
     in_out.append(&mut encrypted.tag.to_vec());
 
-    let _ = opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out);
-    Ok(in_out.to_vec())
+    let plaintext = opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out)?;
+    Ok(plaintext.to_vec())
 }
 
 pub(crate) fn random_aes_gcm_nonce() -> Result<Vec<u8>, Error> {
