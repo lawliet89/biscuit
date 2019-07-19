@@ -52,8 +52,10 @@
     legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
-    unknown_lints
+    unknown_lints,
+    clippy::unknown_clippy_lints
 )]
+#![allow(clippy::try_err)]
 #![deny(
     const_err,
     dead_code,

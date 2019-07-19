@@ -141,7 +141,7 @@ impl error::Error for Error {
             DecodeError(ref err) => err.description(),
             IOError(ref err) => err.description(),
             UriParseError(ref err) => err.description(),
-            KeyRejected(ref err) => err.description(),
+            KeyRejected(ref err) => err.description_(),
             WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
             WrongEncryptionOptions { .. } => {
                 "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
@@ -162,7 +162,6 @@ impl error::Error for Error {
             ValidationError(ref err) => err,
             IOError(ref err) => err,
             UriParseError(ref err) => err,
-            KeyRejected(ref err) => err,
             ref err => err,
         })
     }

@@ -8,12 +8,12 @@
 
 use std::fmt;
 
+use ring::aead::BoundKey;
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
-use ring::{aead, digest, hmac, rand, signature};
+use ring::{aead, hmac, rand, signature};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use untrusted;
 
 use crate::errors::Error;
 use crate::jwk;
@@ -32,6 +32,29 @@ lazy_static! {
     static ref AES_GCM_ZEROED_NONCE: EncryptionOptions = EncryptionOptions::AES_GCM {
         nonce: vec![0; AES_GCM_NONCE_LENGTH],
     };
+}
+
+/// A "One Off" Nonce for internal user
+struct Nonce<'a> {
+    pub(crate) bytes: &'a [u8],
+}
+
+impl<'a> Nonce<'a> {
+    pub(crate) fn to_vec(&self) -> Vec<u8> {
+        self.bytes.to_vec()
+    }
+}
+
+impl<'a> aead::NonceSequence for Nonce<'a> {
+    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
+        aead::Nonce::try_assume_unique_for_key(self.bytes)
+    }
+}
+
+impl<'a> aead::NonceSequence for &Nonce<'a> {
+    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
+        aead::Nonce::try_assume_unique_for_key(self.bytes)
+    }
 }
 
 /// A default `None` `EncryptionOptions`
@@ -296,13 +319,13 @@ impl SignatureAlgorithm {
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
         };
 
-        let digest = match algorithm {
-            SignatureAlgorithm::HS256 => &digest::SHA256,
-            SignatureAlgorithm::HS384 => &digest::SHA384,
-            SignatureAlgorithm::HS512 => &digest::SHA512,
+        let algorithm = match algorithm {
+            SignatureAlgorithm::HS256 => &hmac::HMAC_SHA256,
+            SignatureAlgorithm::HS384 => &hmac::HMAC_SHA384,
+            SignatureAlgorithm::HS512 => &hmac::HMAC_SHA512,
             _ => unreachable!("Should not happen"),
         };
-        let key = hmac::SigningKey::new(digest, secret);
+        let key = hmac::Key::new(*algorithm, secret);
         Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
@@ -338,7 +361,6 @@ impl SignatureAlgorithm {
             Err(Error::UnsupportedOperation)
         } else {
             let rng = rand::SystemRandom::new();
-            let data = untrusted::Input::from(data);
             let sig = key_pair.as_ref().sign(&rng, data)?;
             Ok(sig.as_ref().to_vec())
         }
@@ -376,8 +398,6 @@ impl SignatureAlgorithm {
     ) -> Result<(), Error> {
         match *secret {
             Secret::PublicKey(ref public_key) => {
-                let public_key_der = untrusted::Input::from(public_key.as_slice());
-
                 let verification_algorithm: &dyn signature::VerificationAlgorithm = match *algorithm {
                     SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
                     SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
@@ -391,9 +411,8 @@ impl SignatureAlgorithm {
                     _ => unreachable!("Should not happen"),
                 };
 
-                let message = untrusted::Input::from(data);
-                let expected_signature = untrusted::Input::from(expected_signature);
-                signature::verify(verification_algorithm, public_key_der, message, expected_signature)?;
+                let public_key = signature::UnparsedPublicKey::new(verification_algorithm, public_key.as_slice());
+                public_key.verify(&data, &expected_signature)?;
                 Ok(())
             }
             Secret::RSAModulusExponent { ref n, ref e } => {
@@ -409,12 +428,11 @@ impl SignatureAlgorithm {
 
                 let n_big_endian = n.to_bytes_be();
                 let e_big_endian = e.to_bytes_be();
-                let n = untrusted::Input::from(&n_big_endian);
-                let e = untrusted::Input::from(&e_big_endian);
-                let message = untrusted::Input::from(data);
-                let signature = untrusted::Input::from(expected_signature);
-
-                signature::primitive::verify_rsa(params, (n, e), message, signature)?;
+                let public_key = signature::RsaPublicKeyComponents {
+                    n: n_big_endian,
+                    e: e_big_endian,
+                };
+                public_key.verify(params, &data, &expected_signature)?;
                 Ok(())
             }
             _ => unreachable!("This is a private method and should not be called erroneously."),
@@ -691,22 +709,17 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
     let key = key.algorithm.octect_key()?;
-    let sealing_key = aead::SealingKey::new(algorithm, key)?;
+    let key = aead::UnboundKey::new(algorithm, key)?;
+    let nonce = Nonce { bytes: nonce };
+    let mut sealing_key = aead::SealingKey::new(key, &nonce);
 
     let mut in_out: Vec<u8> = payload.to_vec();
-    in_out.append(&mut vec![0; AES_GCM_TAG_SIZE]);
-
-    let size = aead::seal_in_place(
-        &sealing_key,
-        aead::Nonce::try_assume_unique_for_key(nonce)?,
-        aead::Aad::from(aad),
-        &mut in_out,
-        AES_GCM_TAG_SIZE,
-    )?;
+    sealing_key.seal_in_place(aead::Aad::from(aad), &mut in_out)?;
+    let size = in_out.len();
     Ok(EncryptionResult {
         nonce: nonce.to_vec(),
         encrypted: in_out[0..(size - AES_GCM_TAG_SIZE)].to_vec(),
-        tag: in_out[(size - AES_GCM_TAG_SIZE)..size].to_vec(),
+        tag: in_out[(size - AES_GCM_TAG_SIZE)..].to_vec(),
         additional_data: aad.to_vec(),
     })
 }
@@ -723,18 +736,16 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
     assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
     let key = key.algorithm.octect_key()?;
-    let opening_key = aead::OpeningKey::new(algorithm, key)?;
+    let key = aead::UnboundKey::new(algorithm, key)?;
+    let nonce = Nonce {
+        bytes: &encrypted.nonce,
+    };
+    let mut opening_key = aead::OpeningKey::new(key, nonce);
 
     let mut in_out = encrypted.encrypted.to_vec();
     in_out.append(&mut encrypted.tag.to_vec());
 
-    let plaintext = aead::open_in_place(
-        &opening_key,
-        aead::Nonce::try_assume_unique_for_key(&encrypted.nonce)?,
-        aead::Aad::from(&encrypted.additional_data),
-        0,
-        &mut in_out,
-    )?;
+    let plaintext = opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out)?;
     Ok(plaintext.to_vec())
 }
 
@@ -996,6 +1007,33 @@ mod tests {
     }
 
     #[test]
+    fn aes_gcm_128_encryption_round_trip_fixed_key_nonce() {
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
+        let key: Vec<u8> = vec![0; 128 / 8];
+
+        let key = jwk::JWK::<Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_128_GCM,
+            PAYLOAD.as_bytes(),
+            &[0; AES_GCM_NONCE_LENGTH],
+            &[],
+            &key,
+        ));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
+    }
+
+    #[test]
     fn aes_gcm_128_encryption_round_trip() {
         const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 128 / 8];
@@ -1042,6 +1080,33 @@ mod tests {
             &aead::AES_256_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
+            &[],
+            &key,
+        ));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
+    }
+
+    #[test]
+    fn aes_gcm_256_encryption_round_trip_fixed_key_nonce() {
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
+        let key: Vec<u8> = vec![0; 256 / 8];
+
+        let key = jwk::JWK::<Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_256_GCM,
+            PAYLOAD.as_bytes(),
+            &[0; AES_GCM_NONCE_LENGTH],
             &[],
             &key,
         ));

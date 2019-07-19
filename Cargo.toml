@@ -1,6 +1,6 @@
 [package]
 name = "biscuit"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
@@ -28,11 +28,10 @@ chrono = "0.4.2"
 data-encoding = "2.1.1"
 lazy_static = "1.0.0"
 num = "0.2"
-ring = "0.14.6"
+ring = "0.16.0"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-untrusted = "0.6.1"
 url = "^1.0"
 
 [dev-dependencies]
