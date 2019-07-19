@@ -10,7 +10,9 @@ use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json;
 
 use crate::errors::{DecodeError, Error, ValidationError};
-use crate::jwa::{self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm};
+use crate::jwa::{
+    self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm,
+};
 use crate::jwk;
 use crate::serde_custom;
 use crate::{CompactJson, CompactPart, Empty};
@@ -380,15 +382,21 @@ where
                 use std::borrow::Cow;
 
                 // Resolve encryption option
-                let (key_option, content_option): (_, Cow<'_, _>) = match header.registered.cek_algorithm {
-                    KeyManagementAlgorithm::DirectSymmetricKey => {
-                        (jwa::NONE_ENCRYPTION_OPTIONS, Cow::Borrowed(options))
-                    }
-                    _ => (
-                        options,
-                        Cow::Owned(header.registered.enc_algorithm.random_encryption_options()?),
-                    ),
-                };
+                let (key_option, content_option): (_, Cow<'_, _>) =
+                    match header.registered.cek_algorithm {
+                        KeyManagementAlgorithm::DirectSymmetricKey => {
+                            (jwa::NONE_ENCRYPTION_OPTIONS, Cow::Borrowed(options))
+                        }
+                        _ => (
+                            options,
+                            Cow::Owned(
+                                header
+                                    .registered
+                                    .enc_algorithm
+                                    .random_encryption_options()?,
+                            ),
+                        ),
+                    };
 
                 // RFC 7516 Section 5.1 describes the steps involved in encryption.
                 // From steps 1 to 8, we will first determine the CEK, and then encrypt the CEK.
@@ -396,11 +404,11 @@ where
                     .registered
                     .cek_algorithm
                     .cek(header.registered.enc_algorithm, key)?;
-                let encrypted_cek =
-                    header
-                        .registered
-                        .cek_algorithm
-                        .wrap_key(cek.algorithm.octect_key()?, key, key_option)?;
+                let encrypted_cek = header.registered.cek_algorithm.wrap_key(
+                    cek.algorithm.octect_key()?,
+                    key,
+                    key_option,
+                )?;
                 // Update header
                 let mut header = header.clone();
                 header.update_cek_algorithm(&encrypted_cek);
@@ -417,11 +425,12 @@ where
                 // Steps 12 to 14 involves the calculation of `Additional Authenticated Data` for encryption. In
                 // our compact example, our header is the AAD.
                 // Step 15 involves the actual encryption.
-                let encrypted_payload =
-                    header
-                        .registered
-                        .enc_algorithm
-                        .encrypt(&payload, &header.to_bytes()?, &cek, &content_option)?;
+                let encrypted_payload = header.registered.enc_algorithm.encrypt(
+                    &payload,
+                    &header.to_bytes()?,
+                    &cek,
+                    &content_option,
+                )?;
 
                 // Finally create the JWE
                 let mut compact = crate::Compact::with_capacity(5);
@@ -475,8 +484,12 @@ where
                 let tag: Vec<u8> = encrypted.part(4)?;
 
                 // Verify that the algorithms are expected
-                if header.registered.cek_algorithm != cek_alg || header.registered.enc_algorithm != enc_alg {
-                    Err(Error::ValidationError(ValidationError::WrongAlgorithmHeader))?;
+                if header.registered.cek_algorithm != cek_alg
+                    || header.registered.enc_algorithm != enc_alg
+                {
+                    Err(Error::ValidationError(
+                        ValidationError::WrongAlgorithmHeader,
+                    ))?;
                 }
 
                 // TODO: Steps 4-5 not implemented at the moment.
@@ -542,7 +555,9 @@ where
     /// Convenience method to get a mutable reference to the payload from an Decrypted JWE
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decrypted { ref mut payload, .. } => Ok(payload),
+            Compact::Decrypted {
+                ref mut payload, ..
+            } => Ok(payload),
             Compact::Encrypted(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -644,7 +659,10 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct { name: "Test", len: 1 },
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
                 Token::Str("test"),
                 Token::Str("DEF"),
                 Token::StructEnd,
@@ -657,7 +675,10 @@ mod tests {
         assert_tokens(
             &test_value,
             &[
-                Token::Struct { name: "Test", len: 1 },
+                Token::Struct {
+                    name: "Test",
+                    len: 1,
+                },
                 Token::Str("test"),
                 Token::Str("xxx"),
                 Token::StructEnd,
@@ -799,9 +820,9 @@ mod tests {
             registered: crate::RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(crate::SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
-                )))),
+                audience: Some(crate::SingleOrMultiple::Single(not_err!(
+                    FromStr::from_str("htts://acme-customer.com")
+                ))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -814,7 +835,8 @@ mod tests {
             }),
             claims.clone(),
         );
-        let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
+        let jws =
+            not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
 
         // Construct the encryption key
         let key = cek_oct_key(256 / 8);
@@ -873,9 +895,9 @@ mod tests {
             registered: crate::RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(crate::SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
-                )))),
+                audience: Some(crate::SingleOrMultiple::Single(not_err!(
+                    FromStr::from_str("htts://acme-customer.com")
+                ))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -888,7 +910,8 @@ mod tests {
             }),
             claims.clone(),
         );
-        let jws = not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
+        let jws =
+            not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
 
         // Construct the encryption key
         let key = cek_oct_key(256 / 8);

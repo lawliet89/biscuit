@@ -142,7 +142,9 @@ impl error::Error for Error {
             IOError(ref err) => err.description(),
             UriParseError(ref err) => err.description(),
             KeyRejected(ref err) => err.description_(),
-            WrongKeyType { .. } => "The wrong type of key was provided for the cryptographic operation",
+            WrongKeyType { .. } => {
+                "The wrong type of key was provided for the cryptographic operation"
+            }
             WrongEncryptionOptions { .. } => {
                 "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
             }
@@ -209,7 +211,9 @@ impl error::Error for ValidationError {
 
         match *self {
             InvalidSignature => "Invalid Signature",
-            WrongAlgorithmHeader => "Token provided was signed or encrypted with an unexpected algorithm",
+            WrongAlgorithmHeader => {
+                "Token provided was signed or encrypted with an unexpected algorithm"
+            }
             MissingRequiredClaims(_) => "Missing required claim",
             Expired(_) => "Token expired",
             NotYetValid(_) => "Token not yet valid",
@@ -241,11 +245,17 @@ impl fmt::Display for ValidationError {
         use std::error::Error;
 
         match *self {
-            MissingRequiredClaims(ref fields) => {
-                write!(f, "The following claims are required, but missing: {:?}", fields)
-            }
+            MissingRequiredClaims(ref fields) => write!(
+                f,
+                "The following claims are required, but missing: {:?}",
+                fields
+            ),
             Expired(ago) => write!(f, "Token expired {} seconds ago", ago.num_seconds()),
-            NotYetValid(nyv_for) => write!(f, "Token will be valid in {} seconds", nyv_for.num_seconds()),
+            NotYetValid(nyv_for) => write!(
+                f,
+                "Token will be valid in {} seconds",
+                nyv_for.num_seconds()
+            ),
             TooOld(duration) => write!(
                 f,
                 "Token has been considered too old for {} seconds",

@@ -82,7 +82,10 @@ where
                 compact.push(header)?;
                 compact.push(payload)?;
                 let encoded_payload = compact.encode();
-                let signature = header.registered.algorithm.sign(encoded_payload.as_bytes(), secret)?;
+                let signature = header
+                    .registered
+                    .algorithm
+                    .sign(encoded_payload.as_bytes(), secret)?;
                 compact.push(&signature)?;
                 Ok(Compact::Encoded(compact))
             }
@@ -93,7 +96,11 @@ where
     /// Consumes self and convert into decoded form, verifying the signature, if any.
     /// If the token is already decoded, this is a no-op
     // TODO: Is the no-op dangerous? What if the secret between the previous decode and this time is different?
-    pub fn into_decoded(self, secret: &Secret, algorithm: SignatureAlgorithm) -> Result<Self, Error> {
+    pub fn into_decoded(
+        self,
+        secret: &Secret,
+        algorithm: SignatureAlgorithm,
+    ) -> Result<Self, Error> {
         match self {
             Compact::Encoded(_) => self.decode(secret, algorithm),
             Compact::Decoded { .. } => Ok(self),
@@ -158,7 +165,9 @@ where
     /// Convenience method to get a reference to the claims set from a decoded compact JWS
     pub fn payload_mut(&mut self) -> Result<&mut T, Error> {
         match *self {
-            Compact::Decoded { ref mut payload, .. } => Ok(payload),
+            Compact::Decoded {
+                ref mut payload, ..
+            } => Ok(payload),
             Compact::Encoded(_) => Err(Error::UnsupportedOperation),
         }
     }
@@ -388,7 +397,10 @@ impl Secret {
     }
 
     /// Convenience function to get the ECDSA Keypair from a PKCS8-DER encoded EC private key.
-    pub fn ecdsa_keypair_from_file(algorithm: SignatureAlgorithm, path: &str) -> Result<Self, Error> {
+    pub fn ecdsa_keypair_from_file(
+        algorithm: SignatureAlgorithm,
+        path: &str,
+    ) -> Result<Self, Error> {
         let der = Self::read_bytes(path)?;
         let ring_algorithm = match algorithm {
             SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
@@ -602,10 +614,11 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_none() {
-        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
-                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
-                              hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
-                              RvaWxldCBDbGVhbmluZyJ9.";
+        let expected_token =
+            "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
+             eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
+             hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
+             RvaWxldCBDbGVhbmluZyJ9.";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
@@ -668,7 +681,8 @@ mod tests {
             }),
             expected_claims.clone(),
         );
-        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
+        let token =
+            not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(
@@ -703,7 +717,8 @@ mod tests {
                 company: "ACME".to_string(),
             },
         };
-        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
+        let private_key =
+            Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
         let expected_jwt = Compact::new_decoded(
             From::from(RegisteredHeader {
@@ -728,8 +743,9 @@ mod tests {
         // Conversion is not available in `ring` yet.
         // See https://github.com/lawliet89/biscuit/issues/71#issuecomment-296445140 for a
         // way to retrieve it from `SubjectPublicKeyInfo`.
-        let public_key = "043727F96AAD416887DD75CC2E333C3D8E06DCDF968B6024579449A2B802EFC891F638C75\
-                          1CF687E6FF9A280E11B7036585E60CA32BB469C3E57998A289E0860A6";
+        let public_key =
+            "043727F96AAD416887DD75CC2E333C3D8E06DCDF968B6024579449A2B802EFC891F638C75\
+             1CF687E6FF9A280E11B7036585E60CA32BB469C3E57998A289E0860A6";
         let jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.\
                    eyJ0b2tlbl90eXBlIjoic2VydmljZSIsImlhdCI6MTQ5MjkzODU4OH0.\
                    do_XppIOFthPWlTXL95CIBfgRdyAxbcIsUfM0YxMjCjqvp4ehHFA3I-JasABKzC8CAy4ndhCHsZdpAtK\
@@ -771,7 +787,8 @@ mod tests {
         };
 
         let expected_jwt = Compact::new_decoded(header.clone(), expected_claims);
-        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
+        let token =
+            not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         let biscuit = not_err!(token.into_decoded(
             &Secret::Bytes("secret".to_string().into_bytes()),
             SignatureAlgorithm::HS256
@@ -782,7 +799,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "PartsLengthError { expected: 3, actual: 1 }")]
     fn compact_jws_decode_token_missing_parts() {
-        let token = Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
+        let token =
+            Compact::<PrivateClaims, Empty>::new_encoded("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9");
         let claims = token.decode(
             &Secret::Bytes("secret".to_string().into_bytes()),
             SignatureAlgorithm::HS256,
@@ -835,13 +853,15 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_hs256_for_bytes_payload() {
-        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
-                              eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
-                              xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
+        let expected_token =
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
+             eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
+             xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
         let payload: Vec<u8> = vec![
-            123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101, 120, 112, 34, 58, 49, 51,
-            48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104, 116, 116, 112, 58, 47, 47, 101, 120, 97, 109, 112,
-            108, 101, 46, 99, 111, 109, 47, 105, 115, 95, 114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125,
+            123, 34, 105, 115, 115, 34, 58, 34, 106, 111, 101, 34, 44, 13, 10, 32, 34, 101, 120,
+            112, 34, 58, 49, 51, 48, 48, 56, 49, 57, 51, 56, 48, 44, 13, 10, 32, 34, 104, 116, 116,
+            112, 58, 47, 47, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109, 47, 105, 115, 95,
+            114, 111, 111, 116, 34, 58, 116, 114, 117, 101, 125,
         ];
 
         let expected_jwt = Compact::new_decoded(
@@ -852,7 +872,8 @@ mod tests {
             }),
             payload.clone(),
         );
-        let token = not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
+        let token =
+            not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
         assert_eq!(expected_token, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(
@@ -942,8 +963,8 @@ mod tests {
 
         let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
         let expected_signature: Vec<u8> = vec![
-            118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98, 191, 46, 37, 189, 228, 211, 250, 204, 90, 203, 145, 106,
-            234, 246, 58, 142, 114, 111, 169, 226,
+            118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98, 191, 46, 37, 189, 228, 211, 250,
+            204, 90, 203, 145, 106, 234, 246, 58, 142, 114, 111, 169, 226,
         ];
 
         let signature = not_err!(encoded_token.signature());

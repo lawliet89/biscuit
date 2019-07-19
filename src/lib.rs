@@ -551,13 +551,19 @@ impl Compact {
     /// Convenience function to split an encoded compact representation into a list of `Base64Url`.
     pub fn decode(encoded: &str) -> Self {
         // Never fails
-        let parts = encoded.split('.').map(|s| FromStr::from_str(s).unwrap()).collect();
+        let parts = encoded
+            .split('.')
+            .map(|s| FromStr::from_str(s).unwrap())
+            .collect();
         Self { parts }
     }
 
     /// Convenience function to retrieve a part at a certain index and decode into the type desired
     pub fn part<T: CompactPart>(&self, index: usize) -> Result<T, Error> {
-        let part = self.parts.get(index).ok_or_else(|| "Out of bounds".to_string())?;
+        let part = self
+            .parts
+            .get(index)
+            .ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
 
@@ -673,7 +679,9 @@ where
     {
         match *self {
             SingleOrMultiple::Single(ref single) => single.borrow() == value,
-            SingleOrMultiple::Multiple(ref vector) => vector.iter().map(Borrow::borrow).any(|v| v == value),
+            SingleOrMultiple::Multiple(ref vector) => {
+                vector.iter().map(Borrow::borrow).any(|v| v == value)
+            }
         }
     }
 
@@ -978,7 +986,10 @@ impl Default for ValidationOptions {
 
 impl RegisteredClaims {
     /// Validates that the token contains the claims defined as required
-    pub fn validate_claim_presence(&self, options: ClaimPresenceOptions) -> Result<(), ValidationError> {
+    pub fn validate_claim_presence(
+        &self,
+        options: ClaimPresenceOptions,
+    ) -> Result<(), ValidationError> {
         use crate::Presence::Required;
 
         let mut missing_claims: Vec<&str> = vec![];
@@ -1021,7 +1032,10 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `exp` claim, it has not passed.
-    pub fn validate_exp(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
+    pub fn validate_exp(
+        &self,
+        validation: Validation<TemporalOptions>,
+    ) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
@@ -1038,7 +1052,10 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `nbf` claim, it has passed.
-    pub fn validate_nbf(&self, validation: Validation<TemporalOptions>) -> Result<(), ValidationError> {
+    pub fn validate_nbf(
+        &self,
+        validation: Validation<TemporalOptions>,
+    ) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(temporal_options) => {
@@ -1055,7 +1072,10 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `iat` claim, it is not in the future and not older than the Duration
-    pub fn validate_iat(&self, validation: Validation<(Duration, TemporalOptions)>) -> Result<(), ValidationError> {
+    pub fn validate_iat(
+        &self,
+        validation: Validation<(Duration, TemporalOptions)>,
+    ) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate((max_age, temporal_options)) => {
@@ -1079,11 +1099,15 @@ impl RegisteredClaims {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(expected_aud) => match self.audience {
-                Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => {
-                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
-                }
-                Some(SingleOrMultiple::Multiple(ref audiences)) if !audiences.contains(&expected_aud) => {
-                    Err(ValidationError::InvalidAudience(self.audience.clone().unwrap()))
+                Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => Err(
+                    ValidationError::InvalidAudience(self.audience.clone().unwrap()),
+                ),
+                Some(SingleOrMultiple::Multiple(ref audiences))
+                    if !audiences.contains(&expected_aud) =>
+                {
+                    Err(ValidationError::InvalidAudience(
+                        self.audience.clone().unwrap(),
+                    ))
                 }
                 _ => Ok(()),
             },
@@ -1265,7 +1289,11 @@ mod tests {
     #[test]
     fn multiple_strings_serialization_round_trip() {
         let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
+            values: SingleOrMultiple::Multiple(vec![
+                "foo".to_string(),
+                "bar".to_string(),
+                "baz".to_string(),
+            ]),
         };
         let expected_json = r#"{"values":["foo","bar","baz"]}"#;
 
@@ -1290,9 +1318,12 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStringOrUris =
+            not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(deserialized.values.contains(&FromStr::from_str("foobar").unwrap()));
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("foobar").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("does not exist").unwrap()));
@@ -1301,14 +1332,17 @@ mod tests {
     #[test]
     fn single_string_or_uri_uri_serialization_round_trip() {
         let test = SingleOrMultipleStringOrUris {
-            values: SingleOrMultiple::Single(not_err!(FromStr::from_str("https://www.examples.com/"))),
+            values: SingleOrMultiple::Single(not_err!(FromStr::from_str(
+                "https://www.examples.com/"
+            ))),
         };
         let expected_json = r#"{"values":"https://www.examples.com/"}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStringOrUris =
+            not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
         assert!(deserialized
             .values
@@ -1335,10 +1369,13 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris = not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStringOrUris =
+            not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert!(deserialized.values.contains(&FromStr::from_str("foo").unwrap()));
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("foo").unwrap()));
         assert!(deserialized
             .values
             .contains(&FromStr::from_str("https://www.example.com").unwrap()));
@@ -1348,7 +1385,9 @@ mod tests {
         assert!(deserialized
             .values
             .contains(&FromStr::from_str("http://[::1]").unwrap()));
-        assert!(deserialized.values.contains(&FromStr::from_str("baz").unwrap()));
+        assert!(deserialized
+            .values
+            .contains(&FromStr::from_str("baz").unwrap()));
         assert!(!deserialized
             .values
             .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
@@ -1392,7 +1431,8 @@ mod tests {
             not_before: Some(1234.into()),
             ..Default::default()
         };
-        let expected_json = r#"{"iss":"https://www.acme.com/","aud":"htts://acme-customer.com/","nbf":1234}"#;
+        let expected_json =
+            r#"{"iss":"https://www.acme.com/","aud":"htts://acme-customer.com/","nbf":1234}"#;
 
         let serialized = not_err!(serde_json::to_string(&claim));
         assert_eq!(expected_json, serialized);
@@ -1579,7 +1619,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "MissingRequiredClaims([\"exp\", \"nbf\", \"iat\", \"aud\", \"iss\", \"sub\", \"jti\"])")]
+    #[should_panic(
+        expected = "MissingRequiredClaims([\"exp\", \"nbf\", \"iat\", \"aud\", \"iss\", \"sub\", \"jti\"])"
+    )]
     fn validate_times_missing_all() {
         let registered_claims: RegisteredClaims = Default::default();
         let options = ClaimPresenceOptions::strict();
@@ -1600,7 +1642,10 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::NotYetValid(Duration::seconds(10))),
-            registered_claims.validate_iat(Validation::Validate((Duration::seconds(0), temporal_options)))
+            registered_claims.validate_iat(Validation::Validate((
+                Duration::seconds(0),
+                temporal_options
+            )))
         );
     }
 
@@ -1618,7 +1663,10 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::TooOld(Duration::seconds(5))),
-            registered_claims.validate_iat(Validation::Validate((Duration::seconds(25), temporal_options)))
+            registered_claims.validate_iat(Validation::Validate((
+                Duration::seconds(25),
+                temporal_options
+            )))
         );
     }
 
@@ -1689,7 +1737,9 @@ mod tests {
         };
 
         assert_eq!(
-            Err(ValidationError::InvalidIssuer(StringOrUri::String("issuer".into()))),
+            Err(ValidationError::InvalidIssuer(StringOrUri::String(
+                "issuer".into()
+            ))),
             registered_claims.validate_iss(Validation::Validate(StringOrUri::Uri(
                 Url::parse("http://issuer").unwrap()
             )))
@@ -1714,12 +1764,15 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience2".into())))
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
+                "audience2".into()
+            )))
         );
 
         assert_eq!(
             Ok(()),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+            registered_claims
+                .validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
         );
     }
 
@@ -1744,17 +1797,22 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience2".into())))
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
+                "audience2".into()
+            )))
         );
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("https://audience".into())))
+            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
+                "https://audience".into()
+            )))
         );
 
         assert_eq!(
             Ok(()),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+            registered_claims
+                .validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
         );
     }
 

@@ -292,7 +292,12 @@ impl SignatureAlgorithm {
     }
 
     /// Verify signature based on the algorithm and secret provided.
-    pub fn verify(&self, expected_signature: &[u8], data: &[u8], secret: &Secret) -> Result<(), Error> {
+    pub fn verify(
+        &self,
+        expected_signature: &[u8],
+        data: &[u8],
+        secret: &Secret,
+    ) -> Result<(), Error> {
         use self::SignatureAlgorithm::*;
 
         match self {
@@ -313,7 +318,11 @@ impl SignatureAlgorithm {
         Ok(vec![])
     }
 
-    fn sign_hmac(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+    fn sign_hmac(
+        data: &[u8],
+        secret: &Secret,
+        algorithm: &SignatureAlgorithm,
+    ) -> Result<Vec<u8>, Error> {
         let secret = match *secret {
             Secret::Bytes(ref secret) => secret,
             _ => Err("Invalid secret type. A byte array is required".to_string())?,
@@ -329,7 +338,11 @@ impl SignatureAlgorithm {
         Ok(hmac::sign(&key, data).as_ref().to_vec())
     }
 
-    fn sign_rsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+    fn sign_rsa(
+        data: &[u8],
+        secret: &Secret,
+        algorithm: &SignatureAlgorithm,
+    ) -> Result<Vec<u8>, Error> {
         let key_pair = match *secret {
             Secret::RsaKeyPair(ref key_pair) => key_pair,
             _ => Err("Invalid secret type. A RsaKeyPair is required".to_string())?,
@@ -351,7 +364,11 @@ impl SignatureAlgorithm {
         Ok(signature)
     }
 
-    fn sign_ecdsa(data: &[u8], secret: &Secret, algorithm: &SignatureAlgorithm) -> Result<Vec<u8>, Error> {
+    fn sign_ecdsa(
+        data: &[u8],
+        secret: &Secret,
+        algorithm: &SignatureAlgorithm,
+    ) -> Result<Vec<u8>, Error> {
         let key_pair = match *secret {
             Secret::EcdsaKeyPair(ref key_pair) => key_pair,
             _ => Err("Invalid secret type. An EcdsaKeyPair is required".to_string())?,
@@ -398,7 +415,8 @@ impl SignatureAlgorithm {
     ) -> Result<(), Error> {
         match *secret {
             Secret::PublicKey(ref public_key) => {
-                let verification_algorithm: &dyn signature::VerificationAlgorithm = match *algorithm {
+                let verification_algorithm: &dyn signature::VerificationAlgorithm = match *algorithm
+                {
                     SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
                     SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
                     SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
@@ -411,7 +429,10 @@ impl SignatureAlgorithm {
                     _ => unreachable!("Should not happen"),
                 };
 
-                let public_key = signature::UnparsedPublicKey::new(verification_algorithm, public_key.as_slice());
+                let public_key = signature::UnparsedPublicKey::new(
+                    verification_algorithm,
+                    public_key.as_slice(),
+                );
                 public_key.verify(&data, &expected_signature)?;
                 Ok(())
             }
@@ -446,12 +467,16 @@ impl KeyManagementAlgorithm {
         use self::KeyManagementAlgorithm::*;
 
         match self {
-            A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW | PBES2_HS256_A128KW | PBES2_HS384_A192KW
-            | PBES2_HS512_A256KW => KeyManagementAlgorithmType::SymmetricKeyWrapping,
+            A128KW | A192KW | A256KW | A128GCMKW | A192GCMKW | A256GCMKW | PBES2_HS256_A128KW
+            | PBES2_HS384_A192KW | PBES2_HS512_A256KW => {
+                KeyManagementAlgorithmType::SymmetricKeyWrapping
+            }
             RSA1_5 | RSA_OAEP | RSA_OAEP_256 => KeyManagementAlgorithmType::AsymmetricKeyEncryption,
             DirectSymmetricKey => KeyManagementAlgorithmType::DirectEncryption,
             ECDH_ES => KeyManagementAlgorithmType::DirectKeyAgreement,
-            ECDH_ES_A128KW | ECDH_ES_A192KW | ECDH_ES_A256KW => KeyManagementAlgorithmType::KeyAgreementWithKeyWrapping,
+            ECDH_ES_A128KW | ECDH_ES_A192KW | ECDH_ES_A256KW => {
+                KeyManagementAlgorithmType::KeyAgreementWithKeyWrapping
+            }
         }
     }
 
@@ -460,7 +485,11 @@ impl KeyManagementAlgorithm {
     /// If the algorithm is `dir` or `DirectSymmetricKey`, the key provided is the CEK.
     /// Otherwise, the appropriate algorithm will be used to derive or generate the required CEK
     /// using the provided key.
-    pub fn cek<T>(&self, content_alg: ContentEncryptionAlgorithm, key: &jwk::JWK<T>) -> Result<jwk::JWK<Empty>, Error>
+    pub fn cek<T>(
+        &self,
+        content_alg: ContentEncryptionAlgorithm,
+        key: &jwk::JWK<T>,
+    ) -> Result<jwk::JWK<Empty>, Error>
     where
         T: Serialize + DeserializeOwned,
     {
@@ -483,7 +512,10 @@ impl KeyManagementAlgorithm {
         }
     }
 
-    fn cek_aes_gcm(&self, content_alg: ContentEncryptionAlgorithm) -> Result<jwk::JWK<Empty>, Error> {
+    fn cek_aes_gcm(
+        &self,
+        content_alg: ContentEncryptionAlgorithm,
+    ) -> Result<jwk::JWK<Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
             algorithm: jwk::AlgorithmParameters::OctectKey {
@@ -512,7 +544,10 @@ impl KeyManagementAlgorithm {
             A128GCMKW | A192GCMKW | A256GCMKW => self.aes_gcm_encrypt(payload, key, options),
             DirectSymmetricKey => match *options {
                 EncryptionOptions::None => Ok(Default::default()),
-                ref other => Err(unexpected_encryption_options_error!(EncryptionOptions::None, other)),
+                ref other => Err(unexpected_encryption_options_error!(
+                    EncryptionOptions::None,
+                    other
+                )),
             },
             _ => Err(Error::UnsupportedOperation),
         }
@@ -550,7 +585,10 @@ impl KeyManagementAlgorithm {
 
         let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
-            ref others => Err(unexpected_encryption_options_error!(AES_GCM_ZEROED_NONCE, others)),
+            ref others => Err(unexpected_encryption_options_error!(
+                AES_GCM_ZEROED_NONCE,
+                others
+            )),
         }?;
         // FIXME: Should we check the nonce length here or leave it to ring?
 
@@ -661,7 +699,10 @@ impl ContentEncryptionAlgorithm {
 
         let nonce = match *options {
             EncryptionOptions::AES_GCM { ref nonce } => Ok(nonce),
-            ref others => Err(unexpected_encryption_options_error!(AES_GCM_ZEROED_NONCE, others)),
+            ref others => Err(unexpected_encryption_options_error!(
+                AES_GCM_ZEROED_NONCE,
+                others
+            )),
         }?;
         // FIXME: Should we check the nonce length here or leave it to ring?
 
@@ -745,7 +786,8 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
     let mut in_out = encrypted.encrypted.to_vec();
     in_out.append(&mut encrypted.tag.to_vec());
 
-    let plaintext = opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out)?;
+    let plaintext =
+        opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out)?;
     Ok(plaintext.to_vec())
 }
 
@@ -766,11 +808,16 @@ mod tests {
     #[test]
     fn sign_and_verify_none() {
         let expected_signature: Vec<u8> = vec![];
-        let actual_signature =
-            not_err!(SignatureAlgorithm::None.sign("payload".to_string().as_bytes(), &Secret::None,));
+        let actual_signature = not_err!(
+            SignatureAlgorithm::None.sign("payload".to_string().as_bytes(), &Secret::None,)
+        );
         assert_eq!(expected_signature, actual_signature);
 
-        not_err!(SignatureAlgorithm::None.verify(vec![].as_slice(), "payload".to_string().as_bytes(), &Secret::None));
+        not_err!(SignatureAlgorithm::None.verify(
+            vec![].as_slice(),
+            "payload".to_string().as_bytes(),
+            &Secret::None
+        ));
     }
 
     #[test]
@@ -778,9 +825,10 @@ mod tests {
         let expected_base64 = "uC_LeRrOxXhZuYm0MKgmSIzi5Hn9-SMmvQoug3WkK6Q";
         let expected_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_base64));
 
-        let actual_signature = not_err!(
-            SignatureAlgorithm::HS256.sign("payload".to_string().as_bytes(), &Secret::bytes_from_str("secret"),)
-        );
+        let actual_signature = not_err!(SignatureAlgorithm::HS256.sign(
+            "payload".to_string().as_bytes(),
+            &Secret::bytes_from_str("secret"),
+        ));
         assert_eq!(&*not_err!(actual_signature.to_base64()), expected_base64);
 
         not_err!(SignatureAlgorithm::HS256.verify(
@@ -799,22 +847,30 @@ mod tests {
     /// The base64 encoding from this command will be in `STANDARD` form and not URL_SAFE.
     #[test]
     fn sign_and_verify_rs256() {
-        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
+        let private_key =
+            Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
         // This is standard base64
-        let expected_signature = "JIHqiBfUknrFPDLT0gxyoufD06S43ZqWN_PzQqHZqQ-met7kZmkSTYB_rUyotLMxlKkuXdnvKmWm\
-                                  dwGAHWEwDvb5392pCmAAtmUIl6LormxJptWYb2PoF5jmtX_lwV8y4RYIh54Ai51162VARQCKAsxL\
-                                  uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
-                                  j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
-                                  5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
-        let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_signature));
+        let expected_signature =
+            "JIHqiBfUknrFPDLT0gxyoufD06S43ZqWN_PzQqHZqQ-met7kZmkSTYB_rUyotLMxlKkuXdnvKmWm\
+             dwGAHWEwDvb5392pCmAAtmUIl6LormxJptWYb2PoF5jmtX_lwV8y4RYIh54Ai51162VARQCKAsxL\
+             uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
+             j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
+             5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
+        let expected_signature_bytes: Vec<u8> =
+            not_err!(CompactPart::from_base64(&expected_signature));
 
-        let actual_signature = not_err!(SignatureAlgorithm::RS256.sign(payload_bytes, &private_key));
+        let actual_signature =
+            not_err!(SignatureAlgorithm::RS256.sign(payload_bytes, &private_key));
         assert_eq!(&*not_err!(actual_signature.to_base64()), expected_signature);
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(), payload_bytes, &public_key,));
+        not_err!(SignatureAlgorithm::RS256.verify(
+            expected_signature_bytes.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
     }
 
     #[test]
@@ -839,26 +895,38 @@ mod tests {
         };
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
-        let expected_signature = "JIHqiBfUknrFPDLT0gxyoufD06S43ZqWN_PzQqHZqQ-met7kZmkSTYB_rUyotLMxlKkuXdnvKmWm\
-                                  dwGAHWEwDvb5392pCmAAtmUIl6LormxJptWYb2PoF5jmtX_lwV8y4RYIh54Ai51162VARQCKAsxL\
-                                  uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
-                                  j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
-                                  5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
-        let expected_signature_bytes: Vec<u8> = not_err!(CompactPart::from_base64(&expected_signature));
-        not_err!(SignatureAlgorithm::RS256.verify(expected_signature_bytes.as_slice(), payload_bytes, &params,));
+        let expected_signature =
+            "JIHqiBfUknrFPDLT0gxyoufD06S43ZqWN_PzQqHZqQ-met7kZmkSTYB_rUyotLMxlKkuXdnvKmWm\
+             dwGAHWEwDvb5392pCmAAtmUIl6LormxJptWYb2PoF5jmtX_lwV8y4RYIh54Ai51162VARQCKAsxL\
+             uH772MEChkcpjd31NWzaePWoi_IIk11iqy6uFWmbLLwzD_Vbpl2C6aHR3vQjkXZi05gA3zksjYAh\
+             j-m7GgBt0UFOE56A4USjhQwpb4g3NEamgp51_kZ2ULi4Aoo_KJC6ynIm_pR6rEzBgwZjlCUnE-6o\
+             5RPQZ8Oau03UDVH2EwZe-Q91LaWRvkKjGg5Tcw";
+        let expected_signature_bytes: Vec<u8> =
+            not_err!(CompactPart::from_base64(&expected_signature));
+        not_err!(SignatureAlgorithm::RS256.verify(
+            expected_signature_bytes.as_slice(),
+            payload_bytes,
+            &params,
+        ));
     }
 
     /// This signature is non-deterministic.
     #[test]
     fn sign_and_verify_ps256_round_trip() {
-        let private_key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
+        let private_key =
+            Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        let actual_signature = not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, &private_key));
+        let actual_signature =
+            not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, &private_key));
 
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::PS256.verify(actual_signature.as_slice(), payload_bytes, &public_key,));
+        not_err!(SignatureAlgorithm::PS256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
     }
 
     /// To generate a (non-deterministic) signature:
@@ -875,28 +943,42 @@ mod tests {
 
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
-        let signature = "TiMXtt3Wmv/a/tbLWuJPDlFYMfuKsD7U5lbBUn2mBu8DLMLj1EplEZNmkB8w65BgUijnu9hxmhwv\
-                         ET2k7RrsYamEst6BHZf20hIK1yE/YWaktbVmAZwUDdIpXYaZn8ukTsMT06CDrVk6RXF0EPMaSL33\
-                         tFNPZpz4/3pYQdxco/n6DpaR5206wsur/8H0FwoyiFKanhqLb1SgZqyc+SXRPepjKc28wzBnfWl4\
-                         mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
-                         9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
+        let signature =
+            "TiMXtt3Wmv/a/tbLWuJPDlFYMfuKsD7U5lbBUn2mBu8DLMLj1EplEZNmkB8w65BgUijnu9hxmhwv\
+             ET2k7RrsYamEst6BHZf20hIK1yE/YWaktbVmAZwUDdIpXYaZn8ukTsMT06CDrVk6RXF0EPMaSL33\
+             tFNPZpz4/3pYQdxco/n6DpaR5206wsur/8H0FwoyiFKanhqLb1SgZqyc+SXRPepjKc28wzBnfWl4\
+             mmlZcJ2xk8O2/t1Y1/m/4G7drBwOItNl7EadbMVCetYnc9EILv39hjcL9JvaA9q0M2RB75DIu8SF\
+             9Kr/l+wzUJjWAHthgqSBpe15jLkpO8tvqR89fw==";
         let signature_bytes: Vec<u8> = not_err!(BASE64.decode(signature.as_bytes()));
         let public_key = Secret::public_key_from_file("test/fixtures/rsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::PS256.verify(signature_bytes.as_slice(), payload_bytes, &public_key,));
+        not_err!(SignatureAlgorithm::PS256.verify(
+            signature_bytes.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
     }
 
     /// This signature is non-deterministic.
     #[test]
     fn sign_and_verify_es256_round_trip() {
-        let private_key =
-            Secret::ecdsa_keypair_from_file(SignatureAlgorithm::ES256, "test/fixtures/ecdsa_private_key.p8").unwrap();
+        let private_key = Secret::ecdsa_keypair_from_file(
+            SignatureAlgorithm::ES256,
+            "test/fixtures/ecdsa_private_key.p8",
+        )
+        .unwrap();
         let payload = "payload".to_string();
         let payload_bytes = payload.as_bytes();
 
-        let actual_signature = not_err!(SignatureAlgorithm::ES256.sign(payload_bytes, &private_key));
+        let actual_signature =
+            not_err!(SignatureAlgorithm::ES256.sign(payload_bytes, &private_key));
 
-        let public_key = Secret::public_key_from_file("test/fixtures/ecdsa_public_key.der").unwrap();
-        not_err!(SignatureAlgorithm::ES256.verify(actual_signature.as_slice(), payload_bytes, &public_key,));
+        let public_key =
+            Secret::public_key_from_file("test/fixtures/ecdsa_public_key.der").unwrap();
+        not_err!(SignatureAlgorithm::ES256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &public_key,
+        ));
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
@@ -911,7 +993,11 @@ mod tests {
         let signature = "341F6779B75E98BB42E01095DD48356CBF9002DC704AC8BD2A8240B88D3796C6555843B1B\
                          4E264FE6FFE6E2B705A376C05C09404303FFE5D2711F3E3B3A010A1";
         let signature_bytes: Vec<u8> = not_err!(HEXUPPER.decode(signature.as_bytes()));
-        not_err!(SignatureAlgorithm::ES256.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
+        not_err!(SignatureAlgorithm::ES256.verify(
+            signature_bytes.as_slice(),
+            &payload_bytes,
+            &public_key,
+        ));
     }
 
     /// Test case from https://github.com/briansmith/ring/blob/a13b8e2/src/ec/suite_b/ecdsa_verify_fixed_tests.txt
@@ -928,7 +1014,11 @@ mod tests {
                          3903F58B44148F25142EEF8183475EC1F1392F3D6838ABC0C01724709C446888BED7F2CE4\
                          642C6839DC18044A2A6AB9DDC960BFAC79F6988E62D452";
         let signature_bytes: Vec<u8> = not_err!(HEXUPPER.decode(signature.as_bytes()));
-        not_err!(SignatureAlgorithm::ES384.verify(signature_bytes.as_slice(), &payload_bytes, &public_key,));
+        not_err!(SignatureAlgorithm::ES384.verify(
+            signature_bytes.as_slice(),
+            &payload_bytes,
+            &public_key,
+        ));
     }
 
     #[test]
@@ -948,7 +1038,11 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         SignatureAlgorithm::None
-            .verify(signature_bytes, "payload".to_string().as_bytes(), &Secret::None)
+            .verify(
+                signature_bytes,
+                "payload".to_string().as_bytes(),
+                &Secret::None,
+            )
             .unwrap();
     }
 
@@ -973,7 +1067,11 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         SignatureAlgorithm::RS256
-            .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
+            .verify(
+                signature_bytes,
+                "payload".to_string().as_bytes(),
+                &public_key,
+            )
             .unwrap();
     }
 
@@ -984,7 +1082,11 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         SignatureAlgorithm::PS256
-            .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
+            .verify(
+                signature_bytes,
+                "payload".to_string().as_bytes(),
+                &public_key,
+            )
             .unwrap();
     }
 
@@ -995,7 +1097,11 @@ mod tests {
         let invalid_signature = "broken".to_string();
         let signature_bytes = invalid_signature.as_bytes();
         SignatureAlgorithm::ES256
-            .verify(signature_bytes, "payload".to_string().as_bytes(), &public_key)
+            .verify(
+                signature_bytes,
+                "payload".to_string().as_bytes(),
+                &public_key,
+            )
             .unwrap();
     }
 
@@ -1134,7 +1240,9 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::DirectSymmetricKey;
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_ok());
+        assert!(
+            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_ok()
+        );
     }
 
     /// `KeyManagementAlgorithm::A128GCMKW` returns a random key with the right length when CEK is requested
@@ -1155,11 +1263,15 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+        assert!(
+            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+        );
 
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+        assert!(
+            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+        );
     }
 
     /// `KeyManagementAlgorithm::A256GCMKW` returns a random key with the right length when CEK is requested
@@ -1180,11 +1292,15 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+        assert!(
+            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+        );
 
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err());
+        assert!(
+            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+        );
     }
 
     #[test]
@@ -1212,7 +1328,11 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap(),).is_ok());
+        assert!(verify_slices_are_equal(
+            cek.octect_key().unwrap(),
+            decrypted_cek.octect_key().unwrap(),
+        )
+        .is_ok());
     }
 
     #[test]
@@ -1240,7 +1360,11 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(cek.octect_key().unwrap(), decrypted_cek.octect_key().unwrap(),).is_ok());
+        assert!(verify_slices_are_equal(
+            cek.octect_key().unwrap(),
+            decrypted_cek.octect_key().unwrap(),
+        )
+        .is_ok());
     }
 
     /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
@@ -1280,7 +1404,8 @@ mod tests {
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
+        let encrypted_payload =
+            not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
@@ -1307,7 +1432,8 @@ mod tests {
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
         let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
-        let encrypted_payload = not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
+        let encrypted_payload =
+            not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
         assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());

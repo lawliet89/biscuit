@@ -51,7 +51,9 @@ where
         where
             E: de::Error,
         {
-            let bytes = BASE64URL_NOPAD.decode(value.as_bytes()).map_err(E::custom)?;
+            let bytes = BASE64URL_NOPAD
+                .decode(value.as_bytes())
+                .map_err(E::custom)?;
             Ok(Some(bytes))
         }
     }
