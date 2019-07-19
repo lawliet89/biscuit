@@ -1007,6 +1007,33 @@ mod tests {
     }
 
     #[test]
+    fn aes_gcm_128_encryption_round_trip_fixed_key_nonce() {
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
+        let key: Vec<u8> = vec![0; 128 / 8];
+
+        let key = jwk::JWK::<Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_128_GCM,
+            PAYLOAD.as_bytes(),
+            &[0; AES_GCM_NONCE_LENGTH],
+            &[],
+            &key,
+        ));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_128_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
+    }
+
+    #[test]
     fn aes_gcm_128_encryption_round_trip() {
         const PAYLOAD: &str = "这个世界值得我们奋战！";
         let mut key: Vec<u8> = vec![0; 128 / 8];
@@ -1053,6 +1080,33 @@ mod tests {
             &aead::AES_256_GCM,
             PAYLOAD.as_bytes(),
             &random_aes_gcm_nonce().unwrap(),
+            &[],
+            &key,
+        ));
+        let decrypted = not_err!(aes_gcm_decrypt(&aead::AES_256_GCM, &encrypted, &key));
+
+        let payload = not_err!(String::from_utf8(decrypted));
+        assert_eq!(payload, PAYLOAD);
+    }
+
+    #[test]
+    fn aes_gcm_256_encryption_round_trip_fixed_key_nonce() {
+        const PAYLOAD: &str = "这个世界值得我们奋战！";
+        let key: Vec<u8> = vec![0; 256 / 8];
+
+        let key = jwk::JWK::<Empty> {
+            common: Default::default(),
+            additional: Default::default(),
+            algorithm: jwk::AlgorithmParameters::OctectKey {
+                key_type: Default::default(),
+                value: key,
+            },
+        };
+
+        let encrypted = not_err!(aes_gcm_encrypt(
+            &aead::AES_256_GCM,
+            PAYLOAD.as_bytes(),
+            &[0; AES_GCM_NONCE_LENGTH],
             &[],
             &key,
         ));
