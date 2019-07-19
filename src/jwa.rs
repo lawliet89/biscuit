@@ -714,15 +714,12 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     let mut sealing_key = aead::SealingKey::new(key, &nonce);
 
     let mut in_out: Vec<u8> = payload.to_vec();
-    in_out.append(&mut vec![0; AES_GCM_TAG_SIZE]);
-
     sealing_key.seal_in_place(aead::Aad::from(aad), &mut in_out)?;
-
     let size = in_out.len();
     Ok(EncryptionResult {
         nonce: nonce.to_vec(),
         encrypted: in_out[0..(size - AES_GCM_TAG_SIZE)].to_vec(),
-        tag: in_out[(size - AES_GCM_TAG_SIZE)..size].to_vec(),
+        tag: in_out[(size - AES_GCM_TAG_SIZE)..].to_vec(),
         additional_data: aad.to_vec(),
     })
 }
