@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 (2019-07-19)
+
+There are no new features or API changes except for ring dependency changes.
+
+### Breaking Changes
+
+- Minimum supported Rust version is now 1.34 due to Ring's usage of newer Rust features
+- biscuit now depends on ring 0.16
+
 ## 0.2.0 (2019-03-11)
 
 - Minimum Rust 1.31 is needed for editions support on dependencies
