@@ -10,7 +10,6 @@ use ring::signature;
 use serde::de::DeserializeOwned;
 use serde::{self, Serialize};
 use serde_json;
-use untrusted;
 
 use crate::errors::{DecodeError, Error, ValidationError};
 use crate::jwa::SignatureAlgorithm;
@@ -384,7 +383,7 @@ impl Secret {
     /// See example in the [`Secret::RsaKeyPair`] variant documentation for usage.
     pub fn rsa_keypair_from_file(path: &str) -> Result<Self, Error> {
         let der = Self::read_bytes(path)?;
-        let key_pair = signature::RsaKeyPair::from_der(untrusted::Input::from(der.as_slice()))?;
+        let key_pair = signature::RsaKeyPair::from_der(der.as_slice())?;
         Ok(Secret::RsaKeyPair(Arc::new(key_pair)))
     }
 
@@ -396,7 +395,7 @@ impl Secret {
             SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
             _ => return Err(Error::UnsupportedOperation),
         };
-        let key_pair = signature::EcdsaKeyPair::from_pkcs8(ring_algorithm, untrusted::Input::from(der.as_slice()))?;
+        let key_pair = signature::EcdsaKeyPair::from_pkcs8(ring_algorithm, der.as_slice())?;
         Ok(Secret::EcdsaKeyPair(Arc::new(key_pair)))
     }
 
