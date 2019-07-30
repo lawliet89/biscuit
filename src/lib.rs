@@ -566,13 +566,6 @@ impl Compact {
             .ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
-
-    /// Alias of `encode`
-    #[deprecated(since = "0.3.1", note = "please use `std::string::ToString` instead")]
-    #[allow(clippy::inherent_to_string)]
-    pub fn to_string(&self) -> String {
-        self.encode()
-    }
 }
 
 impl Default for Compact {

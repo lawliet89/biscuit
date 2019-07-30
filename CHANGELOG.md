@@ -6,8 +6,9 @@ There are no new features except for ring dependency changes.
 
 - biscuit now depends on ring 0.16.5
 - Changed internal usage of ring's AEAD APIs
-- Deprecated `Compact::to_string`. `Compact` now implements `Display` which has a blanket
-  implementation of `std::string::ToString`. Use that instead.
+- Removed `Compact::to_string`. `Compact` now implements `Display` which has a blanket
+  implementation of `std::string::ToString`. Use that instead. This should not break any
+  users because `std::string::ToString` is used by the `std` prelude.
 
 ## 0.3.0 (2019-07-19)
 
