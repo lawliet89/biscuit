@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (2019-07-30)
+
+There are no new features or API changes except for ring dependency changes.
+
+- biscuit now depends on ring 0.16.5
+- Changed internal usage of ring's AEAD APIs
+
 ## 0.3.0 (2019-07-19)
 
 There are no new features or API changes except for ring dependency changes.

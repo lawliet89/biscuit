@@ -8,7 +8,6 @@
 
 use std::fmt;
 
-use ring::aead::BoundKey;
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
 use ring::{aead, hmac, rand, signature};
@@ -32,29 +31,6 @@ lazy_static! {
     static ref AES_GCM_ZEROED_NONCE: EncryptionOptions = EncryptionOptions::AES_GCM {
         nonce: vec![0; AES_GCM_NONCE_LENGTH],
     };
-}
-
-/// A "One Off" Nonce for internal user
-struct Nonce<'a> {
-    pub(crate) bytes: &'a [u8],
-}
-
-impl<'a> Nonce<'a> {
-    pub(crate) fn to_vec(&self) -> Vec<u8> {
-        self.bytes.to_vec()
-    }
-}
-
-impl<'a> aead::NonceSequence for Nonce<'a> {
-    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
-        aead::Nonce::try_assume_unique_for_key(self.bytes)
-    }
-}
-
-impl<'a> aead::NonceSequence for &Nonce<'a> {
-    fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
-        aead::Nonce::try_assume_unique_for_key(self.bytes)
-    }
 }
 
 /// A default `None` `EncryptionOptions`
@@ -751,11 +727,15 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
 
     let key = key.algorithm.octect_key()?;
     let key = aead::UnboundKey::new(algorithm, key)?;
-    let nonce = Nonce { bytes: nonce };
-    let mut sealing_key = aead::SealingKey::new(key, &nonce);
+    let sealing_key = aead::LessSafeKey::new(key);
 
     let mut in_out: Vec<u8> = payload.to_vec();
-    sealing_key.seal_in_place(aead::Aad::from(aad), &mut in_out)?;
+    sealing_key.seal_in_place_append_tag(
+        aead::Nonce::try_assume_unique_for_key(nonce)?,
+        aead::Aad::from(aad),
+        &mut in_out,
+    )?;
+
     let size = in_out.len();
     Ok(EncryptionResult {
         nonce: nonce.to_vec(),
@@ -778,16 +758,16 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
 
     let key = key.algorithm.octect_key()?;
     let key = aead::UnboundKey::new(algorithm, key)?;
-    let nonce = Nonce {
-        bytes: &encrypted.nonce,
-    };
-    let mut opening_key = aead::OpeningKey::new(key, nonce);
+    let opening_key = aead::LessSafeKey::new(key);
 
     let mut in_out = encrypted.encrypted.to_vec();
     in_out.append(&mut encrypted.tag.to_vec());
 
-    let plaintext =
-        opening_key.open_in_place(aead::Aad::from(&encrypted.additional_data), &mut in_out)?;
+    let plaintext = opening_key.open_in_place(
+        aead::Nonce::try_assume_unique_for_key(&encrypted.nonce)?,
+        aead::Aad::from(&encrypted.additional_data),
+        &mut in_out,
+    )?;
     Ok(plaintext.to_vec())
 }
 
