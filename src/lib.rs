@@ -1151,20 +1151,15 @@ impl RegisteredClaims {
 
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Serialize, Deserialize)]
 pub struct ClaimsSet<T> {
     /// Registered claims defined by the RFC
+    #[serde(flatten)]
     pub registered: RegisteredClaims,
     /// Application specific claims
+    #[serde(flatten)]
     pub private: T,
 }
-
-impl_flatten_serde_generic!(
-    ClaimsSet<T>,
-    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-    registered,
-    private
-);
 
 impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
 
@@ -1174,7 +1169,7 @@ mod tests {
 
     use chrono::{Duration, TimeZone, Utc};
     use serde_json;
-    use serde_test::{assert_ser_tokens_error, assert_tokens, Token};
+    use serde_test::{assert_tokens, Token};
 
     use super::*;
 
@@ -1443,66 +1438,6 @@ mod tests {
     }
 
     #[test]
-    fn claims_set_serialization_tokens_round_trip() {
-        let claim = ClaimsSet::<PrivateClaims> {
-            registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com/"
-                )))),
-                not_before: Some((-1234).into()),
-                ..Default::default()
-            },
-            private: PrivateClaims {
-                department: "Toilet Cleaning".to_string(),
-                company: "ACME".to_string(),
-            },
-        };
-
-        assert_tokens(
-            &claim,
-            &[
-                Token::Map { len: Some(6) },
-                Token::Str("iss"),
-                Token::Str("https://www.acme.com/"),
-                Token::Str("sub"),
-                Token::Str("John Doe"),
-                Token::Str("aud"),
-                Token::Str("htts://acme-customer.com/"),
-                Token::Str("nbf"),
-                Token::I64(-1234),
-                Token::Str("company"),
-                Token::Str("ACME"),
-                Token::Str("department"),
-                Token::Str("Toilet Cleaning"),
-                Token::MapEnd,
-            ],
-        );
-    }
-
-    #[test]
-    fn claims_set_serialization_tokens_error() {
-        let claim = ClaimsSet::<InvalidPrivateClaim> {
-            registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
-                )))),
-                not_before: Some(1234.into()),
-                ..Default::default()
-            },
-            private: InvalidPrivateClaim {
-                sub: "John Doe".to_string(),
-                company: "ACME".to_string(),
-            },
-        };
-
-        assert_ser_tokens_error(&claim, &[], "Structs have duplicate keys");
-    }
-
-    #[test]
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
@@ -1532,8 +1467,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Structs have duplicate keys")]
-    fn invalid_private_claims_will_fail_to_serialize() {
+    // serde's flatten will serialize them twice
+    fn duplicate_claims_round_trip() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
@@ -1550,7 +1485,13 @@ mod tests {
             },
         };
 
-        let _ = serde_json::to_string(&claim).unwrap();
+        let json = serde_json::to_string(&claim).unwrap();
+        assert_eq!(2, json.matches("\"sub\"").count());
+
+        let duplicate: Result<ClaimsSet<InvalidPrivateClaim>, _> = serde_json::from_str(&json);
+        assert!(duplicate.is_err());
+        let error = duplicate.unwrap_err().to_string();
+        assert!(error.contains("duplicate field `sub`"));
     }
 
     #[test]

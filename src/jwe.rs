@@ -7,14 +7,12 @@ use std::fmt;
 
 use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
-use serde_json;
 
 use crate::errors::{DecodeError, Error, ValidationError};
 use crate::jwa::{
     self, ContentEncryptionAlgorithm, EncryptionOptions, EncryptionResult, KeyManagementAlgorithm,
 };
 use crate::jwk;
-use crate::serde_custom;
 use crate::{CompactJson, CompactPart, Empty};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -169,23 +167,18 @@ pub struct CekAlgorithmHeader {
 }
 
 /// JWE Header, consisting of the registered fields and other custom fields
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Serialize, Deserialize)]
 pub struct Header<T> {
     /// Registered header fields
+    #[serde(flatten)]
     pub registered: RegisteredHeader,
     /// Key management algorithm specific headers
+    #[serde(flatten)]
     pub cek_algorithm: CekAlgorithmHeader,
     /// Private header fields
+    #[serde(flatten)]
     pub private: T,
 }
-
-impl_flatten_serde_generic!(
-    Header<T>,
-    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-    registered,
-    cek_algorithm,
-    private
-);
 
 impl<T: Serialize + DeserializeOwned> CompactJson for Header<T> {}
 

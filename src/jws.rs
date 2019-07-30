@@ -9,12 +9,10 @@ use num::BigUint;
 use ring::signature;
 use serde::de::DeserializeOwned;
 use serde::{self, Serialize};
-use serde_json;
 
 use crate::errors::{DecodeError, Error, ValidationError};
 use crate::jwa::SignatureAlgorithm;
 use crate::jwk;
-use crate::serde_custom;
 use crate::{CompactJson, CompactPart, Empty};
 
 /// Compact representation of a JWS
@@ -426,20 +424,15 @@ impl From<jwk::RSAKeyParameters> for Secret {
 }
 
 /// JWS Header, consisting of the registered fields and other custom fields
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Serialize, Deserialize)]
 pub struct Header<T> {
     /// Registered header fields
+    #[serde(flatten)]
     pub registered: RegisteredHeader,
     /// Private header fields
+    #[serde(flatten)]
     pub private: T,
 }
-
-impl_flatten_serde_generic!(
-    Header<T>,
-    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-    registered,
-    private
-);
 
 impl<T: Serialize + DeserializeOwned> CompactJson for Header<T> {}
 

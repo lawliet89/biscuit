@@ -9,7 +9,6 @@ use std::fmt;
 use num::BigUint;
 use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
-use serde_json;
 
 use crate::errors::Error;
 use crate::jwa::Algorithm;
@@ -501,23 +500,18 @@ impl Default for EllipticCurve {
 /// A JSON object that represents a cryptographic key.
 /// The members of the object represent properties of the key, including its value.
 /// Type `T` is a struct representing additional JWK properties
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct JWK<T> {
     /// Common JWK parameters
+    #[serde(flatten)]
     pub common: CommonParameters,
     /// Key algorithm specific parameters
+    #[serde(flatten)]
     pub algorithm: AlgorithmParameters,
     /// Additional JWK parameters
+    #[serde(flatten)]
     pub additional: T,
 }
-
-impl_flatten_serde_generic!(
-    JWK<T>,
-    serde_custom::flatten::DuplicateKeysBehaviour::RaiseError,
-    common,
-    algorithm,
-    additional
-);
 
 impl<T: Serialize + DeserializeOwned> JWK<T> {
     /// Convenience to create a new bare-bones Octect key
