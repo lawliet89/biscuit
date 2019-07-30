@@ -568,6 +568,8 @@ impl Compact {
     }
 
     /// Alias of `encode`
+    #[deprecated(since="0.3.1", note="please use `std::string::ToString` instead")]
+    #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.encode()
     }
@@ -576,6 +578,12 @@ impl Compact {
 impl Default for Compact {
     fn default() -> Self {
         Compact::new()
+    }
+}
+
+impl Display for Compact {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.encode())
     }
 }
 
