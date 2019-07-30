@@ -568,7 +568,7 @@ impl Compact {
     }
 
     /// Alias of `encode`
-    #[deprecated(since="0.3.1", note="please use `std::string::ToString` instead")]
+    #[deprecated(since = "0.3.1", note = "please use `std::string::ToString` instead")]
     #[allow(clippy::inherent_to_string)]
     pub fn to_string(&self) -> String {
         self.encode()
