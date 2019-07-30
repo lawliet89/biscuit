@@ -17,7 +17,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.2.0"
+//! biscuit = "0.3.1"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -566,16 +566,17 @@ impl Compact {
             .ok_or_else(|| "Out of bounds".to_string())?;
         CompactPart::from_base64(part)
     }
-
-    /// Alias of `encode`
-    pub fn to_string(&self) -> String {
-        self.encode()
-    }
 }
 
 impl Default for Compact {
     fn default() -> Self {
         Compact::new()
+    }
+}
+
+impl Display for Compact {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.encode())
     }
 }
 
