@@ -2,8 +2,6 @@
 //!
 //! This module implements code for JWK as described in [RFC7517](https://tools.ietf.org/html/rfc7517).
 
-#![allow(clippy::trivially_copy_pass_by_ref)]
-
 use std::fmt;
 
 use num::BigUint;
@@ -33,7 +31,7 @@ pub enum KeyType {
 
 impl KeyType {
     /// Description of the type of key
-    pub fn description(&self) -> &'static str {
+    pub fn description(self) -> &'static str {
         match self {
             KeyType::EllipticCurve => "Elliptic curve (EC) key",
             KeyType::RSA => "RSA Key",
