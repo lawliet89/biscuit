@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (2019-06-11)
+## 0.4.0 (2019-11-06)
 
 There are no new feature except for some breaking changes to correct.
 
