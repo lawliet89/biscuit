@@ -2,7 +2,7 @@
 
 ## 0.4.0 (2019-11-06)
 
-There are no new feature except for some breaking changes to correct.
+There are no new feature except for some breaking changes to correct some errors.
 
 ## Breaking Changes
 
