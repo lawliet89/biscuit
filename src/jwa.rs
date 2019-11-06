@@ -483,8 +483,8 @@ impl KeyManagementAlgorithm {
         T: Serialize + DeserializeOwned,
     {
         match key.key_type() {
-            jwk::KeyType::Octect => Ok(key.clone_without_additional()),
-            others => Err(unexpected_key_type_error!(jwk::KeyType::Octect, others)),
+            jwk::KeyType::Octet => Ok(key.clone_without_additional()),
+            others => Err(unexpected_key_type_error!(jwk::KeyType::Octet, others)),
         }
     }
 
@@ -494,7 +494,7 @@ impl KeyManagementAlgorithm {
     ) -> Result<jwk::JWK<Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 value: key,
                 key_type: Default::default(),
             },
@@ -587,7 +587,7 @@ impl KeyManagementAlgorithm {
 
         let cek = aes_gcm_decrypt(algorithm, encrypted, key)?;
         Ok(jwk::JWK {
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 value: cek,
                 key_type: Default::default(),
             },
@@ -725,7 +725,7 @@ fn aes_gcm_encrypt<T: Serialize + DeserializeOwned>(
     // Also the nonce (or initialization vector) needs to be 96 bits
     assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
-    let key = key.algorithm.octect_key()?;
+    let key = key.algorithm.octet_key()?;
     let key = aead::UnboundKey::new(algorithm, key)?;
     let sealing_key = aead::LessSafeKey::new(key);
 
@@ -755,7 +755,7 @@ fn aes_gcm_decrypt<T: Serialize + DeserializeOwned>(
     // Also the nonce (or initialization vector) needs to be 96 bits
     assert_eq!(algorithm.nonce_len(), AES_GCM_NONCE_LENGTH);
 
-    let key = key.algorithm.octect_key()?;
+    let key = key.algorithm.octet_key()?;
     let key = aead::UnboundKey::new(algorithm, key)?;
     let opening_key = aead::LessSafeKey::new(key);
 
@@ -1099,7 +1099,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1127,7 +1127,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1155,7 +1155,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1182,7 +1182,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1210,7 +1210,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1220,7 +1220,7 @@ mod tests {
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
 
         assert!(
-            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_ok()
+            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_ok()
         );
     }
 
@@ -1233,7 +1233,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1241,15 +1241,15 @@ mod tests {
 
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
-        assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
+        assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
         assert!(
-            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
 
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
-        assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
+        assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
         assert!(
-            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
     }
 
@@ -1262,7 +1262,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1270,15 +1270,15 @@ mod tests {
 
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
-        assert_eq!(cek.octect_key().unwrap().len(), 128 / 8);
+        assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
         assert!(
-            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
 
         let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
-        assert_eq!(cek.octect_key().unwrap().len(), 256 / 8);
+        assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
         assert!(
-            verify_slices_are_equal(cek.octect_key().unwrap(), key.octect_key().unwrap()).is_err()
+            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
     }
 
@@ -1290,7 +1290,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1304,12 +1304,12 @@ mod tests {
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
+        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
         assert!(verify_slices_are_equal(
-            cek.octect_key().unwrap(),
-            decrypted_cek.octect_key().unwrap(),
+            cek.octet_key().unwrap(),
+            decrypted_cek.octet_key().unwrap(),
         )
         .is_ok());
     }
@@ -1322,7 +1322,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1336,12 +1336,12 @@ mod tests {
         let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
-        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octect_key().unwrap(), &key, &options));
+        let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
         assert!(verify_slices_are_equal(
-            cek.octect_key().unwrap(),
-            decrypted_cek.octect_key().unwrap(),
+            cek.octet_key().unwrap(),
+            decrypted_cek.octet_key().unwrap(),
         )
         .is_ok());
     }
@@ -1370,7 +1370,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
@@ -1398,7 +1398,7 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },
