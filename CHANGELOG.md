@@ -2,15 +2,31 @@
 
 ## 0.4.0 (2019-06-11)
 
-There are no new feature except for a breaking change to correct a misspelling.
+There are no new feature except for some breaking changes to correct.
 
-## Breaking Change
+## Breaking Changes
+
+### `Octet` Misspelling
 
 All misspelling of `octect` have been corrected to `octet`. The following
 types have been renamed and the old misspelt version is no longer available.
 
+To migrate, you can simply do a case sensitive replace of `Octect` with `Octet` and
+`octect` with `octet` in your code.
+
 The following types have been renamed:
 
+- `jwk::KeyType::Octect` 🡒 `jwk::KeyType::Octet`
+- `jwk::KeyType::OctectKeyPair` 🡒 `jwk::KeyType::OctetKeyPair`
+- `jwk::OctectKeyType` 🡒 `jwk::OctetKeyType`
+- `jwk::OctectKeyType::Octect` 🡒 `jwk::OctetKeyType::Octet`
+- `jwk::AlgorithmParameters::OctectKey` 🡒 `jwk::AlgorithmParameters::OctetKey`
+
+The following functions have been renamed:
+
+- `jwk::JWK::new_octect_key` 🡒 `jwk::JWK::new_octet_key`
+- `jwk::JWK::octect_key` 🡒 `jwk::JWK::octet_key`
+- `jwk::AlgorithmParameters::octect_key` 🡒 `jwk::AlgorithmParameters::octet_key`
 
 ## 0.3.1 (2019-07-30)
 
