@@ -826,7 +826,7 @@ mod tests {
                 algorithm: jwa::SignatureAlgorithm::HS256,
                 ..Default::default()
             }),
-            claims.clone(),
+            claims,
         );
         let jws =
             not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
@@ -901,7 +901,7 @@ mod tests {
                 algorithm: jwa::SignatureAlgorithm::HS256,
                 ..Default::default()
             }),
-            claims.clone(),
+            claims,
         );
         let jws =
             not_err!(jws.into_encoded(&jws::Secret::Bytes("secret".to_string().into_bytes())));
