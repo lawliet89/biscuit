@@ -1359,8 +1359,7 @@ mod tests {
                 not_err!(FromStr::from_str("baz")),
             ]),
         };
-        let expected_json =
-            r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
+        let expected_json = r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
