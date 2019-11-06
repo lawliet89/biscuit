@@ -23,8 +23,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v1
+        name: Checkout
 
       - uses: actions-rs/toolchain@v1
+        name: Verify Rust Toolchain
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
@@ -32,26 +34,31 @@ jobs:
           components: rustfmt, clippy
 
       - uses: actions-rs/cargo@v1
+        name: Clippy Lint
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
 
       - uses: actions-rs/cargo@v1
+        name: Build
         with:
           command: build
           args: --verbose --all-features
 
       - uses: actions-rs/cargo@v1
+        name: Unit Tests
         with:
           command: test
           args: --all-features
 
       - uses: actions-rs/cargo@v1
+        name: Format Check
         with:
           command: fmt
           args: --all -- --check
 
       - uses: actions-rs/cargo@v1
+        name: Build Documentation
         with:
           command: doc
           args: --no-deps --all-features
