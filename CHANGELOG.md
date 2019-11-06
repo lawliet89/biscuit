@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1 (2019-11-06)
+
+- Fix documentation build on 1.40 Nightly
+
 ## 0.4.0 (2019-11-06)
 
 There are no new feature except for some breaking changes to correct some errors.
