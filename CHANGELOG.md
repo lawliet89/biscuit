@@ -28,6 +28,21 @@ The following functions have been renamed:
 - `jwk::JWK::octect_key` 🡒 `jwk::JWK::octet_key`
 - `jwk::AlgorithmParameters::octect_key` 🡒 `jwk::AlgorithmParameters::octet_key`
 
+### Clippy `trivially_copy_pass_by_ref` lint
+
+This release also fixes the
+[Clippy `trivially_copy_pass_by_ref` lint](https://rust-lang.github.io/rust-clippy/master/index.html#trivially_copy_pass_by_ref)
+by modifying function arguments that would have taken a reference of a 1 byte value that
+implements `Copy` to take the value of itself. This mainly affects all struct methods
+of the following types
+
+There should be no need to modify your code for this because the types are `Copy`.
+
+- `jwa::SignatureAlgorithm`
+- `jwa::KeyManagementAlgorithm`
+- `jwa::ContentEncryptionAlgorithm`
+- `jwk::KeyType`
+
 ## 0.3.1 (2019-07-30)
 
 There are no new features except for ring dependency changes.
