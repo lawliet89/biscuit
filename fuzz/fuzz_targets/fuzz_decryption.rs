@@ -9,7 +9,7 @@ use biscuit::jwk::JWK;
 use biscuit::jwa::{KeyManagementAlgorithm, ContentEncryptionAlgorithm};
 
 fuzz_target!(|data: &[u8]| {
-    let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256 / 8], Default::default());
+    let key: JWK<Empty> = JWK::new_octet_key(&vec![0; 256 / 8], Default::default());
 
     let token = std::str::from_utf8(data);
     if token.is_err() {

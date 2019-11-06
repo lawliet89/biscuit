@@ -255,7 +255,7 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// # fn main() {
 /// let payload = "The true sign of intelligence is not knowledge but imagination.";
 /// // You would usually have your own AES key for this, but we will use a zeroed key as an example
-/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256 / 8], Default::default());
+/// let key: JWK<Empty> = JWK::new_octet_key(&vec![0; 256 / 8], Default::default());
 ///
 /// // Construct the JWE
 /// let jwe = jwe::Compact::new_decrypted(
@@ -398,7 +398,7 @@ where
                     .cek_algorithm
                     .cek(header.registered.enc_algorithm, key)?;
                 let encrypted_cek = header.registered.cek_algorithm.wrap_key(
-                    cek.algorithm.octect_key()?,
+                    cek.algorithm.octet_key()?,
                     key,
                     key_option,
                 )?;
@@ -632,7 +632,7 @@ mod tests {
         jwk::JWK {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctectKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey {
                 key_type: Default::default(),
                 value: key,
             },

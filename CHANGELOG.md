@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 (2019-06-11)
+
+There are no new feature except for a breaking change to correct a misspelling.
+
+## Breaking Change
+
+All misspelling of `octect` have been corrected to `octet`. The following
+types have been renamed and the old misspelt version is no longer available.
+
+The following types have been renamed:
+
+
 ## 0.3.1 (2019-07-30)
 
 There are no new features except for ring dependency changes.

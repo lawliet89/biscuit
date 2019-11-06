@@ -17,7 +17,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.3.1"
+//! biscuit = "0.4.0"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -285,7 +285,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// // Encrypt the token
 ///
 /// // You would usually have your own AES key for this, but we will use a zeroed key as an example
-/// let key: JWK<Empty> = JWK::new_octect_key(&vec![0; 256 / 8], Default::default());
+/// let key: JWK<Empty> = JWK::new_octet_key(&vec![0; 256 / 8], Default::default());
 ///
 /// // We need to create an `EncryptionOptions` with a nonce for AES GCM encryption.
 /// // You must take care NOT to reuse the nonce. You can simply treat the nonce as a 96 bit
