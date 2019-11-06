@@ -119,7 +119,7 @@ where
                 }
 
                 let signature: Vec<u8> = encoded.part(2)?;
-                let payload = &encoded.parts[0..2].join(".").to_string();
+                let payload = &encoded.parts[0..2].join(".");
 
                 algorithm
                     .verify(signature.as_ref(), payload.as_ref(), secret)
@@ -590,7 +590,7 @@ mod tests {
                 algorithm: SignatureAlgorithm::None,
                 ..Default::default()
             }),
-            expected_claims.clone(),
+            expected_claims,
         );
         let _ = serde_json::to_string(&biscuit).unwrap();
     }

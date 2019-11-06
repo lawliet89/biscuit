@@ -1,0 +1,52 @@
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
+
+name: Continuous integration
+
+jobs:
+  ci:
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.36.0  # MSRV
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macOS-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v1
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D warnings
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --all-features
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check

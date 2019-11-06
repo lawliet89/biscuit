@@ -55,7 +55,7 @@
     unknown_lints,
     clippy::unknown_clippy_lints
 )]
-#![allow(clippy::try_err)]
+#![allow(clippy::try_err, clippy::needless_doctest_main)]
 #![deny(
     const_err,
     dead_code,
@@ -1359,8 +1359,7 @@ mod tests {
                 not_err!(FromStr::from_str("baz")),
             ]),
         };
-        let expected_json =
-            r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
+        let expected_json = r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
 
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
@@ -1705,7 +1704,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ValidationError::InvalidAudience(aud.clone())),
+            Err(ValidationError::InvalidAudience(aud)),
             registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
                 "audience2".into()
             )))
@@ -1745,7 +1744,7 @@ mod tests {
         );
 
         assert_eq!(
-            Err(ValidationError::InvalidAudience(aud.clone())),
+            Err(ValidationError::InvalidAudience(aud)),
             registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
                 "https://audience".into()
             )))
