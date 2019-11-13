@@ -6,6 +6,7 @@
 
 use std::fmt;
 
+use once_cell::sync::Lazy;
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
 use ring::{aead, hmac, rand, signature};
@@ -24,12 +25,10 @@ const AES_GCM_TAG_SIZE: usize = 128 / 8;
 /// AES GCM Nonce length, in bytes
 const AES_GCM_NONCE_LENGTH: usize = 96 / 8;
 
-lazy_static! {
-    /// A zeroed AES GCM Nonce EncryptionOptions
-    static ref AES_GCM_ZEROED_NONCE: EncryptionOptions = EncryptionOptions::AES_GCM {
-        nonce: vec![0; AES_GCM_NONCE_LENGTH],
-    };
-}
+/// A zeroed AES GCM Nonce EncryptionOptions
+static AES_GCM_ZEROED_NONCE: Lazy<EncryptionOptions> = Lazy::new(|| EncryptionOptions::AES_GCM {
+    nonce: vec![0; AES_GCM_NONCE_LENGTH],
+});
 
 /// A default `None` `EncryptionOptions`
 pub(crate) const NONE_ENCRYPTION_OPTIONS: &EncryptionOptions = &EncryptionOptions::None;
@@ -703,9 +702,7 @@ impl ContentEncryptionAlgorithm {
 pub(crate) fn rng() -> &'static SystemRandom {
     use std::ops::Deref;
 
-    lazy_static! {
-        static ref RANDOM: SystemRandom = SystemRandom::new();
-    }
+    static RANDOM: Lazy<SystemRandom> = Lazy::new(SystemRandom::new);
 
     RANDOM.deref()
 }

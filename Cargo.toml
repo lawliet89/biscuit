@@ -26,7 +26,7 @@ doc = true
 [dependencies]
 chrono = "0.4.2"
 data-encoding = "2.1.1"
-lazy_static = "1.0.0"
+once_cell = "1.2.0"
 num = "0.2"
 ring = "0.16.5"
 serde = "1.0.92"

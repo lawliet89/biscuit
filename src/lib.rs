@@ -99,8 +99,6 @@
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 use data_encoding;
-#[macro_use]
-extern crate lazy_static;
 
 use serde;
 #[macro_use]
