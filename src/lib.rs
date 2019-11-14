@@ -49,7 +49,6 @@
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
 #![allow(
-    legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
     unknown_lints,
@@ -99,8 +98,6 @@
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
 use data_encoding;
-#[macro_use]
-extern crate lazy_static;
 
 use serde;
 #[macro_use]
