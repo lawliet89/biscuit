@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2 (Unreleased)
+
+### Internal Changes
+
+- Replace `lazy_static` with `once_cell` ([#123](https://github.com/lawliet89/biscuit/pull/123))
+
 ## 0.4.1 (2019-11-06)
 
 - Fix documentation build on 1.40 Nightly
