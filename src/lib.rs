@@ -49,7 +49,6 @@
 //! - [JWK Thumbprint](https://tools.ietf.org/html/rfc7638)
 
 #![allow(
-    legacy_directory_ownership,
     missing_copy_implementations,
     missing_debug_implementations,
     unknown_lints,
