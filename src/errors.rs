@@ -94,6 +94,12 @@ pub enum ValidationError {
     InvalidIssuer(StringOrUri),
     /// The token does not have or has the wrong audience (aud check failed, RFC7523 3.3
     InvalidAudience(SingleOrMultiple<StringOrUri>),
+    /// The token doesn't contains the Kid claim in the header
+    KidMissing,
+    /// The by the Kid specified key, wasn't found in the KeySet
+    KeyNotFound,
+    /// The algorithm of the JWK is not supported for validating JWTs
+    UnsupportedKeyAlgorithm,
 }
 
 macro_rules! impl_from_error {
@@ -220,6 +226,9 @@ impl error::Error for ValidationError {
             TooOld(_) => "Token is too old",
             InvalidIssuer(_) => "Issuer is invalid",
             InvalidAudience(_) => "Audience of token is invalid",
+            KidMissing => "Header is missing Kid",
+            KeyNotFound => "Key not found in JWKS",
+            UnsupportedKeyAlgorithm => "Algorithm of JWK not supported",
         }
     }
 
@@ -264,7 +273,11 @@ impl fmt::Display for ValidationError {
             InvalidIssuer(ref iss) => write!(f, "Issuer of token is invalid: {:?}", iss),
             InvalidAudience(ref aud) => write!(f, "Audience of token is invalid: {:?}", aud),
 
-            InvalidSignature | WrongAlgorithmHeader => write!(f, "{}", self.description()),
+            InvalidSignature
+            | WrongAlgorithmHeader
+            | KidMissing
+            | KeyNotFound
+            | UnsupportedKeyAlgorithm => write!(f, "{}", self.description()),
         }
     }
 }
