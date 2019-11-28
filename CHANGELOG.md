@@ -2,6 +2,10 @@
 
 ## 0.4.2 (Unreleased)
 
+### Enhancements
+
+- Add `jws::Compact::decode_with_jwks` method to decode a JWT with JWKs ([#124](https://github.com/lawliet89/biscuit/pull/124))
+
 ### Internal Changes
 
 - Replace `lazy_static` with `once_cell` ([#123](https://github.com/lawliet89/biscuit/pull/123))
