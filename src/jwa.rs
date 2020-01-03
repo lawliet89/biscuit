@@ -140,12 +140,12 @@ pub enum KeyManagementAlgorithm {
     /// ECDH-ES using Concat KDF and "A256KW" wrapping
     #[serde(rename = "ECDH-ES+A256KW")]
     ECDH_ES_A256KW,
-    /// Key wrapping with AES GCM using 128-bit key	alg
+    /// Key wrapping with AES GCM using 128-bit key alg
     A128GCMKW,
     /// Key wrapping with AES GCM using 192-bit key alg.
     /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
     A192GCMKW,
-    /// Key wrapping with AES GCM using 256-bit key	alg
+    /// Key wrapping with AES GCM using 256-bit key alg
     A256GCMKW,
     /// PBES2 with HMAC SHA-256 and "A128KW" wrapping
     #[serde(rename = "PBES2-HS256+A128KW")]
@@ -179,13 +179,13 @@ pub enum KeyManagementAlgorithmType {
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub enum ContentEncryptionAlgorithm {
-    /// AES_128_CBC_HMAC_SHA_256 authenticated encryption algorithm	enc
+    /// AES_128_CBC_HMAC_SHA_256 authenticated encryption algorithm enc
     #[serde(rename = "A128CBC-HS256")]
     A128CBC_HS256,
-    /// AES_192_CBC_HMAC_SHA_384 authenticated encryption algorithm	enc
+    /// AES_192_CBC_HMAC_SHA_384 authenticated encryption algorithm enc
     #[serde(rename = "A192CBC-HS384")]
     A192CBC_HS384,
-    /// AES_256_CBC_HMAC_SHA_512 authenticated encryption algorithm	enc
+    /// AES_256_CBC_HMAC_SHA_512 authenticated encryption algorithm enc
     #[serde(rename = "A256CBC-HS512")]
     A256CBC_HS512,
     /// AES GCM using 128-bit key
@@ -491,10 +491,10 @@ impl KeyManagementAlgorithm {
     ) -> Result<jwk::JWK<Empty>, Error> {
         let key = content_alg.generate_key()?;
         Ok(jwk::JWK {
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 value: key,
                 key_type: Default::default(),
-            },
+            }),
             common: jwk::CommonParameters {
                 public_key_use: Some(jwk::PublicKeyUse::Encryption),
                 algorithm: Some(Algorithm::ContentEncryption(content_alg)),
@@ -584,10 +584,10 @@ impl KeyManagementAlgorithm {
 
         let cek = aes_gcm_decrypt(algorithm, encrypted, key)?;
         Ok(jwk::JWK {
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 value: cek,
                 key_type: Default::default(),
-            },
+            }),
             common: jwk::CommonParameters {
                 public_key_use: Some(jwk::PublicKeyUse::Encryption),
                 algorithm: Some(Algorithm::ContentEncryption(content_alg)),
@@ -1094,10 +1094,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let encrypted = not_err!(aes_gcm_encrypt(
@@ -1122,10 +1122,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let encrypted = not_err!(aes_gcm_encrypt(
@@ -1150,10 +1150,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let encrypted = not_err!(aes_gcm_encrypt(
@@ -1177,10 +1177,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let encrypted = not_err!(aes_gcm_encrypt(
@@ -1205,10 +1205,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let cek_alg = KeyManagementAlgorithm::DirectSymmetricKey;
@@ -1228,10 +1228,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
@@ -1257,10 +1257,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
@@ -1285,10 +1285,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let options = EncryptionOptions::AES_GCM {
@@ -1317,10 +1317,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let options = EncryptionOptions::AES_GCM {
@@ -1365,10 +1365,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let options = EncryptionOptions::AES_GCM {
@@ -1393,10 +1393,10 @@ mod tests {
         let key = jwk::JWK::<Empty> {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         };
 
         let options = EncryptionOptions::AES_GCM {

@@ -632,10 +632,10 @@ mod tests {
         jwk::JWK {
             common: Default::default(),
             additional: Default::default(),
-            algorithm: jwk::AlgorithmParameters::OctetKey {
+            algorithm: jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
                 key_type: Default::default(),
                 value: key,
-            },
+            }),
         }
     }
 

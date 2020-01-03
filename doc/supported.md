@@ -77,7 +77,7 @@ for their use with the various algorithms is listed in the relevant section on t
 |   `EC`   |    ✔    |         |
 |   `RSA`  |    ✔    |         |
 |   `oct`  |    ✔    |         |
-|   `OKP`  |    ✘    |         |
+|   `OKP`  |    ✔    |         |
 
 ### JWK Parameters for Elliptic Curve Keys
 

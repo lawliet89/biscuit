@@ -172,7 +172,7 @@ where
 
                 let secret = match &jwk.algorithm {
                     AlgorithmParameters::RSA(rsa) => rsa.jws_public_key_secret(),
-                    AlgorithmParameters::OctetKey { value, .. } => Secret::Bytes(value.clone()),
+                    AlgorithmParameters::OctetKey(oct) => Secret::Bytes(oct.value.clone()),
                     _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                 };
 
@@ -659,8 +659,7 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_none() {
-        let expected_token =
-            "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
+        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
              hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
              RvaWxldCBDbGVhbmluZyJ9.";
@@ -898,8 +897,7 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_hs256_for_bytes_payload() {
-        let expected_token =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
              eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
              xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
         let payload: Vec<u8> = vec![
