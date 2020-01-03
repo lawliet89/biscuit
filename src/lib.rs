@@ -69,7 +69,6 @@
     non_upper_case_globals,
     overflowing_literals,
     path_statements,
-    plugin_as_library,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
