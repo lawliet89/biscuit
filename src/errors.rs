@@ -134,47 +134,6 @@ impl From<string::FromUtf8Error> for Error {
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        use crate::Error::*;
-
-        match *self {
-            GenericError(ref err) => err,
-            JsonError(ref err) => err.description(),
-            DecodeBase64(ref err) => err.description(),
-            Utf8(ref err) => err.description(),
-            ValidationError(ref err) => err.description(),
-            DecodeError(ref err) => err.description(),
-            IOError(ref err) => err.description(),
-            UriParseError(ref err) => err.description(),
-            KeyRejected(ref err) => err.description_(),
-            WrongKeyType { .. } => {
-                "The wrong type of key was provided for the cryptographic operation"
-            }
-            WrongEncryptionOptions { .. } => {
-                "Wrong variant of `EncryptionOptions` was provided for the encryption operation"
-            }
-            UnspecifiedCryptographicError => "An Unspecified Cryptographic Error",
-            UnsupportedOperation => "This operation is not supported",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        use crate::Error::*;
-
-        Some(match *self {
-            JsonError(ref err) => err,
-            DecodeBase64(ref err) => err,
-            Utf8(ref err) => err,
-            DecodeError(ref err) => err,
-            ValidationError(ref err) => err,
-            IOError(ref err) => err,
-            UriParseError(ref err) => err,
-            ref err => err,
-        })
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use crate::Error::*;
@@ -205,53 +164,53 @@ impl fmt::Display for Error {
                 "{} was expected for this cryptographic operation but {} was provided",
                 expected, actual
             ),
-            UnspecifiedCryptographicError => write!(f, "{}", error::Error::description(self)),
-            UnsupportedOperation => write!(f, "{}", error::Error::description(self)),
+            UnspecifiedCryptographicError => write!(f, "An unspecified cryptographic error"),
+            UnsupportedOperation => write!(f, "This operation is not supported"),
         }
     }
 }
 
-impl error::Error for ValidationError {
-    fn description(&self) -> &str {
-        use crate::ValidationError::*;
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        use crate::Error::*;
 
         match *self {
-            InvalidSignature => "Invalid Signature",
-            WrongAlgorithmHeader => {
-                "Token provided was signed or encrypted with an unexpected algorithm"
-            }
-            MissingRequiredClaims(_) => "Missing required claim",
-            Expired(_) => "Token expired",
-            NotYetValid(_) => "Token not yet valid",
-            TooOld(_) => "Token is too old",
-            InvalidIssuer(_) => "Issuer is invalid",
-            InvalidAudience(_) => "Audience of token is invalid",
-            KidMissing => "Header is missing Kid",
-            KeyNotFound => "Key not found in JWKS",
-            UnsupportedKeyAlgorithm => "Algorithm of JWK not supported",
+            JsonError(ref err) => Some(err),
+            DecodeBase64(ref err) => Some(err),
+            Utf8(ref err) => Some(err),
+            DecodeError(ref err) => Some(err),
+            ValidationError(ref err) => Some(err),
+            IOError(ref err) => Some(err),
+            UriParseError(ref err) => Some(err),
+            _ => None,
         }
     }
+}
 
-    fn cause(&self) -> Option<&dyn error::Error> {
-        Some(self)
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use self::DecodeError::*;
+
+        match *self {
+            InvalidToken => write!(f, "Invalid token"),
+            PartsLengthError { expected, actual } => write!(
+                f,
+                "Expected {} parts in Compact JSON representation but got {}",
+                expected, actual
+            ),
+        }
     }
 }
 
 impl error::Error for DecodeError {
-    fn description(&self) -> &str {
-        use self::DecodeError::*;
-
-        match *self {
-            InvalidToken => "Invalid Token",
-            PartsLengthError { .. } => "Unexpected number of parts in compact JSON representation",
-        }
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
     }
 }
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use crate::ValidationError::*;
-        use std::error::Error;
 
         match *self {
             MissingRequiredClaims(ref fields) => write!(
@@ -272,28 +231,20 @@ impl fmt::Display for ValidationError {
             ),
             InvalidIssuer(ref iss) => write!(f, "Issuer of token is invalid: {:?}", iss),
             InvalidAudience(ref aud) => write!(f, "Audience of token is invalid: {:?}", aud),
-
-            InvalidSignature
-            | WrongAlgorithmHeader
-            | KidMissing
-            | KeyNotFound
-            | UnsupportedKeyAlgorithm => write!(f, "{}", self.description()),
+            InvalidSignature => write!(f, "Invalid signature"),
+            WrongAlgorithmHeader => write!(
+                f,
+                "Token provided was signed or encrypted with an unexpected algorithm"
+            ),
+            KidMissing => write!(f, "Header is missing kid"),
+            KeyNotFound => write!(f, "Key not found in JWKS"),
+            UnsupportedKeyAlgorithm => write!(f, "Algorithm of JWK not supported"),
         }
     }
 }
 
-impl fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::DecodeError::*;
-        use std::error::Error;
-
-        match *self {
-            InvalidToken => write!(f, "{}", self.description()),
-            PartsLengthError { expected, actual } => write!(
-                f,
-                "Expected {} parts in Compact JSON representation but got {}",
-                expected, actual
-            ),
-        }
+impl error::Error for ValidationError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
     }
 }

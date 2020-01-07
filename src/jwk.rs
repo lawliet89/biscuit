@@ -17,14 +17,14 @@ use crate::Empty;
 /// Type of Key as specified in RFC 7518.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
 pub enum KeyType {
-    ///  Elliptic curve keys
+    /// Elliptic curve (EC) key
     EllipticCurve,
-    /// RSA Key
+    /// RSA key
     RSA,
-    /// Octet sequence, representing symmetric keys
+    /// Octet symmetric key
     #[serde(rename = "oct")]
     Octet,
-    /// Octet string key pairs
+    /// Octet key pair
     #[serde(rename = "OKP")]
     OctetKeyPair,
 }
@@ -34,9 +34,9 @@ impl KeyType {
     pub fn description(self) -> &'static str {
         match self {
             KeyType::EllipticCurve => "Elliptic curve (EC) key",
-            KeyType::RSA => "RSA Key",
-            KeyType::Octet => "Key byte sequence",
-            KeyType::OctetKeyPair => "Octet string key pairs",
+            KeyType::RSA => "RSA key",
+            KeyType::Octet => "Octet symmetric key",
+            KeyType::OctetKeyPair => "Octet key pair",
         }
     }
 }
@@ -228,22 +228,17 @@ pub struct CommonParameters {
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AlgorithmParameters {
-    /// An Elliptic Curve key
+    /// Elliptic curve (EC) key
     EllipticCurve(EllipticCurveKeyParameters),
 
-    /// A RSA Public or Private Key
+    /// RSA key
     RSA(RSAKeyParameters),
 
-    /// A symmetric Octet key
-    OctetKey {
-        /// Key type value for an Octet Key
-        #[serde(rename = "kty")]
-        key_type: OctetKeyType,
+    /// Octet symmetric key
+    OctetKey(OctetKeyParameters),
 
-        /// The octet key value
-        #[serde(rename = "k", with = "serde_custom::byte_sequence")]
-        value: Vec<u8>,
-    },
+    /// Octet key pair
+    OctetKeyPair(OctetKeyPairParameters),
 }
 
 impl fmt::Debug for AlgorithmParameters {
@@ -251,7 +246,8 @@ impl fmt::Debug for AlgorithmParameters {
         let algo_type = match *self {
             AlgorithmParameters::EllipticCurve(_) => "EllipticCurve",
             AlgorithmParameters::RSA(_) => "RSA",
-            AlgorithmParameters::OctetKey { .. } => "OctetKey",
+            AlgorithmParameters::OctetKey(_) => "OctetKey",
+            AlgorithmParameters::OctetKeyPair(_) => "OctetKeyPair",
         };
         write!(f, "{} {{ .. }}", algo_type)
     }
@@ -263,14 +259,15 @@ impl AlgorithmParameters {
         match *self {
             AlgorithmParameters::EllipticCurve(_) => KeyType::EllipticCurve,
             AlgorithmParameters::RSA(_) => KeyType::RSA,
-            AlgorithmParameters::OctetKey { .. } => KeyType::Octet,
+            AlgorithmParameters::OctetKey(_) => KeyType::Octet,
+            AlgorithmParameters::OctetKeyPair(_) => KeyType::OctetKeyPair,
         }
     }
 
     /// Return the byte sequence of an octet key
     pub fn octet_key(&self) -> Result<&[u8], Error> {
         match *self {
-            AlgorithmParameters::OctetKey { ref value, .. } => Ok(value),
+            AlgorithmParameters::OctetKey(ref oct) => Ok(oct.value.as_slice()),
             _ => Err(unexpected_key_type_error!(KeyType::Octet, self.key_type())),
         }
     }
@@ -431,6 +428,39 @@ pub struct OtherPrimesInfo {
     pub t: BigUint,
 }
 
+/// Parameters for an Octet Key
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+pub struct OctetKeyParameters {
+    /// Key type value for an Octet Key
+    #[serde(rename = "kty")]
+    pub key_type: OctetKeyType,
+    /// The octet key value
+    #[serde(rename = "k", with = "serde_custom::byte_sequence")]
+    pub value: Vec<u8>,
+}
+
+/// Parameters for an Octet Key Pair
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
+pub struct OctetKeyPairParameters {
+    /// Key type value for an Octet Key Pair
+    #[serde(rename = "kty")]
+    pub key_type: OctetKeyPairType,
+    /// The "crv" (curve) parameter identifies the cryptographic curve used
+    /// with the key.
+    #[serde(rename = "crv")]
+    pub curve: EllipticCurve,
+    /// The "x" parameter contains the base64 encoded public key
+    #[serde(with = "serde_custom::byte_sequence")]
+    pub x: Vec<u8>,
+    /// The "d" parameter contains the base64 encoded private key
+    #[serde(
+        with = "serde_custom::option_byte_sequence",
+        skip_serializing_if = "Option::is_none",
+        default
+    )]
+    pub d: Option<Vec<u8>>,
+}
+
 /// Key type value for an Elliptic Curve Key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -459,11 +489,11 @@ impl Default for RSAKeyType {
     }
 }
 
-/// Key type value for an Octet symmetric Key.
+/// Key type value for an Octet symmetric key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OctetKeyType {
-    /// Key type value for an RSA Key.
+    /// Key type value for an Octet symmetric key.
     #[serde(rename = "oct")]
     Octet,
 }
@@ -471,6 +501,21 @@ pub enum OctetKeyType {
 impl Default for OctetKeyType {
     fn default() -> Self {
         OctetKeyType::Octet
+    }
+}
+
+/// Key type value for an Octet Key Pair.
+/// This single value enum is a workaround for Rust not supporting associated constants.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum OctetKeyPairType {
+    /// Key type value for an Octet Key Pair.
+    #[serde(rename = "OKP")]
+    OctetKeyPair,
+}
+
+impl Default for OctetKeyPairType {
+    fn default() -> Self {
+        OctetKeyPairType::OctetKeyPair
     }
 }
 
@@ -487,6 +532,12 @@ pub enum EllipticCurve {
     /// P-521 curve -- unsupported by `ring`.
     #[serde(rename = "P-521")]
     P521,
+    /// Curve25519
+    #[serde(rename = "Ed25519")]
+    Curve25519,
+    /// Curve448
+    #[serde(rename = "Ed448")]
+    Curve448,
 }
 
 impl Default for EllipticCurve {
@@ -515,10 +566,10 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
     /// Convenience to create a new bare-bones Octet key
     pub fn new_octet_key(key: &[u8], additional: T) -> Self {
         Self {
-            algorithm: AlgorithmParameters::OctetKey {
+            algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                 value: key.to_vec(),
                 key_type: Default::default(),
-            },
+            }),
             common: Default::default(),
             additional,
         }
@@ -925,6 +976,63 @@ mod tests {
         assert_serde_json(&test_value, Some(&expected_json));
     }
 
+    /// rfc8037#appendix-A.1
+    #[test]
+    fn jwk_okp_private_key_json_serde() {
+        let test_value: JWK<Empty> = JWK {
+            common: CommonParameters::default(),
+            algorithm: AlgorithmParameters::OctetKeyPair(OctetKeyPairParameters {
+                key_type: Default::default(),
+                curve: EllipticCurve::Curve25519,
+                x: vec![
+                    0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9,
+                    0x64, 0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02,
+                    0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
+                ],
+                d: Some(vec![
+                    0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92,
+                    0xec, 0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b,
+                    0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60,
+                ]),
+            }),
+            additional: Default::default(),
+        };
+        let expected_json = r#"{
+  "kty": "OKP",
+  "crv": "Ed25519",
+  "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+  "d": "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A"
+}"#;
+
+        assert_serde_json(&test_value, Some(&expected_json));
+    }
+
+    /// rfc8037#appendix-A.2
+    #[test]
+    fn jwk_okp_public_key_json_serde() {
+        let test_value: JWK<Empty> = JWK {
+            common: CommonParameters::default(),
+            algorithm: AlgorithmParameters::OctetKeyPair(OctetKeyPairParameters {
+                key_type: Default::default(),
+                curve: EllipticCurve::Curve25519,
+                x: vec![
+                    0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9,
+                    0x64, 0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02,
+                    0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
+                ],
+                d: None,
+            }),
+            additional: Default::default(),
+        };
+        let expected_json = r#"{
+  "kty": "OKP",
+  "crv": "Ed25519",
+  "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+}"#;
+
+        assert_serde_json(&test_value, Some(&expected_json));
+    }
+
     #[test]
     fn jwk_set_symmetric_key() {
         let test_value: JWKSet<Empty> = JWKSet {
@@ -936,13 +1044,13 @@ mod tests {
                         )),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::OctetKey {
+                    algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                         key_type: Default::default(),
                         value: vec![
                             25, 172, 32, 130, 225, 114, 26, 181, 138, 106, 254, 192, 95, 133, 74,
                             82,
                         ],
-                    },
+                    }),
                     additional: Default::default(),
                 },
                 JWK {
@@ -950,7 +1058,7 @@ mod tests {
                         key_id: Some("HMAC key used in JWS spec Appendix A.1 example".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::OctetKey {
+                    algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                         key_type: Default::default(),
                         value: vec![
                             3, 35, 53, 75, 43, 15, 165, 188, 131, 126, 6, 101, 119, 123, 166, 143,
@@ -959,7 +1067,7 @@ mod tests {
                             61, 34, 61, 46, 33, 114, 5, 46, 79, 8, 192, 205, 154, 245, 103, 208,
                             128, 163,
                         ],
-                    },
+                    }),
                     additional: Default::default(),
                 },
             ],
@@ -1166,10 +1274,10 @@ mod tests {
                         key_id: Some("first".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::OctetKey {
+                    algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                         key_type: Default::default(),
                         value: Default::default(),
-                    },
+                    }),
                     additional: Default::default(),
                 },
                 JWK {
@@ -1177,18 +1285,18 @@ mod tests {
                         key_id: Some("second".to_string()),
                         ..Default::default()
                     },
-                    algorithm: AlgorithmParameters::OctetKey {
+                    algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                         key_type: Default::default(),
                         value: Default::default(),
-                    },
+                    }),
                     additional: Default::default(),
                 },
                 JWK {
                     common: Default::default(),
-                    algorithm: AlgorithmParameters::OctetKey {
+                    algorithm: AlgorithmParameters::OctetKey(OctetKeyParameters {
                         key_type: Default::default(),
                         value: Default::default(),
-                    },
+                    }),
                     additional: Default::default(),
                 },
             ],

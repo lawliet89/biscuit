@@ -172,7 +172,7 @@ where
 
                 let secret = match &jwk.algorithm {
                     AlgorithmParameters::RSA(rsa) => rsa.jws_public_key_secret(),
-                    AlgorithmParameters::OctetKey { value, .. } => Secret::Bytes(value.clone()),
+                    AlgorithmParameters::OctetKey(oct) => Secret::Bytes(oct.value.clone()),
                     _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                 };
 
