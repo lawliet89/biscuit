@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.0 (2020-NN-NN)
+
+### Breaking Changes
+
+- The `jwk::AlgorithmParameters::OctetKey` enum variant is now a newtype variant which takes a
+  `jwk::OctetKeyParameters` struct for its parameters. To migrate your existing code, you can do
+  the following
+
+  ```diff
+    -jwk::AlgorithmParameters::OctetKey {
+    +jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
+        value: key,
+        key_type: Default::default(),
+    -}
+    +})
+  ```
+
+  ([#125](https://github.com/lawliet89/biscuit/pull/125))
+
+### Enhancements
+
+- Add new `jwk::AlgorithmParameters::OctetKeyPair` variant to support (de)serializing `OKP`
+  key types. ([#125](https://github.com/lawliet89/biscuit/pull/125))
+
 ## 0.4.2 (2020-01-07)
 
 ### Enhancements
@@ -18,7 +42,7 @@
 
 There are no new feature except for some breaking changes to correct some errors.
 
-## Breaking Changes
+### Breaking Changes
 
 ### `Octet` Misspelling
 
