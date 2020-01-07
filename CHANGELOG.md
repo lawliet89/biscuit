@@ -12,7 +12,7 @@
   -jwk::AlgorithmParameters::OctetKey {
   +jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
      value: key,
-      key_type: Default::default(),
+     key_type: Default::default(),
   -}
   +})
   ```
