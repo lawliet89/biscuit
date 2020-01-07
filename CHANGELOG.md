@@ -9,12 +9,12 @@
   the following
 
   ```diff
-    - jwk::AlgorithmParameters::OctetKey {
-    + jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
-        value: key,
-        key_type: Default::default(),
-    - }
-    + })
+  -jwk::AlgorithmParameters::OctetKey {
+  +jwk::AlgorithmParameters::OctetKey(jwk::OctetKeyParameters {
+     value: key,
+      key_type: Default::default(),
+  -}
+  +})
   ```
 
   ([#125](https://github.com/lawliet89/biscuit/pull/125))
