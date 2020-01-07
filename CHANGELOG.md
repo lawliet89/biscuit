@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2 (Unreleased)
+## 0.4.2 (2020-01-07)
 
 ### Enhancements
 
