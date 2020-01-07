@@ -1,6 +1,6 @@
 [package]
 name = "biscuit"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2018"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
