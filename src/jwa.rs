@@ -11,7 +11,7 @@ use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
 use ring::{aead, hmac, rand, signature};
 use serde::de::DeserializeOwned;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::errors::Error;
 use crate::jwk;

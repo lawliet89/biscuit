@@ -17,7 +17,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.5.0"
+//! biscuit = "0.5.1"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
@@ -1152,7 +1152,7 @@ mod tests {
     use std::str::{self, FromStr};
 
     use chrono::{Duration, TimeZone, Utc};
-    use serde_json;
+
     use serde_test::{assert_tokens, Token};
 
     use super::*;

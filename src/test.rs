@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json;
+
 use std::fmt::Debug;
 
 macro_rules! not_err {

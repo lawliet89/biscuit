@@ -198,8 +198,8 @@ impl<T: Serialize + DeserializeOwned> Header<T> {
     fn extract_cek_encryption_result(&mut self, encrypted_payload: &[u8]) -> EncryptionResult {
         let result = EncryptionResult {
             encrypted: encrypted_payload.to_vec(),
-            nonce: self.cek_algorithm.nonce.clone().unwrap_or_else(|| vec![]),
-            tag: self.cek_algorithm.tag.clone().unwrap_or_else(|| vec![]),
+            nonce: self.cek_algorithm.nonce.clone().unwrap_or_default(),
+            tag: self.cek_algorithm.tag.clone().unwrap_or_default(),
             ..Default::default()
         };
 

@@ -50,7 +50,7 @@ where
 mod tests {
     use num::cast::FromPrimitive;
     use num::BigUint;
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
     use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]

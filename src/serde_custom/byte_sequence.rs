@@ -44,7 +44,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
     use serde_test::{assert_tokens, Token};
 
     #[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
