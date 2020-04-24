@@ -96,13 +96,6 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 
-use data_encoding;
-
-use serde_json;
-
-#[cfg(test)]
-extern crate serde_test;
-
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
 use std::iter;
