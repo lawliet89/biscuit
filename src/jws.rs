@@ -8,7 +8,7 @@ use std::sync::Arc;
 use num::BigUint;
 use ring::signature;
 use serde::de::DeserializeOwned;
-use serde::{self, Serialize};
+use serde::{self, Serialize, Deserialize};
 
 use crate::errors::{DecodeError, Error, ValidationError};
 use crate::jwa::{Algorithm, SignatureAlgorithm};
@@ -604,6 +604,7 @@ impl Default for RegisteredHeader {
 mod tests {
     use std::str::{self, FromStr};
 
+    use serde::{Serialize, Deserialize};
     use serde_json;
 
     use super::{Compact, Header, RegisteredHeader, Secret, SignatureAlgorithm};

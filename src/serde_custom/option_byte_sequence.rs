@@ -63,6 +63,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use serde::{Serialize, Deserialize};
     use serde_json;
     use serde_test::{assert_tokens, Token};
 

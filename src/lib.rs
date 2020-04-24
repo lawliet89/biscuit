@@ -59,7 +59,7 @@
     const_err,
     dead_code,
     deprecated,
-    exceeding_bitshifts,
+    arithmetic_overflow,
     improper_ctypes,
     missing_docs,
     mutable_transmutes,
@@ -98,9 +98,6 @@
 
 use data_encoding;
 
-use serde;
-#[macro_use]
-extern crate serde_derive;
 use serde_json;
 
 #[cfg(test)]
@@ -148,8 +145,6 @@ use crate::errors::{Error, ValidationError};
 ///
 /// ```
 /// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
 ///
 /// use std::str::FromStr;
 /// use biscuit::*;
