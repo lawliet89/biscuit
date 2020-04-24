@@ -137,8 +137,6 @@ use crate::errors::{Error, ValidationError};
 /// ## Encoding and decoding with HS256
 ///
 /// ```
-/// extern crate biscuit;
-///
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
@@ -215,11 +213,6 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// ## Sign with HS256, then encrypt with A256GCMKW and A256GCM
 ///
 /// ```rust
-/// extern crate biscuit;
-/// extern crate num;
-/// #[macro_use]
-/// extern crate serde_derive;
-///
 /// use std::str::FromStr;
 /// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
 /// use biscuit::jwk::JWK;
@@ -327,8 +320,6 @@ pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-///
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
@@ -604,11 +595,6 @@ impl<'de> Deserialize<'de> for Compact {
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate serde_json;
-///
 /// use biscuit::SingleOrMultiple;
 ///
 /// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -687,11 +673,6 @@ where
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate serde_json;
-///
 /// use std::str::FromStr;
 /// use biscuit::{SingleOrMultiple, StringOrUri};
 ///

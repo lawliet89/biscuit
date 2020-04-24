@@ -242,9 +242,6 @@ impl From<RegisteredHeader> for Header<Empty> {
 ///
 /// ## Encrypting a string payload with A256GCMKW and A256GCM
 /// ```
-/// extern crate biscuit;
-/// extern crate num;
-///
 /// use std::str;
 /// use biscuit::Empty;
 /// use biscuit::jwk::JWK;
