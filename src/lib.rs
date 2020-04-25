@@ -143,6 +143,7 @@ use crate::errors::{Error, ValidationError};
 /// use biscuit::*;
 /// use biscuit::jws::*;
 /// use biscuit::jwa::*;
+/// use serde::{Serialize, Deserialize};
 ///
 /// # fn main() {
 ///
@@ -222,6 +223,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// use biscuit::jwe;
 /// use biscuit::jwa::{EncryptionOptions, SignatureAlgorithm, KeyManagementAlgorithm,
 ///                    ContentEncryptionAlgorithm};
+/// use serde::{Serialize, Deserialize};
 ///
 /// // Define our own private claims
 /// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -598,6 +600,7 @@ impl<'de> Deserialize<'de> for Compact {
 /// # Examples
 /// ```
 /// use biscuit::SingleOrMultiple;
+/// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// struct SingleOrMultipleStrings {
@@ -677,6 +680,7 @@ where
 /// ```
 /// use std::str::FromStr;
 /// use biscuit::{SingleOrMultiple, StringOrUri};
+/// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// struct SingleOrMultipleStringOrUris {
