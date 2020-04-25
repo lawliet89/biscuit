@@ -93,7 +93,7 @@
     unused_unsafe,
     unused_variables,
     variant_size_differences,
-    while_true,
+    while_true
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 #![cfg_attr(feature = "strict", deny(warnings))]
