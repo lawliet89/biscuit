@@ -56,10 +56,10 @@
 )]
 #![allow(clippy::try_err, clippy::needless_doctest_main)]
 #![deny(
+    arithmetic_overflow,
+    bad_style,
     const_err,
     dead_code,
-    deprecated,
-    arithmetic_overflow,
     improper_ctypes,
     missing_docs,
     mutable_transmutes,
@@ -69,6 +69,8 @@
     non_upper_case_globals,
     overflowing_literals,
     path_statements,
+    patterns_in_fns_without_body,
+    private_in_public,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
@@ -81,20 +83,20 @@
     unused_comparisons,
     unused_extern_crates,
     unused_features,
-    unused_imports,
     unused_import_braces,
-    unused_qualifications,
+    unused_imports,
     unused_must_use,
     unused_mut,
     unused_parens,
+    unused_qualifications,
     unused_results,
     unused_unsafe,
     unused_variables,
     variant_size_differences,
-    warnings,
-    while_true
+    while_true,
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
+#![cfg_attr(feature = "strict", deny(warnings))]
 
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
