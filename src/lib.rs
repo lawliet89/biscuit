@@ -97,6 +97,8 @@
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
 #![cfg_attr(feature = "strict", deny(warnings))]
+// See regression in nightly: https://github.com/rust-lang/rust/issues/70814
+#![cfg_attr(feature = "strict", allow(unused_braces))]
 
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
