@@ -19,6 +19,13 @@
 
   ([#125](https://github.com/lawliet89/biscuit/pull/125))
 
+- `jws::Compact::decode_with_jwks` now supports JWK without an `alg` specified. However, a new
+  parameter to specify an expected parameter had to be added to support this use case. This is to
+  mitigate against issues like
+  [this](https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/).
+  Existing usage of JWK with the `alg` specified can simply add a `None` as the second parameter.
+  ([#130](https://github.com/lawliet89/biscuit/pull/130))
+
 ### Enhancements
 
 - Add new `jwk::AlgorithmParameters::OctetKeyPair` variant to support (de)serializing `OKP`
