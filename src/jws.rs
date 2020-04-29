@@ -161,13 +161,17 @@ where
                     .ok_or(ValidationError::KidMissing)?;
                 let jwk = jwks.find(key_id).ok_or(ValidationError::KeyNotFound)?;
 
-                let algorithm = match jwk.common.algorithm {
-                    Some(Algorithm::Signature(algorithm)) => algorithm,
-                    _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
-                };
+                if let Some(jwk_alg) = jwk.common.algorithm {
+                    let algorithm = match jwk_alg {
+                        Algorithm::Signature(algorithm) => algorithm,
+                        _ => {
+                            Err(ValidationError::UnsupportedKeyAlgorithm)?
+                        },
+                    };
 
-                if header.registered.algorithm != algorithm {
-                    Err(ValidationError::WrongAlgorithmHeader)?;
+                    if header.registered.algorithm != algorithm {
+                        Err(ValidationError::WrongAlgorithmHeader)?;
+                    }
                 }
 
                 let secret = match &jwk.algorithm {
@@ -176,7 +180,7 @@ where
                     _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                 };
 
-                algorithm
+                header.registered.algorithm
                     .verify(signature.as_ref(), payload.as_ref(), &secret)
                     .map_err(|_| ValidationError::InvalidSignature)?;
 
