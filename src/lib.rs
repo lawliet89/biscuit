@@ -159,19 +159,16 @@ use crate::errors::{Error, ValidationError};
 /// let signing_secret = Secret::Bytes("secret".to_string().into_bytes());
 ///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
-///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
-///                         mh0dHM6Ly9hY21lLWN1c3RvbWVyLmNvbS8iLC\
-///                         JuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwi\
-///                         ZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-///                         VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
+///        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHBzOi8vYWNtZ\
+///        S1jdXN0b21lci5jb20vIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2\
+///        xlYW5pbmcifQ.VFCl2un1Kc17odzOe2Ehf4DVrWddu3U4Ux3GFpOZHtc";
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
 ///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
 ///         subject: Some(FromStr::from_str("John Doe").unwrap()),
 ///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///             Some(SingleOrMultiple::Single(FromStr::from_str("https://acme-customer.com").unwrap())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },

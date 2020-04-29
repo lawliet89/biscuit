@@ -31,7 +31,7 @@ num = "0.2"
 ring = "~0.16.5"
 serde = { version = "1.0.92", features=["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-url = "2.0, <=2.1.0"
+url = "~2.1.1"
 
 [dev-dependencies]
 serde_test = "1.0"
