@@ -56,10 +56,10 @@
 )]
 #![allow(clippy::try_err, clippy::needless_doctest_main)]
 #![deny(
+    arithmetic_overflow,
+    bad_style,
     const_err,
     dead_code,
-    deprecated,
-    exceeding_bitshifts,
     improper_ctypes,
     missing_docs,
     mutable_transmutes,
@@ -69,6 +69,8 @@
     non_upper_case_globals,
     overflowing_literals,
     path_statements,
+    patterns_in_fns_without_body,
+    private_in_public,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
@@ -81,30 +83,22 @@
     unused_comparisons,
     unused_extern_crates,
     unused_features,
-    unused_imports,
     unused_import_braces,
-    unused_qualifications,
+    unused_imports,
     unused_must_use,
     unused_mut,
     unused_parens,
+    unused_qualifications,
     unused_results,
     unused_unsafe,
     unused_variables,
     variant_size_differences,
-    warnings,
     while_true
 )]
 #![doc(test(attr(allow(unused_variables), deny(warnings))))]
-
-use data_encoding;
-
-use serde;
-#[macro_use]
-extern crate serde_derive;
-use serde_json;
-
-#[cfg(test)]
-extern crate serde_test;
+#![cfg_attr(feature = "strict", deny(warnings))]
+// See regression in nightly: https://github.com/rust-lang/rust/issues/70814
+#![cfg_attr(feature = "strict", allow(unused_braces))]
 
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
@@ -147,14 +141,11 @@ use crate::errors::{Error, ValidationError};
 /// ## Encoding and decoding with HS256
 ///
 /// ```
-/// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
-///
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
 /// use biscuit::jwa::*;
+/// use serde::{Serialize, Deserialize};
 ///
 /// # fn main() {
 ///
@@ -168,19 +159,16 @@ use crate::errors::{Error, ValidationError};
 /// let signing_secret = Secret::Bytes("secret".to_string().into_bytes());
 ///
 /// let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-///                         eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNv\
-///                         bS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6I\
-///                         mh0dHM6Ly9hY21lLWN1c3RvbWVyLmNvbS8iLC\
-///                         JuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwi\
-///                         ZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-///                         VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
+///        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHBzOi8vYWNtZ\
+///        S1jdXN0b21lci5jb20vIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2\
+///        xlYW5pbmcifQ.VFCl2un1Kc17odzOe2Ehf4DVrWddu3U4Ux3GFpOZHtc";
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
 ///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
 ///         subject: Some(FromStr::from_str("John Doe").unwrap()),
 ///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///             Some(SingleOrMultiple::Single(FromStr::from_str("https://acme-customer.com").unwrap())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -227,11 +215,6 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// ## Sign with HS256, then encrypt with A256GCMKW and A256GCM
 ///
 /// ```rust
-/// extern crate biscuit;
-/// extern crate num;
-/// #[macro_use]
-/// extern crate serde_derive;
-///
 /// use std::str::FromStr;
 /// use biscuit::{ClaimsSet, RegisteredClaims, Empty, SingleOrMultiple, JWT, JWE};
 /// use biscuit::jwk::JWK;
@@ -239,6 +222,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// use biscuit::jwe;
 /// use biscuit::jwa::{EncryptionOptions, SignatureAlgorithm, KeyManagementAlgorithm,
 ///                    ContentEncryptionAlgorithm};
+/// use serde::{Serialize, Deserialize};
 ///
 /// // Define our own private claims
 /// #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -339,8 +323,6 @@ pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-///
 /// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
@@ -616,12 +598,8 @@ impl<'de> Deserialize<'de> for Compact {
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate serde_json;
-///
 /// use biscuit::SingleOrMultiple;
+/// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// struct SingleOrMultipleStrings {
@@ -699,13 +677,9 @@ where
 ///
 /// # Examples
 /// ```
-/// extern crate biscuit;
-/// #[macro_use]
-/// extern crate serde_derive;
-/// extern crate serde_json;
-///
 /// use std::str::FromStr;
 /// use biscuit::{SingleOrMultiple, StringOrUri};
+/// use serde::{Serialize, Deserialize};
 ///
 /// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// struct SingleOrMultipleStringOrUris {
@@ -1164,7 +1138,7 @@ mod tests {
     use std::str::{self, FromStr};
 
     use chrono::{Duration, TimeZone, Utc};
-    use serde_json;
+
     use serde_test::{assert_tokens, Token};
 
     use super::*;

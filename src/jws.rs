@@ -8,7 +8,7 @@ use std::sync::Arc;
 use num::BigUint;
 use ring::signature;
 use serde::de::DeserializeOwned;
-use serde::{self, Serialize};
+use serde::{self, Deserialize, Serialize};
 
 use crate::errors::{DecodeError, Error, ValidationError};
 use crate::jwa::{Algorithm, SignatureAlgorithm};
@@ -604,7 +604,7 @@ impl Default for RegisteredHeader {
 mod tests {
     use std::str::{self, FromStr};
 
-    use serde_json;
+    use serde::{Deserialize, Serialize};
 
     use super::{Compact, Header, RegisteredHeader, Secret, SignatureAlgorithm};
     use crate::jwk::JWKSet;
@@ -618,6 +618,12 @@ mod tests {
 
     impl CompactJson for PrivateClaims {}
 
+    // HS256 key - "secret"
+    static HS256_PAYLOAD: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
+        eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHBzOi8vYWNtZ\
+        S1jdXN0b21lci5jb20vIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2x\
+        lYW5pbmcifQ.VFCl2un1Kc17odzOe2Ehf4DVrWddu3U4Ux3GFpOZHtc";
+
     #[test]
     #[should_panic(expected = "the enum variant Compact::Decoded cannot be serialized")]
     fn decoded_compact_jws_cannot_be_serialized() {
@@ -626,7 +632,7 @@ mod tests {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com/"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -652,25 +658,24 @@ mod tests {
     fn decoded_compact_jws_cannot_be_deserialized() {
         let json = r#"{"header":{"alg":"none","typ":"JWT"},
                        "payload":{"iss":"https://www.acme.com/","sub":"John Doe",
-                                     "aud":"htts://acme-customer.com","nbf":1234,
+                                     "aud":"https://acme-customer.com","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
         let _ = serde_json::from_str::<Compact<PrivateClaims, Empty>>(json).unwrap();
     }
 
     #[test]
     fn compact_jws_round_trip_none() {
-        let expected_token =
-            "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
-             eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9\
-             hY21lLWN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6Il\
-             RvaWxldCBDbGVhbmluZyJ9.";
+        let expected_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
+            eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHBzOi8vY\
+            WNtZS1jdXN0b21lci5jb20vIiwibmJmIjoxMjM0LCJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2l\
+            sZXQgQ2xlYW5pbmcifQ.";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
+                    "https://acme-customer.com"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -698,17 +703,12 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_hs256() {
-        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
-                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-                              VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
-
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
+                    "https://acme-customer.com"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -728,7 +728,7 @@ mod tests {
         );
         let token =
             not_err!(expected_jwt.into_encoded(&Secret::Bytes("secret".to_string().into_bytes())));
-        assert_eq!(expected_token, not_err!(token.encoded()).to_string());
+        assert_eq!(HS256_PAYLOAD, not_err!(token.encoded()).to_string());
 
         let biscuit = not_err!(token.into_decoded(
             &Secret::Bytes("secret".to_string().into_bytes()),
@@ -740,19 +740,20 @@ mod tests {
     #[test]
     fn compact_jws_round_trip_rs256() {
         let expected_token = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.\
-                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
-                              WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-                              VhbmluZyJ9.THHNGg4AIq2RT30zecAD41is6j1ffGRn6GdK6cpl08esHufG5neJOMTO1fONVykOFgCaJw9jLP7GCd\
-                              YumsMKU3434QAQyvLCPklHQWE7VcSFSdsf7skcvuvwPtkMWCGrzFK7seVv9OiJzjNzoeyS2d8io7wviFqkpcXwOVZ\
-                              W4ArP5katX4nIoXlwWfcK82E6MacSIL2uq_ha6yL2z7trq3dSszSnUevlWKq-9FIFk11XwToMTmGubkWyGk-k-dfH\
-                              AXwnS1hADXkwSAemWoCG98v6zFtTZHOOAPnB09acEKVtVRFKZQa3V2IpdsHtRoPJU5pFgCXi8VRebHJm99yTXw";
+                              eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1Z\
+                              CI6Imh0dHBzOi8vYWNtZS1jdXN0b21lci5jb20vIiwibmJmIjoxMjM0LCJjb21wYW55Ij\
+                              oiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+                              Gat3NBUTaCyvroil66U0nId4-l6VqbtJYIsM9wRbWo45oYoN-NxYIyl8M-9AlEPseg-4SIuo-A-jccJOWGeWWwy-E\
+                              en_92wg18II58luHz7vAyclw1maJBKHmuj8f2wE_Ky8ir3iTpTGkJQ3IUU9SuU9Fkvajm4jgWUtRPpjHm_IqyxV8N\
+                              kHNyN0p5CqeuRC8sZkOSFkm9b0WnWYRVls1QOjBnN9w9zW9wg9DGwj10pqg8hQ5sy-C3J-9q1zJgGDXInkhPLjitO\
+                              9wzWg4yfVt-CJNiHsJT7RY_EN2VmbG8UOjHp8xUPpfqUKyoQttKaQkJHdjP_b47LO4ZKI4UivlA";
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
+                    "https://acme-customer.com"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -813,7 +814,7 @@ mod tests {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
+                    "https://acme-customer.com"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -898,8 +899,7 @@ mod tests {
 
     #[test]
     fn compact_jws_round_trip_hs256_for_bytes_payload() {
-        let expected_token =
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
+        let expected_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6IlJhbmRvbSBieXRlcyJ9.\
              eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcG\
              xlLmNvbS9pc19yb290Ijp0cnVlfQ.E5ahoj_gMO8WZzSUhquWuBkPLGZm18zaLbyHUQA7TIs";
         let payload: Vec<u8> = vec![
@@ -1185,12 +1185,8 @@ mod tests {
 
     #[test]
     fn unverified_header_is_returned_correctly() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
-                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
-
-        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> =
+            Compact::new_encoded(HS256_PAYLOAD);
         let expected_header = From::from(RegisteredHeader {
             algorithm: SignatureAlgorithm::HS256,
             ..Default::default()
@@ -1202,18 +1198,14 @@ mod tests {
 
     #[test]
     fn unverified_payload_is_returned_correctly() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
-                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
-
-        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> =
+            Compact::new_encoded(HS256_PAYLOAD);
         let expected_payload = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
                 issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
+                    "https://acme-customer.com"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -1230,16 +1222,11 @@ mod tests {
 
     #[test]
     fn signature_is_returned_correctly() {
-        let token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.\
-                     eyJpc3MiOiJodHRwczovL3d3dy5hY21lLmNvbS8iLCJzdWIiOiJKb2huIERvZSIsImF1ZCI6Imh0dHM6Ly9hY21lL\
-                     WN1c3RvbWVyLmNvbS8iLCJuYmYiOjEyMzQsImNvbXBhbnkiOiJBQ01FIiwiZGVwYXJ0bWVudCI6IlRvaWxldCBDbG\
-                     VhbmluZyJ9.dnx1OmRZSFxjCD1ivy4lveTT-sxay5Fq6vY6jnJvqeI";
-
-        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> = Compact::new_encoded(&token);
-        let expected_signature: Vec<u8> = vec![
-            118, 124, 117, 58, 100, 89, 72, 92, 99, 8, 61, 98, 191, 46, 37, 189, 228, 211, 250,
-            204, 90, 203, 145, 106, 234, 246, 58, 142, 114, 111, 169, 226,
-        ];
+        let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> =
+            Compact::new_encoded(&HS256_PAYLOAD);
+        let expected_signature = data_encoding::BASE64URL_NOPAD
+            .decode(b"VFCl2un1Kc17odzOe2Ehf4DVrWddu3U4Ux3GFpOZHtc")
+            .expect("to not error");
 
         let signature = not_err!(encoded_token.signature());
         assert_eq!(signature, expected_signature);

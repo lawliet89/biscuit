@@ -2,9 +2,6 @@
 use crate::SingleOrMultiple;
 use crate::StringOrUri;
 use chrono::Duration;
-use data_encoding;
-use ring;
-use serde_json;
 use std::{error, fmt, io, str, string};
 use url::ParseError;
 
