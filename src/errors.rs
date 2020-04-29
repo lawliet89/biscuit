@@ -97,6 +97,8 @@ pub enum ValidationError {
     KeyNotFound,
     /// The algorithm of the JWK is not supported for validating JWTs
     UnsupportedKeyAlgorithm,
+    /// An algorithm is needed for verification but was not provided
+    MissingAlgorithm,
 }
 
 macro_rules! impl_from_error {
@@ -236,6 +238,10 @@ impl fmt::Display for ValidationError {
             KidMissing => write!(f, "Header is missing kid"),
             KeyNotFound => write!(f, "Key not found in JWKS"),
             UnsupportedKeyAlgorithm => write!(f, "Algorithm of JWK not supported"),
+            MissingAlgorithm => write!(
+                f,
+                "An algorithm is needed for verification but was not provided"
+            ),
         }
     }
 }
