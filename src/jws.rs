@@ -164,9 +164,7 @@ where
                 if let Some(jwk_alg) = jwk.common.algorithm {
                     let algorithm = match jwk_alg {
                         Algorithm::Signature(algorithm) => algorithm,
-                        _ => {
-                            Err(ValidationError::UnsupportedKeyAlgorithm)?
-                        },
+                        _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                     };
 
                     if header.registered.algorithm != algorithm {
@@ -180,7 +178,9 @@ where
                     _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                 };
 
-                header.registered.algorithm
+                header
+                    .registered
+                    .algorithm
                     .verify(signature.as_ref(), payload.as_ref(), &secret)
                     .map_err(|_| ValidationError::InvalidSignature)?;
 
