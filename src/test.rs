@@ -12,23 +12,6 @@ macro_rules! not_err {
     };
 }
 
-macro_rules! assert_matches {
-    ($e:expr, $p:pat) => {
-        assert_matches!($e, $p, ())
-    };
-    ($e:expr, $p:pat, $f:expr) => {
-        match $e {
-            $p => $f,
-            e => panic!(
-                "{}: Expected pattern {} \ndoes not match {:?}",
-                stringify!($e),
-                stringify!($p),
-                e
-            ),
-        }
-    };
-}
-
 /// Tests that `value` can be serialized to JSON, and then back to type `T` and that the deserialized type `T`
 /// is equal to the provided `value`.
 /// If `expected_json` is provided, it will be deserialized to `T` and checked for equality with `value`.

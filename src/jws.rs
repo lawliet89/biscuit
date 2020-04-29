@@ -661,10 +661,10 @@ mod tests {
     fn decoded_compact_jws_cannot_be_serialized() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com//"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com/"
+                    "https://acme-customer.com//"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -689,8 +689,8 @@ mod tests {
     #[should_panic(expected = "data did not match any variant of untagged enum Compact")]
     fn decoded_compact_jws_cannot_be_deserialized() {
         let json = r#"{"header":{"alg":"none","typ":"JWT"},
-                       "payload":{"iss":"https://www.acme.com/","sub":"John Doe",
-                                     "aud":"https://acme-customer.com","nbf":1234,
+                       "payload":{"iss":"https://www.acme.com//","sub":"John Doe",
+                                     "aud":"https://acme-customer.com/","nbf":1234,
                                      "company":"ACME","department":"Toilet Cleaning"}}"#;
         let _ = serde_json::from_str::<Compact<PrivateClaims, Empty>>(json).unwrap();
     }
@@ -704,10 +704,10 @@ mod tests {
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -737,10 +737,10 @@ mod tests {
     fn compact_jws_round_trip_hs256() {
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -782,10 +782,10 @@ mod tests {
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -843,10 +843,10 @@ mod tests {
 
         let expected_claims = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -1369,10 +1369,10 @@ mod tests {
             Compact::new_encoded(HS256_PAYLOAD);
         let expected_payload = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
+                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
                 subject: Some(not_err!(FromStr::from_str("John Doe"))),
                 audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "https://acme-customer.com"
+                    "https://acme-customer.com/"
                 )))),
                 not_before: Some(1234.into()),
                 ..Default::default()

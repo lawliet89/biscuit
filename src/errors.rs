@@ -1,9 +1,7 @@
 //! Errors returned will be converted to one of the structs in this module.
 use crate::SingleOrMultiple;
-use crate::StringOrUri;
 use chrono::Duration;
 use std::{error, fmt, io, str, string};
-use url::ParseError;
 
 #[derive(Debug)]
 /// All the errors we can encounter while signing/verifying tokens
@@ -24,8 +22,6 @@ pub enum Error {
     Utf8(str::Utf8Error),
     /// Errors related to IO
     IOError(io::Error),
-    /// Errors related to URI parsing
-    UriParseError(ParseError),
     /// Key was rejected by Ring
     KeyRejected(ring::error::KeyRejected),
 
@@ -88,9 +84,9 @@ pub enum ValidationError {
     /// The parameter show how much older the token is than required
     TooOld(Duration),
     /// The token does not have or has the wrong issuer (iss check failed, RFC7523 3.1)
-    InvalidIssuer(StringOrUri),
+    InvalidIssuer(String),
     /// The token does not have or has the wrong audience (aud check failed, RFC7523 3.3
-    InvalidAudience(SingleOrMultiple<StringOrUri>),
+    InvalidAudience(SingleOrMultiple<String>),
     /// The token doesn't contains the Kid claim in the header
     KidMissing,
     /// The by the Kid specified key, wasn't found in the KeySet
@@ -118,7 +114,6 @@ impl_from_error!(str::Utf8Error, Error::Utf8);
 impl_from_error!(ValidationError, Error::ValidationError);
 impl_from_error!(DecodeError, Error::DecodeError);
 impl_from_error!(io::Error, Error::IOError);
-impl_from_error!(ParseError, Error::UriParseError);
 impl_from_error!(ring::error::KeyRejected, Error::KeyRejected);
 
 impl From<ring::error::Unspecified> for Error {
@@ -145,7 +140,6 @@ impl fmt::Display for Error {
             DecodeError(ref err) => fmt::Display::fmt(err, f),
             ValidationError(ref err) => fmt::Display::fmt(err, f),
             IOError(ref err) => fmt::Display::fmt(err, f),
-            UriParseError(ref err) => fmt::Display::fmt(err, f),
             KeyRejected(ref err) => fmt::Display::fmt(err, f),
             WrongKeyType {
                 ref actual,
@@ -180,7 +174,6 @@ impl error::Error for Error {
             DecodeError(ref err) => Some(err),
             ValidationError(ref err) => Some(err),
             IOError(ref err) => Some(err),
-            UriParseError(ref err) => Some(err),
             _ => None,
         }
     }
