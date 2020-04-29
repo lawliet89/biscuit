@@ -138,8 +138,19 @@ where
     }
 
     /// Decode a token into the JWT struct and verify its signature using a JWKS
+    ///
+    /// If the JWK does not contain an optional algorithm parameter, you will have to specify
+    /// the expected algorithm or an error will be returned.
+    ///
+    /// If the JWK specifies an algorithm and you provide an expected algorithm,
+    /// both will be checked for equality. If they do not match, an error will be returned.
+    ///
     /// If the token or its signature is invalid, it will return an error
-    pub fn decode_with_jwks<J>(&self, jwks: &JWKSet<J>) -> Result<Self, Error> {
+    pub fn decode_with_jwks<J>(
+        &self,
+        jwks: &JWKSet<J>,
+        expected_algorithm: Option<SignatureAlgorithm>,
+    ) -> Result<Self, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref encoded) => {
@@ -161,16 +172,35 @@ where
                     .ok_or(ValidationError::KidMissing)?;
                 let jwk = jwks.find(key_id).ok_or(ValidationError::KeyNotFound)?;
 
-                if let Some(jwk_alg) = jwk.common.algorithm {
-                    let algorithm = match jwk_alg {
-                        Algorithm::Signature(algorithm) => algorithm,
-                        _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
-                    };
+                let algorithm = match jwk.common.algorithm {
+                    Some(jwk_alg) => {
+                        let algorithm = match jwk_alg {
+                            Algorithm::Signature(algorithm) => algorithm,
+                            _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
+                        };
 
-                    if header.registered.algorithm != algorithm {
-                        Err(ValidationError::WrongAlgorithmHeader)?;
+                        if header.registered.algorithm != algorithm {
+                            Err(ValidationError::WrongAlgorithmHeader)?;
+                        }
+
+                        if let Some(expected_algorithm) = expected_algorithm {
+                            if expected_algorithm != algorithm {
+                                Err(ValidationError::WrongAlgorithmHeader)?;
+                            }
+                        }
+
+                        algorithm
                     }
-                }
+                    None => match expected_algorithm {
+                        Some(expected_algorithm) => {
+                            if expected_algorithm != header.registered.algorithm {
+                                Err(ValidationError::WrongAlgorithmHeader)?;
+                            }
+                            expected_algorithm
+                        }
+                        None => Err(ValidationError::MissingAlgorithm)?,
+                    },
+                };
 
                 let secret = match &jwk.algorithm {
                     AlgorithmParameters::RSA(rsa) => rsa.jws_public_key_secret(),
@@ -178,9 +208,7 @@ where
                     _ => Err(ValidationError::UnsupportedKeyAlgorithm)?,
                 };
 
-                header
-                    .registered
-                    .algorithm
+                algorithm
                     .verify(signature.as_ref(), payload.as_ref(), &secret)
                     .map_err(|_| ValidationError::InvalidSignature)?;
 
@@ -955,8 +983,150 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).expect("to succeed");
+    }
+
+    /// JWK has algorithm and user provided a matching expected algorithm
+    #[test]
+    fn compact_jws_decode_with_jwks_shared_secret_matching_alg() {
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTAifQ.\
+             eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+             nz0a8aSweo6W0K2P7keByUPWl0HLVG45pTDznij5uKw",
+        );
+
+        let jwks: JWKSet<Empty> = serde_json::from_str(
+            &r#"{
+            "keys": [
+                        {
+                            "kty": "oct",
+                            "use": "sig",
+                            "kid": "key0",
+                            "k": "-clnNQnBupZt23N8McUcZytLhan9OmjlJXmqS7daoeY",
+                            "alg": "HS256"
+                        }
+            ]
+        }"#,
+        )
+        .unwrap();
+
+        let _ = token
+            .decode_with_jwks(&jwks, Some(SignatureAlgorithm::HS256))
+            .expect("to succeed");
+    }
+
+    /// JWK has algorithm and user provided a non-matching expected algorithm
+    #[test]
+    #[should_panic(expected = "WrongAlgorithmHeader")]
+    fn compact_jws_decode_with_jwks_shared_secret_mismatched_alg() {
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTAifQ.\
+             eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+             nz0a8aSweo6W0K2P7keByUPWl0HLVG45pTDznij5uKw",
+        );
+
+        let jwks: JWKSet<Empty> = serde_json::from_str(
+            &r#"{
+            "keys": [
+                        {
+                            "kty": "oct",
+                            "use": "sig",
+                            "kid": "key0",
+                            "k": "-clnNQnBupZt23N8McUcZytLhan9OmjlJXmqS7daoeY",
+                            "alg": "HS256"
+                        }
+            ]
+        }"#,
+        )
+        .unwrap();
+
+        let _ = token
+            .decode_with_jwks(&jwks, Some(SignatureAlgorithm::RS256))
+            .unwrap();
+    }
+
+    /// JWK has no algorithm and user provided a header matching expected algorithm
+    #[test]
+    fn compact_jws_decode_with_jwks_without_alg() {
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTAifQ.\
+             eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+             nz0a8aSweo6W0K2P7keByUPWl0HLVG45pTDznij5uKw",
+        );
+
+        let jwks: JWKSet<Empty> = serde_json::from_str(
+            &r#"{
+            "keys": [
+                        {
+                            "kty": "oct",
+                            "use": "sig",
+                            "kid": "key0",
+                            "k": "-clnNQnBupZt23N8McUcZytLhan9OmjlJXmqS7daoeY"
+                        }
+            ]
+        }"#,
+        )
+        .unwrap();
+
+        let _ = token
+            .decode_with_jwks(&jwks, Some(SignatureAlgorithm::HS256))
+            .expect("to succeed");
+    }
+
+    /// JWK has no algorithm and user provided a header not-matching expected algorithm
+    #[test]
+    #[should_panic(expected = "WrongAlgorithmHeader")]
+    fn compact_jws_decode_with_jwks_without_alg_non_matching() {
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTAifQ.\
+             eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+             nz0a8aSweo6W0K2P7keByUPWl0HLVG45pTDznij5uKw",
+        );
+
+        let jwks: JWKSet<Empty> = serde_json::from_str(
+            &r#"{
+            "keys": [
+                        {
+                            "kty": "oct",
+                            "use": "sig",
+                            "kid": "key0",
+                            "k": "-clnNQnBupZt23N8McUcZytLhan9OmjlJXmqS7daoeY"
+                        }
+            ]
+        }"#,
+        )
+        .unwrap();
+
+        let _ = token
+            .decode_with_jwks(&jwks, Some(SignatureAlgorithm::RS256))
+            .unwrap();
+    }
+
+    /// JWK has no algorithm and user did not provide any expected algorithm
+    #[test]
+    #[should_panic(expected = "MissingAlgorithm")]
+    fn compact_jws_decode_with_jwks_missing_alg() {
+        let token = Compact::<PrivateClaims, Empty>::new_encoded(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleTAifQ.\
+             eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
+             nz0a8aSweo6W0K2P7keByUPWl0HLVG45pTDznij5uKw",
+        );
+
+        let jwks: JWKSet<Empty> = serde_json::from_str(
+            &r#"{
+            "keys": [
+                        {
+                            "kty": "oct",
+                            "use": "sig",
+                            "kid": "key0",
+                            "k": "-clnNQnBupZt23N8McUcZytLhan9OmjlJXmqS7daoeY"
+                        }
+            ]
+        }"#,
+        )
+        .unwrap();
+
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -987,8 +1157,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).expect("to succeed");
     }
 
     #[test]
@@ -1014,8 +1183,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -1042,8 +1210,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -1070,8 +1237,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -1098,8 +1264,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -1126,8 +1291,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
@@ -1157,8 +1321,7 @@ mod tests {
         )
         .unwrap();
 
-        let claims = token.decode_with_jwks(&jwks);
-        let _ = claims.unwrap();
+        let _ = token.decode_with_jwks(&jwks, None).unwrap();
     }
 
     #[test]
