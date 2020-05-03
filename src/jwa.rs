@@ -9,6 +9,7 @@ use std::fmt;
 use once_cell::sync::Lazy;
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
+use ring::signature::KeyPair;
 use ring::{aead, hmac, rand, signature};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -409,6 +410,23 @@ impl SignatureAlgorithm {
                 public_key.verify(&data, &expected_signature)?;
                 Ok(())
             }
+            Secret::RsaKeyPair(ref keypair) => {
+                let verification_algorithm: &dyn signature::VerificationAlgorithm = match algorithm
+                {
+                    SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
+                    SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_2048_8192_SHA384,
+                    SignatureAlgorithm::RS512 => &signature::RSA_PKCS1_2048_8192_SHA512,
+                    SignatureAlgorithm::PS256 => &signature::RSA_PSS_2048_8192_SHA256,
+                    SignatureAlgorithm::PS384 => &signature::RSA_PSS_2048_8192_SHA384,
+                    SignatureAlgorithm::PS512 => &signature::RSA_PSS_2048_8192_SHA512,
+                    _ => unreachable!("Should not happen"),
+                };
+
+                let public_key =
+                    signature::UnparsedPublicKey::new(verification_algorithm, keypair.public_key());
+                public_key.verify(&data, &expected_signature)?;
+                Ok(())
+            }
             Secret::RSAModulusExponent { ref n, ref e } => {
                 let params = match algorithm {
                     SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_2048_8192_SHA256,
@@ -427,6 +445,20 @@ impl SignatureAlgorithm {
                     e: e_big_endian,
                 };
                 public_key.verify(params, &data, &expected_signature)?;
+                Ok(())
+            }
+            Secret::EcdsaKeyPair(ref keypair) => {
+                let verification_algorithm: &dyn signature::VerificationAlgorithm = match algorithm
+                {
+                    SignatureAlgorithm::ES256 => &signature::ECDSA_P256_SHA256_FIXED,
+                    SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED,
+                    SignatureAlgorithm::ES512 => Err(Error::UnsupportedOperation)?,
+                    _ => unreachable!("Should not happen"),
+                };
+
+                let public_key =
+                    signature::UnparsedPublicKey::new(verification_algorithm, keypair.public_key());
+                public_key.verify(&data, &expected_signature)?;
                 Ok(())
             }
             _ => unreachable!("This is a private method and should not be called erroneously."),
@@ -903,6 +935,22 @@ mod tests {
         ));
     }
 
+    /// This signature is non-deterministic.
+    #[test]
+    fn sign_and_verify_ps256_round_trip_with_keypair() {
+        let key = Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
+        let payload = "payload".to_string();
+        let payload_bytes = payload.as_bytes();
+
+        let actual_signature = not_err!(SignatureAlgorithm::PS256.sign(payload_bytes, &key));
+
+        not_err!(SignatureAlgorithm::PS256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &key,
+        ));
+    }
+
     /// To generate a (non-deterministic) signature:
     ///
     /// ```sh
@@ -952,6 +1000,26 @@ mod tests {
             actual_signature.as_slice(),
             payload_bytes,
             &public_key,
+        ));
+    }
+
+    /// This signature is non-deterministic.
+    #[test]
+    fn sign_and_verify_es256_round_trip_with_keypair() {
+        let key = Secret::ecdsa_keypair_from_file(
+            SignatureAlgorithm::ES256,
+            "test/fixtures/ecdsa_private_key.p8",
+        )
+        .unwrap();
+        let payload = "payload".to_string();
+        let payload_bytes = payload.as_bytes();
+
+        let actual_signature = not_err!(SignatureAlgorithm::ES256.sign(payload_bytes, &key));
+
+        not_err!(SignatureAlgorithm::ES256.verify(
+            actual_signature.as_slice(),
+            payload_bytes,
+            &key,
         ));
     }
 
