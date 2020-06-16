@@ -706,7 +706,7 @@ mod tests {
     }
 
     #[test]
-    fn jwe_interoperability_check{
+    fn jwe_interoperability_check() {
         // This test vector is created by using python-jwcrypto (https://jwcrypto.readthedocs.io/en/latest/)
         /*
           from jwcrypto import jwk, jwe
