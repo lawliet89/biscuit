@@ -46,6 +46,21 @@ where
     deserializer.deserialize_str(BigUintVisitor)
 }
 
+pub struct Wrapper<'a>(&'a BigUint);
+
+pub fn wrap(data: &BigUint) -> Wrapper {
+    Wrapper(data)
+}
+
+impl<'a> serde::Serialize for Wrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serialize(self.0, serializer)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use num::cast::FromPrimitive;

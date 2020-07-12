@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use data_encoding::BASE64URL_NOPAD;
 use num::BigUint;
 use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
@@ -270,6 +271,46 @@ impl AlgorithmParameters {
             AlgorithmParameters::OctetKey(ref oct) => Ok(oct.value.as_slice()),
             _ => Err(unexpected_key_type_error!(KeyType::Octet, self.key_type())),
         }
+    }
+
+    /// RFC 7638
+    pub fn thumbprint(
+        &self,
+        algo: &'static ring::digest::Algorithm,
+    ) -> Result<String, serde_json::error::Error> {
+        use serde::ser::SerializeMap;
+
+        use crate::serde_custom::{base64_url_uint, byte_sequence};
+
+        let mut serializer = serde_json::Serializer::new(Vec::new());
+        let mut map = serializer.serialize_map(None)?;
+        // https://tools.ietf.org/html/rfc7638#section-3.2
+        // Write required public key parameters in lexicographic order
+        match self {
+            AlgorithmParameters::EllipticCurve(params) => {
+                map.serialize_entry("crv", &params.curve)?;
+                map.serialize_entry("kty", &params.key_type)?;
+                map.serialize_entry("x", &byte_sequence::wrap(&params.x))?;
+                map.serialize_entry("y", &byte_sequence::wrap(&params.y))?;
+            }
+            AlgorithmParameters::RSA(params) => {
+                map.serialize_entry("e", &base64_url_uint::wrap(&params.e))?;
+                map.serialize_entry("kty", &params.key_type)?;
+                map.serialize_entry("n", &base64_url_uint::wrap(&params.n))?;
+            }
+            AlgorithmParameters::OctetKey(params) => {
+                map.serialize_entry("k", &byte_sequence::wrap(&params.value))?;
+                map.serialize_entry("kty", &params.key_type)?;
+            }
+            AlgorithmParameters::OctetKeyPair(params) => {
+                map.serialize_entry("crv", &params.curve)?;
+                map.serialize_entry("kty", &params.key_type)?;
+                map.serialize_entry("x", &byte_sequence::wrap(&params.x))?;
+            }
+        }
+        map.end()?;
+        let json_u8 = serializer.into_inner();
+        Ok(BASE64URL_NOPAD.encode(ring::digest::digest(algo, &json_u8).as_ref()))
     }
 }
 
@@ -1322,4 +1363,32 @@ mod tests {
         let keys = find_key_set();
         assert_eq!(keys.find("third"), None);
     }
+
+    #[test]
+    fn jwk_ec_thumbprint() {}
+
+    #[test]
+    fn jwk_rsa_thumbprint() {
+        // Example from https://tools.ietf.org/html/rfc7638#section-3.1
+        let rsa: JWK<Empty> = serde_json::from_str(
+            r#"{
+            "kty": "RSA",
+            "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+            "e": "AQAB",
+            "alg": "RS256",
+            "kid": "2011-04-29"
+           }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            rsa.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+        );
+    }
+
+    #[test]
+    fn jwk_oct_thumbprint() {}
+
+    #[test]
+    fn jwk_okp_thumbprint() {}
 }
