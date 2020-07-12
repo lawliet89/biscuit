@@ -1365,12 +1365,28 @@ mod tests {
     }
 
     #[test]
-    fn jwk_ec_thumbprint() {}
+    fn jwk_ec_thumbprint() {
+        let jwk: JWK<Empty> = serde_json::from_str(
+            r#"{
+                "alg":"ES256",
+                "crv":"P-256",
+                "key_ops":["sign","verify"],
+                "kty":"EC",
+                "x":"XAyWu1zgShU0q_C5EtiM4QuFfVqRo51J-4FdeBQVTXE",
+                "y":"rvz9yHRaFcFn1vBIykwudyK85TEqR0OXOgBYnCeqN-M"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            "5RQpPyszBq9VihghaQY1Ptj4OdOpQH7AIOOnngMEKrA"
+        );
+    }
 
     #[test]
     fn jwk_rsa_thumbprint() {
         // Example from https://tools.ietf.org/html/rfc7638#section-3.1
-        let rsa: JWK<Empty> = serde_json::from_str(
+        let jwk: JWK<Empty> = serde_json::from_str(
             r#"{
             "kty": "RSA",
             "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
@@ -1381,14 +1397,42 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            rsa.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
             "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
         );
     }
 
     #[test]
-    fn jwk_oct_thumbprint() {}
+    fn jwk_oct_thumbprint() {
+        let jwk: JWK<Empty> = serde_json::from_str(
+            r#"{
+                "kty": "oct",
+                "kid": "77c7e2b8-6e13-45cf-8672-617b5b45243a",
+                "use": "enc",
+                "alg": "A128GCM",
+                "k": "XctOhJAkA-pD9Lh7ZgW_2A"
+              }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            "svOLuZiKpi3RFmSHAcCJqsQqjBmWR4egaIsgk-2uBak"
+        );
+    }
 
     #[test]
-    fn jwk_okp_thumbprint() {}
+    fn jwk_okp_thumbprint() {
+        let jwk: JWK<Empty> = serde_json::from_str(
+            r#"{
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
+          }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k"
+        );
+    }
 }
