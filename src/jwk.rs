@@ -273,10 +273,36 @@ impl AlgorithmParameters {
         }
     }
 
-    /// RFC 7638
+    /// JWK thumbprints are digests for identifying key material.
+    /// Their computation is specified in
+    /// [RFC 7638](https://tools.ietf.org/html/rfc7638).
+    ///
+    /// This can be used to identify a public key; when the underlying digest algorithm
+    /// is collision-resistant (currently, the SHA-2 family is provided), it is infeasible
+    /// to build two keys sharing a thumbprint.
+    ///
+    /// As mentioned in the RFC's security considerations, it remains possible to build
+    /// related keys with distinct parameters and thumbprints.
+    ///
+    /// ```
+    /// // Example from https://tools.ietf.org/html/rfc7638#section-3.1
+    /// let jwk: biscuit::jwk::JWK<biscuit::Empty> = serde_json::from_str(
+    /// r#"{
+    ///   "kty": "RSA",
+    ///   "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
+    ///   "e": "AQAB",
+    ///   "alg": "RS256",
+    ///   "kid": "2011-04-29"
+    ///   }"#,
+    /// ).unwrap();
+    /// assert_eq!(
+    ///   jwk.algorithm.thumbprint(&biscuit::digest::SHA256).unwrap(),
+    ///   "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
+    /// );
+    /// ```
     pub fn thumbprint(
         &self,
-        algo: &'static ring::digest::Algorithm,
+        algorithm: &'static crate::digest::Algorithm,
     ) -> Result<String, serde_json::error::Error> {
         use serde::ser::SerializeMap;
 
@@ -310,7 +336,7 @@ impl AlgorithmParameters {
         }
         map.end()?;
         let json_u8 = serializer.into_inner();
-        Ok(BASE64URL_NOPAD.encode(ring::digest::digest(algo, &json_u8).as_ref()))
+        Ok(BASE64URL_NOPAD.encode(ring::digest::digest(algorithm.0, &json_u8).as_ref()))
     }
 }
 
@@ -1378,7 +1404,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&crate::digest::SHA256).unwrap(),
             "5RQpPyszBq9VihghaQY1Ptj4OdOpQH7AIOOnngMEKrA"
         );
     }
@@ -1397,7 +1423,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&crate::digest::SHA256).unwrap(),
             "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
         );
     }
@@ -1417,7 +1443,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&crate::digest::SHA256).unwrap(),
             "NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs"
         );
     }
@@ -1435,7 +1461,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&crate::digest::SHA256).unwrap(),
             "svOLuZiKpi3RFmSHAcCJqsQqjBmWR4egaIsgk-2uBak"
         );
     }
@@ -1451,7 +1477,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            jwk.algorithm.thumbprint(&ring::digest::SHA256).unwrap(),
+            jwk.algorithm.thumbprint(&crate::digest::SHA256).unwrap(),
             "kPrK_qmxVWaYVA9wwBF6Iuo3vVzz7TxHCTwXBygrS4k"
         );
     }
