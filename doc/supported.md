@@ -38,7 +38,7 @@ JWK is defined in [RFC 7517](https://tools.ietf.org/html/rfc7517).
 
 Both `JWK` and `JWKSet`are supported (_as of v0.0.2_).
 
-[JWK Thumbprint](https://tools.ietf.org/html/rfc7638) is not supported.
+[JWK Thumbprint](https://tools.ietf.org/html/rfc7638) is supported (_as of v0.5.0_).
 
 JWK Common Parameters are defined in
 [RFC 7517 Section 4](https://tools.ietf.org/html/rfc7517#section-4).
