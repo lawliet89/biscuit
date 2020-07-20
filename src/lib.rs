@@ -111,8 +111,6 @@ use data_encoding::BASE64URL_NOPAD;
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub use url::{ParseError, Url};
-
 mod helpers;
 pub use crate::helpers::*;
 
@@ -143,7 +141,6 @@ use crate::errors::{Error, ValidationError};
 /// ## Encoding and decoding with HS256
 ///
 /// ```
-/// use std::str::FromStr;
 /// use biscuit::*;
 /// use biscuit::jws::*;
 /// use biscuit::jwa::*;
@@ -167,10 +164,10 @@ use crate::errors::{Error, ValidationError};
 ///
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
-///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
-///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         issuer: Some("https://www.acme.com/".to_string()),
+///         subject: Some("John Doe".to_string()),
 ///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("https://acme-customer.com").unwrap())),
+///             Some(SingleOrMultiple::Single("https://acme-customer.com/".to_string())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -670,117 +667,6 @@ where
         }
     }
 }
-/// Represents a choice between a URI or an arbitrary string. Both variants will serialize to a string.
-/// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
-/// will be deserialized as a URL. Any invalid URLs will be treated as a deserialization failure.
-/// The URL is parsed according to the [URL Standard](https://url.spec.whatwg.org/) which supersedes
-/// [RFC 3986](https://tools.ietf.org/html/rfc3986) as required in
-/// the [JWT RFC](https://tools.ietf.org/html/rfc7519).
-///
-/// # Examples
-/// ```
-/// use std::str::FromStr;
-/// use biscuit::{SingleOrMultiple, StringOrUri};
-/// use serde::{Serialize, Deserialize};
-///
-/// #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-/// struct SingleOrMultipleStringOrUris {
-///     values: SingleOrMultiple<StringOrUri>,
-/// }
-///
-/// # fn main() {
-/// let multiple = SingleOrMultipleStringOrUris {
-///     values: SingleOrMultiple::Multiple(vec![FromStr::from_str("foo").unwrap(),
-///                                             FromStr::from_str("https://www.bar.com/").unwrap(),
-///                                             FromStr::from_str("http://baz/").unwrap()]),
-/// };
-///
-/// let expected_json = r#"{"values":["foo","https://www.bar.com/","http://baz/"]}"#;
-///
-/// let serialized = serde_json::to_string(&multiple).unwrap();
-/// assert_eq!(expected_json, serialized);
-///
-/// let deserialized: SingleOrMultipleStringOrUris = serde_json::from_str(&serialized).unwrap();
-/// assert_eq!(deserialized, multiple);
-/// # }
-/// ```
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-#[allow(variant_size_differences)] // FIXME
-pub enum StringOrUri {
-    /// A generic string
-    String(String),
-    /// A parsed URI
-    Uri(Url),
-}
-
-impl AsRef<str> for StringOrUri {
-    fn as_ref(&self) -> &str {
-        match *self {
-            StringOrUri::String(ref string) => string.as_ref(),
-            StringOrUri::Uri(ref uri) => uri.as_ref(),
-        }
-    }
-}
-
-impl FromStr for StringOrUri {
-    type Err = Error;
-
-    /// Parses a `&str` into a `StringOrUri`.
-    /// According to [RFC 7519](https://tools.ietf.org/html/rfc7519), any string containing the ":" character
-    /// will be treated as a URL. Any invalid URLs will be treated as failure.
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        if input.contains(':') {
-            let uri = Url::from_str(input)?;
-            Ok(StringOrUri::Uri(uri))
-        } else {
-            Ok(StringOrUri::String(input.to_string()))
-        }
-    }
-}
-
-impl Serialize for StringOrUri {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.as_ref())
-    }
-}
-
-impl<'de> Deserialize<'de> for StringOrUri {
-    fn deserialize<D>(deserializer: D) -> Result<StringOrUri, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct StringOrUriVisitor {}
-
-        impl<'de> de::Visitor<'de> for StringOrUriVisitor {
-            type Value = StringOrUri;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("an arbitrary string or URI")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                StringOrUri::from_str(value).map_err(E::custom)
-            }
-        }
-
-        deserializer.deserialize_str(StringOrUriVisitor {})
-    }
-}
-
-impl Display for StringOrUri {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            StringOrUri::String(ref string) => write!(f, "{}", string),
-            StringOrUri::Uri(ref uri) => write!(f, "{}", uri),
-        }
-    }
-}
 
 /// Wrapper around `DateTime<Utc>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -838,15 +724,15 @@ impl<'de> Deserialize<'de> for Timestamp {
 pub struct RegisteredClaims {
     /// Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<StringOrUri>,
+    pub issuer: Option<String>,
 
     /// Subject where the JWT is referring to. Serialized to `sub`
     #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<StringOrUri>,
+    pub subject: Option<String>,
 
     /// Audience intended for the JWT. Serialized to `aud`
     #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
-    pub audience: Option<SingleOrMultiple<StringOrUri>>,
+    pub audience: Option<SingleOrMultiple<String>>,
 
     /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
     #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
@@ -935,11 +821,11 @@ pub struct ValidationOptions {
 
     /// Validation options for `iss` or `Issuer` claim if present
     /// Parameter must match the issuer in the token exactly.
-    pub issuer: Validation<StringOrUri>,
+    pub issuer: Validation<String>,
 
     /// Validation options for `aud` or `Audience` claim if present
     /// Token must include an audience with the value of the parameter
-    pub audience: Validation<StringOrUri>,
+    pub audience: Validation<String>,
 }
 
 impl Default for ValidationOptions {
@@ -1068,7 +954,7 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `aud` claim, it contains an entry which matches the expected audience
-    pub fn validate_aud(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
+    pub fn validate_aud(&self, validation: Validation<String>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(expected_aud) => match self.audience {
@@ -1088,7 +974,7 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `iss` claim, it matches the expected issuer
-    pub fn validate_iss(&self, validation: Validation<StringOrUri>) -> Result<(), ValidationError> {
+    pub fn validate_iss(&self, validation: Validation<String>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(expected_issuer) => match self.issuer {
@@ -1141,8 +1027,6 @@ mod tests {
 
     use chrono::{Duration, TimeZone, Utc};
 
-    use serde_test::{assert_tokens, Token};
-
     use super::*;
 
     #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -1160,82 +1044,8 @@ mod tests {
     }
 
     #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-    struct StringOrUriTest {
-        string: StringOrUri,
-    }
-
-    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
     struct SingleOrMultipleStrings {
         values: SingleOrMultiple<String>,
-    }
-
-    #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-    struct SingleOrMultipleStringOrUris {
-        values: SingleOrMultiple<StringOrUri>,
-    }
-
-    #[test]
-    fn string_or_uri_arbitrary_serialization_round_trip() {
-        let test = StringOrUriTest {
-            string: not_err!(FromStr::from_str("Random")),
-        };
-        assert_matches!(test, StringOrUriTest{ string: StringOrUri::String(_) });
-
-        let expected_json = r#"{"string":"Random"}"#;
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-
-        assert_tokens(
-            &test,
-            &[
-                Token::Struct {
-                    name: "StringOrUriTest",
-                    len: 1,
-                },
-                Token::Str("string"),
-                Token::Str("Random"),
-                Token::StructEnd,
-            ],
-        );
-    }
-
-    #[test]
-    fn string_or_uri_uri_serialization_round_trip() {
-        let test = StringOrUriTest {
-            string: not_err!(FromStr::from_str("https://www.example.com/")),
-        };
-        assert_matches!(test, StringOrUriTest{ string: StringOrUri::Uri(_) });
-
-        let expected_json = r#"{"string":"https://www.example.com/"}"#;
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: StringOrUriTest = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-
-        assert_tokens(
-            &test,
-            &[
-                Token::Struct {
-                    name: "StringOrUriTest",
-                    len: 1,
-                },
-                Token::Str("string"),
-                Token::Str("https://www.example.com/"),
-                Token::StructEnd,
-            ],
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "UriParseError")]
-    fn string_or_uri_will_fail_invalid_uris_containing_colons() {
-        let _ = StringOrUriTest {
-            string: FromStr::from_str("Invalid URI: yes!").unwrap(),
-        };
     }
 
     #[test]
@@ -1278,7 +1088,7 @@ mod tests {
 
     #[test]
     fn single_string_or_uri_string_serialization_round_trip() {
-        let test = SingleOrMultipleStringOrUris {
+        let test = SingleOrMultipleStrings {
             values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))),
         };
         let expected_json = r#"{"values":"foobar"}"#;
@@ -1286,20 +1096,15 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris =
-            not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("foobar").unwrap()));
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("does not exist").unwrap()));
+        assert!(deserialized.values.contains("foobar"));
+        assert!(!deserialized.values.contains("does not exist"));
     }
 
     #[test]
     fn single_string_or_uri_uri_serialization_round_trip() {
-        let test = SingleOrMultipleStringOrUris {
+        let test = SingleOrMultipleStrings {
             values: SingleOrMultiple::Single(not_err!(FromStr::from_str(
                 "https://www.examples.com/"
             ))),
@@ -1309,20 +1114,15 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris =
-            not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("https://www.examples.com").unwrap()));
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(deserialized.values.contains("https://www.examples.com/"));
+        assert!(!deserialized.values.contains("https://ecorp.com"));
     }
 
     #[test]
     fn multiple_string_or_uri_serialization_round_trip() {
-        let test = SingleOrMultipleStringOrUris {
+        let test = SingleOrMultipleStrings {
             values: SingleOrMultiple::Multiple(vec![
                 not_err!(FromStr::from_str("foo")),
                 not_err!(FromStr::from_str("https://www.example.com/")),
@@ -1336,28 +1136,15 @@ mod tests {
         let serialized = not_err!(serde_json::to_string(&test));
         assert_eq!(expected_json, serialized);
 
-        let deserialized: SingleOrMultipleStringOrUris =
-            not_err!(serde_json::from_str(&serialized));
+        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
         assert_eq!(deserialized, test);
 
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("foo").unwrap()));
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("https://www.example.com").unwrap()));
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("data:text/plain,Hello?World#").unwrap()));
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("http://[::1]").unwrap()));
-        assert!(deserialized
-            .values
-            .contains(&FromStr::from_str("baz").unwrap()));
-        assert!(!deserialized
-            .values
-            .contains(&FromStr::from_str("https://ecorp.com").unwrap()));
+        assert!(deserialized.values.contains("foo"));
+        assert!(deserialized.values.contains("https://www.example.com/"));
+        assert!(deserialized.values.contains("data:text/plain,Hello?World#"));
+        assert!(deserialized.values.contains("http://[::1]/"));
+        assert!(deserialized.values.contains("baz"));
+        assert!(!deserialized.values.contains("https://ecorp.com"));
     }
 
     #[test]
@@ -1645,23 +1432,19 @@ mod tests {
     #[test]
     fn validate_issuer_catch_mismatch() {
         let registered_claims = RegisteredClaims {
-            issuer: Some(StringOrUri::String("issuer".into())),
+            issuer: Some("issuer".to_string()),
             ..Default::default()
         };
 
         assert_eq!(
-            Err(ValidationError::InvalidIssuer(StringOrUri::String(
-                "issuer".into()
-            ))),
-            registered_claims.validate_iss(Validation::Validate(StringOrUri::Uri(
-                Url::parse("http://issuer").unwrap()
-            )))
+            Err(ValidationError::InvalidIssuer("issuer".to_string())),
+            registered_claims.validate_iss(Validation::Validate("http://issuer".to_string()))
         );
     }
 
     #[test]
     fn validate_audience_when_single() {
-        let aud = SingleOrMultiple::Single(StringOrUri::String("audience".into()));
+        let aud = SingleOrMultiple::Single("audience".to_string());
 
         let registered_claims = RegisteredClaims {
             audience: Some(aud.clone()),
@@ -1670,31 +1453,24 @@ mod tests {
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
-                Url::parse("http://audience").unwrap()
-            )))
+            registered_claims.validate_aud(Validation::Validate("http://audience".to_string()))
         );
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud)),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
-                "audience2".into()
-            )))
+            registered_claims.validate_aud(Validation::Validate("audience2".to_string()))
         );
 
         assert_eq!(
             Ok(()),
-            registered_claims
-                .validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+            registered_claims.validate_aud(Validation::Validate("audience".to_string()))
         );
     }
 
     #[test]
     fn validate_audience_when_multiple() {
-        let aud = SingleOrMultiple::Multiple(vec![
-            StringOrUri::String("audience".into()),
-            StringOrUri::Uri(Url::parse("http://audience").unwrap()),
-        ]);
+        let aud =
+            SingleOrMultiple::Multiple(vec!["audience".to_string(), "http://audience".to_string()]);
 
         let registered_claims = RegisteredClaims {
             audience: Some(aud.clone()),
@@ -1703,29 +1479,22 @@ mod tests {
 
         assert_eq!(
             Ok(()),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::Uri(
-                Url::parse("http://audience").unwrap()
-            )))
+            registered_claims.validate_aud(Validation::Validate("http://audience".to_string()))
         );
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
-                "audience2".into()
-            )))
+            registered_claims.validate_aud(Validation::Validate("audience2".to_string()))
         );
 
         assert_eq!(
             Err(ValidationError::InvalidAudience(aud)),
-            registered_claims.validate_aud(Validation::Validate(StringOrUri::String(
-                "https://audience".into()
-            )))
+            registered_claims.validate_aud(Validation::Validate("https://audience".to_string()))
         );
 
         assert_eq!(
             Ok(()),
-            registered_claims
-                .validate_aud(Validation::Validate(StringOrUri::String("audience".into())))
+            registered_claims.validate_aud(Validation::Validate("audience".to_string()))
         );
     }
 
@@ -1735,11 +1504,11 @@ mod tests {
             expiry: Some(999.into()),
             not_before: Some(1.into()),
             issued_at: Some(95.into()),
-            subject: Some(StringOrUri::String("subject".into())),
-            issuer: Some(StringOrUri::String("issuer".into())),
+            subject: Some("subject".to_string()),
+            issuer: Some("issuer".to_string()),
             audience: Some(SingleOrMultiple::Multiple(vec![
-                StringOrUri::Uri(Url::parse("http://audience").unwrap()),
-                StringOrUri::String("audience".into()),
+                "http://audience".to_string(),
+                "audience".to_string(),
             ])),
             id: Some("id".into()),
         };
@@ -1756,8 +1525,8 @@ mod tests {
             expiry: Validation::Validate(()),
             not_before: Validation::Validate(()),
             issued_at: Validation::Validate(Duration::max_value()),
-            audience: Validation::Validate(StringOrUri::String("audience".into())),
-            issuer: Validation::Validate(StringOrUri::String("issuer".into())),
+            audience: Validation::Validate("audience".to_string()),
+            issuer: Validation::Validate("issuer".to_string()),
         };
 
         not_err!(registered_claims.validate(validation_options));
