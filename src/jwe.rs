@@ -5,6 +5,8 @@
 //! you will want to look at the  [`Compact`](enum.Compact.html) enum.
 use std::fmt;
 
+use data_encoding::BASE64URL_NOPAD;
+
 use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -414,10 +416,11 @@ where
 
                 // Steps 12 to 14 involves the calculation of `Additional Authenticated Data` for encryption. In
                 // our compact example, our header is the AAD.
+                let encoded_protected_header = BASE64URL_NOPAD.encode(&header.to_bytes()?);
                 // Step 15 involves the actual encryption.
                 let encrypted_payload = header.registered.enc_algorithm.encrypt(
                     &payload,
-                    &header.to_bytes()?,
+                    encoded_protected_header.as_bytes(),
                     &cek,
                     &content_option,
                 )?;
@@ -493,11 +496,13 @@ where
                 )?;
 
                 // Build encryption result as per steps 14-15
+                let protected_header: Vec<u8> = encrypted.part(0)?;
+                let encoded_protected_header = BASE64URL_NOPAD.encode(protected_header.as_ref());
                 let encrypted_payload_result = EncryptionResult {
                     nonce,
                     tag,
                     encrypted: encrypted_payload,
-                    additional_data: encrypted.part(0)?,
+                    additional_data: encoded_protected_header.as_bytes().to_vec(),
                 };
 
                 let payload = header
@@ -698,6 +703,38 @@ mod tests {
             },
             Some(&test_json),
         );
+    }
+
+    #[test]
+    fn jwe_interoperability_check() {
+        // This test vector is created by using python-jwcrypto (https://jwcrypto.readthedocs.io/en/latest/)
+        /*
+          from jwcrypto import jwk, jwe
+          from jwcrypto.common import json_encode
+          key = jwk.JWK.generate(kty='oct', size=256)
+          payload = "Encrypted"
+          jwetoken = jwe.JWE(payload.encode('utf-8'),
+                             json_encode({"alg": "dir",
+                                          "enc": "A256GCM"}))
+          jwetoken.add_recipient(key)
+          jwetoken.serialize()
+          key.export()
+        */
+        let external_token = "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..7-eXscPDD5DI4kTT.SUQuqkzIrp6j.QaNRHGYXtKC2lj11rgKDpw";
+        let key_json = r#"{"k":"YKaiJrr6_-PY8DJelu3rWrxVQQ24tnE9XGIRdZTy9ys","kty":"oct"}"#;
+
+        let key: jwk::JWK<Empty> = not_err!(serde_json::from_str(key_json));
+        let token: Compact<Vec<u8>, Empty> = Compact::new_encrypted(external_token);
+
+        let decrypted_jwe = not_err!(token.decrypt(
+            &key,
+            jwa::KeyManagementAlgorithm::DirectSymmetricKey,
+            jwa::ContentEncryptionAlgorithm::A256GCM,
+        ));
+
+        let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
+        let decrypted_str = not_err!(std::str::from_utf8(&*decrypted_payload));
+        assert_eq!(decrypted_str, "Encrypted");
     }
 
     #[test]

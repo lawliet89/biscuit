@@ -42,6 +42,21 @@ where
     deserializer.deserialize_str(BytesVisitor)
 }
 
+pub struct Wrapper<'a>(&'a [u8]);
+
+pub fn wrap(data: &[u8]) -> Wrapper {
+    Wrapper(data)
+}
+
+impl<'a> serde::Serialize for Wrapper<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serialize(self.0, serializer)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde::{Deserialize, Serialize};

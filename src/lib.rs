@@ -130,6 +130,8 @@ pub mod jwe;
 pub mod jwk;
 pub mod jws;
 
+pub mod digest;
+
 use crate::errors::{Error, ValidationError};
 
 /// A convenience type alias of the common "JWT" which is a secured/unsecured compact JWS.
