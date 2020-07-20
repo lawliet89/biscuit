@@ -323,9 +323,9 @@ where
 }
 
 /// Convenience implementation for a Compact that contains a `ClaimsSet`
-impl<P, H> Compact<crate::ClaimsSet<P>, H>
+impl<'a, P, H> Compact<crate::ClaimsSet<'a, P>, H>
 where
-    crate::ClaimsSet<P>: CompactPart,
+    crate::ClaimsSet<'a, P>: CompactPart,
     H: Serialize + DeserializeOwned,
 {
     /// Validate the temporal claims in the decoded token

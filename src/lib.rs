@@ -100,7 +100,7 @@
 // See regression in nightly: https://github.com/rust-lang/rust/issues/70814
 #![cfg_attr(feature = "strict", allow(unused_braces))]
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::fmt::{self, Debug, Display};
 use std::iter;
 use std::ops::Deref;
@@ -198,7 +198,7 @@ use crate::errors::{Error, ValidationError};
 /// assert_eq!(*token.payload().unwrap(), expected_claims);
 /// # }
 /// ```
-pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
+pub type JWT<'a, T, H> = jws::Compact<ClaimsSet<'a, T>, H>;
 
 /// A convenience type alias of a "JWE" which is a compact JWE that contains a signed/unsigned compact JWS.
 ///
@@ -315,7 +315,7 @@ pub type JWT<T, H> = jws::Compact<ClaimsSet<T>, H>;
 /// nonce_counter = nonce_counter + 1u8;
 /// # }
 /// ```
-pub type JWE<T, H, I> = jwe::Compact<JWT<T, H>, I>;
+pub type JWE<'a, T, H, I> = jwe::Compact<JWT<'a, T, H>, I>;
 
 /// An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
 /// for custom values (such as private claims in a `ClaimsSet`) is required but you have nothing to implement.
@@ -668,6 +668,18 @@ where
     }
 }
 
+impl<'a> SingleOrMultiple<Cow<'a, str>> {
+    /// Utility function to convert one or more `&str` into `String`
+    pub fn to_string(&self) -> SingleOrMultiple<String> {
+        match self {
+            SingleOrMultiple::Single(ref single) => SingleOrMultiple::Single(single.to_string()),
+            SingleOrMultiple::Multiple(ref vector) => {
+                SingleOrMultiple::Multiple(vector.iter().map(|s| s.to_string()).collect())
+            }
+        }
+    }
+}
+
 /// Wrapper around `DateTime<Utc>` to allow us to do custom de(serialization)
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Timestamp(DateTime<Utc>);
@@ -721,18 +733,18 @@ impl<'de> Deserialize<'de> for Timestamp {
 
 /// Registered claims defined by [RFC7519#4.1](https://tools.ietf.org/html/rfc7519#section-4.1)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
-pub struct RegisteredClaims {
+pub struct RegisteredClaims<'a> {
     /// Token issuer. Serialized to `iss`.
     #[serde(rename = "iss", skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<String>,
+    pub issuer: Option<Cow<'a, str>>,
 
     /// Subject where the JWT is referring to. Serialized to `sub`
     #[serde(rename = "sub", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<String>,
+    pub subject: Option<Cow<'a, str>>,
 
     /// Audience intended for the JWT. Serialized to `aud`
     #[serde(rename = "aud", skip_serializing_if = "Option::is_none")]
-    pub audience: Option<SingleOrMultiple<String>>,
+    pub audience: Option<SingleOrMultiple<Cow<'a, str>>>,
 
     /// Expiration time in seconds since Unix Epoch. Serialized to `exp`
     #[serde(rename = "exp", skip_serializing_if = "Option::is_none")]
@@ -802,7 +814,7 @@ impl ClaimPresenceOptions {
 ///
 /// To deal with clock drifts, you might want to provide an `epsilon` error margin in the form of a
 /// `std::time::Duration` to allow time comparisons to fall within the margin.
-pub struct ValidationOptions {
+pub struct ValidationOptions<'a> {
     /// Claims marked as required will trigger a validation failure if they are missing
     pub claim_presence_options: ClaimPresenceOptions,
 
@@ -821,14 +833,14 @@ pub struct ValidationOptions {
 
     /// Validation options for `iss` or `Issuer` claim if present
     /// Parameter must match the issuer in the token exactly.
-    pub issuer: Validation<String>,
+    pub issuer: Validation<Cow<'a, str>>,
 
     /// Validation options for `aud` or `Audience` claim if present
     /// Token must include an audience with the value of the parameter
-    pub audience: Validation<String>,
+    pub audience: Validation<Cow<'a, str>>,
 }
 
-impl Default for ValidationOptions {
+impl<'a> Default for ValidationOptions<'a> {
     fn default() -> Self {
         ValidationOptions {
             expiry: Validation::Validate(()),
@@ -843,7 +855,7 @@ impl Default for ValidationOptions {
     }
 }
 
-impl RegisteredClaims {
+impl<'a> RegisteredClaims<'a> {
     /// Validates that the token contains the claims defined as required
     pub fn validate_claim_presence(
         &self,
@@ -954,18 +966,20 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `aud` claim, it contains an entry which matches the expected audience
-    pub fn validate_aud(&self, validation: Validation<String>) -> Result<(), ValidationError> {
+    pub fn validate_aud(&self, validation: Validation<Cow<str>>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(expected_aud) => match self.audience {
-                Some(SingleOrMultiple::Single(ref audience)) if audience != &expected_aud => Err(
-                    ValidationError::InvalidAudience(self.audience.clone().unwrap()),
-                ),
+                Some(SingleOrMultiple::Single(ref audience)) if *audience != expected_aud => {
+                    Err(ValidationError::InvalidAudience(
+                        self.audience.as_ref().expect("to exist").to_string(),
+                    ))
+                }
                 Some(SingleOrMultiple::Multiple(ref audiences))
                     if !audiences.contains(&expected_aud) =>
                 {
                     Err(ValidationError::InvalidAudience(
-                        self.audience.clone().unwrap(),
+                        self.audience.as_ref().expect("to exist").to_string(),
                     ))
                 }
                 _ => Ok(()),
@@ -974,13 +988,13 @@ impl RegisteredClaims {
     }
 
     /// Validates that if the token has an `iss` claim, it matches the expected issuer
-    pub fn validate_iss(&self, validation: Validation<String>) -> Result<(), ValidationError> {
+    pub fn validate_iss(&self, validation: Validation<Cow<str>>) -> Result<(), ValidationError> {
         match validation {
             Validation::Ignored => Ok(()),
             Validation::Validate(expected_issuer) => match self.issuer {
-                Some(ref iss) if iss != &expected_issuer => {
-                    Err(ValidationError::InvalidIssuer(self.issuer.clone().unwrap()))
-                }
+                Some(ref iss) if iss != &expected_issuer => Err(ValidationError::InvalidIssuer(
+                    self.issuer.as_ref().expect("to exist").to_string(),
+                )),
                 _ => Ok(()),
             },
         }
@@ -1010,16 +1024,16 @@ impl RegisteredClaims {
 /// A collection of claims, both [registered](https://tools.ietf.org/html/rfc7519#section-4.1) and your custom
 /// private claims.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Serialize, Deserialize)]
-pub struct ClaimsSet<T> {
+pub struct ClaimsSet<'a, T> {
     /// Registered claims defined by the RFC
     #[serde(flatten)]
-    pub registered: RegisteredClaims,
+    pub registered: RegisteredClaims<'a>,
     /// Application specific claims
     #[serde(flatten)]
     pub private: T,
 }
 
-impl<T> CompactJson for ClaimsSet<T> where T: Serialize + DeserializeOwned {}
+impl<T> CompactJson for ClaimsSet<'_, T> where T: Serialize + DeserializeOwned {}
 
 #[cfg(test)]
 mod tests {
