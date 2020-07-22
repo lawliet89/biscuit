@@ -35,6 +35,8 @@
 - Add new `jwk::AlgorithmParameters::OctetKeyPair` variant to support (de)serializing `OKP`
   key types. ([#125](https://github.com/lawliet89/biscuit/pull/125))
 - Add support for JWK thumbprints (RFC 7638) ([#156](https://github.com/lawliet89/biscuit/pull/156))
+- Allow verifying tokens with a `keypair` as `Secret`
+  ([#132](https://github.com/lawliet89/biscuit/pull/132))
 
 ### Bug Fixes
 
@@ -47,9 +49,6 @@
 
 - Add `jws::Compact::decode_with_jwks` method to decode a JWT with JWKs
   ([#124](https://github.com/lawliet89/biscuit/pull/124))
-
-- Allow verifying tokens with a `keypair` as `Secret`
-  ([#132](https://github.com/lawliet89/biscuit/pull/132))
 
 ### Internal Changes
 
