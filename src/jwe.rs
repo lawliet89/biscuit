@@ -616,8 +616,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use ring::rand::SecureRandom;
     use serde_test::{assert_tokens, Token};
 
@@ -845,10 +843,10 @@ mod tests {
         // Construct the JWS
         let claims = crate::ClaimsSet::<Empty> {
             registered: crate::RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(crate::SingleOrMultiple::Single(not_err!(
-                    FromStr::from_str("htts://acme-customer.com")
+                issuer: Some(From::from("https://www.acme.com")),
+                subject: Some(From::from("John Doe")),
+                audience: Some(crate::SingleOrMultiple::Single(From::from(
+                    "htts://acme-customer.com",
                 ))),
                 not_before: Some(1234.into()),
                 ..Default::default()
@@ -920,10 +918,10 @@ mod tests {
         // Construct the JWS
         let claims = crate::ClaimsSet::<Empty> {
             registered: crate::RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(crate::SingleOrMultiple::Single(not_err!(
-                    FromStr::from_str("htts://acme-customer.com")
+                issuer: Some(From::from("https://www.acme.com")),
+                subject: Some(From::from("John Doe")),
+                audience: Some(crate::SingleOrMultiple::Single(From::from(
+                    "htts://acme-customer.com",
                 ))),
                 not_before: Some(1234.into()),
                 ..Default::default()

@@ -235,10 +235,10 @@ pub type JWT<'a, T, H> = jws::Compact<ClaimsSet<'a, T>, H>;
 /// // Craft our JWS
 /// let expected_claims = ClaimsSet::<PrivateClaims> {
 ///     registered: RegisteredClaims {
-///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
-///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         issuer: Some(From::from("https://www.acme.com").unwrap()),
+///         subject: Some(From::from("John Doe").unwrap()),
 ///         audience: Some(SingleOrMultiple::Single(
-///             FromStr::from_str("htts://acme-customer.com").unwrap(),
+///             From::from("htts://acme-customer.com").unwrap(),
 ///         )),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
@@ -331,10 +331,10 @@ pub type JWE<'a, T, H, I> = jwe::Compact<JWT<'a, T, H>, I>;
 ///
 /// let claims_set = ClaimsSet::<biscuit::Empty> {
 ///     registered: RegisteredClaims {
-///         issuer: Some(FromStr::from_str("https://www.acme.com").unwrap()),
-///         subject: Some(FromStr::from_str("John Doe").unwrap()),
+///         issuer: Some(From::from("https://www.acme.com").unwrap()),
+///         subject: Some(From::from("John Doe").unwrap()),
 ///         audience:
-///             Some(SingleOrMultiple::Single(FromStr::from_str("htts://acme-customer.com").unwrap())),
+///             Some(SingleOrMultiple::Single(From::from("htts://acme-customer.com").unwrap())),
 ///         not_before: Some(1234.into()),
 ///         ..Default::default()
 ///     },
@@ -1037,7 +1037,7 @@ impl<T> CompactJson for ClaimsSet<'_, T> where T: Serialize + DeserializeOwned {
 
 #[cfg(test)]
 mod tests {
-    use std::str::{self, FromStr};
+    use std::str;
 
     use chrono::{Duration, TimeZone, Utc};
 
@@ -1101,67 +1101,6 @@ mod tests {
     }
 
     #[test]
-    fn single_string_or_uri_string_serialization_round_trip() {
-        let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Single(not_err!(FromStr::from_str("foobar"))),
-        };
-        let expected_json = r#"{"values":"foobar"}"#;
-
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-        assert!(deserialized.values.contains("foobar"));
-        assert!(!deserialized.values.contains("does not exist"));
-    }
-
-    #[test]
-    fn single_string_or_uri_uri_serialization_round_trip() {
-        let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                "https://www.examples.com/"
-            ))),
-        };
-        let expected_json = r#"{"values":"https://www.examples.com/"}"#;
-
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-        assert!(deserialized.values.contains("https://www.examples.com/"));
-        assert!(!deserialized.values.contains("https://ecorp.com"));
-    }
-
-    #[test]
-    fn multiple_string_or_uri_serialization_round_trip() {
-        let test = SingleOrMultipleStrings {
-            values: SingleOrMultiple::Multiple(vec![
-                not_err!(FromStr::from_str("foo")),
-                not_err!(FromStr::from_str("https://www.example.com/")),
-                not_err!(FromStr::from_str("data:text/plain,Hello?World#")),
-                not_err!(FromStr::from_str("http://[::1]/")),
-                not_err!(FromStr::from_str("baz")),
-            ]),
-        };
-        let expected_json = r#"{"values":["foo","https://www.example.com/","data:text/plain,Hello?World#","http://[::1]/","baz"]}"#;
-
-        let serialized = not_err!(serde_json::to_string(&test));
-        assert_eq!(expected_json, serialized);
-
-        let deserialized: SingleOrMultipleStrings = not_err!(serde_json::from_str(&serialized));
-        assert_eq!(deserialized, test);
-
-        assert!(deserialized.values.contains("foo"));
-        assert!(deserialized.values.contains("https://www.example.com/"));
-        assert!(deserialized.values.contains("data:text/plain,Hello?World#"));
-        assert!(deserialized.values.contains("http://[::1]/"));
-        assert!(deserialized.values.contains("baz"));
-        assert!(!deserialized.values.contains("https://ecorp.com"));
-    }
-
-    #[test]
     fn timestamp_serialization_roundtrip() {
         use chrono::Timelike;
 
@@ -1192,10 +1131,10 @@ mod tests {
     #[test]
     fn registered_claims_serialization_round_trip() {
         let claim = RegisteredClaims {
-            issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
-            audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                "htts://acme-customer.com/"
-            )))),
+            issuer: Some(From::from("https://www.acme.com/")),
+            audience: Some(SingleOrMultiple::Single(From::from(
+                "htts://acme-customer.com/",
+            ))),
             not_before: Some(1234.into()),
             ..Default::default()
         };
@@ -1213,11 +1152,11 @@ mod tests {
     fn claims_set_serialization_round_trip() {
         let claim = ClaimsSet::<PrivateClaims> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com/"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com/"
-                )))),
+                issuer: Some(From::from("https://www.acme.com/")),
+                subject: Some(From::from("John Doe")),
+                audience: Some(SingleOrMultiple::Single(From::from(
+                    "htts://acme-customer.com/",
+                ))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1243,11 +1182,11 @@ mod tests {
     fn duplicate_claims_round_trip() {
         let claim = ClaimsSet::<InvalidPrivateClaim> {
             registered: RegisteredClaims {
-                issuer: Some(not_err!(FromStr::from_str("https://www.acme.com"))),
-                subject: Some(not_err!(FromStr::from_str("John Doe"))),
-                audience: Some(SingleOrMultiple::Single(not_err!(FromStr::from_str(
-                    "htts://acme-customer.com"
-                )))),
+                issuer: Some(From::from("https://www.acme.com")),
+                subject: Some(From::from("John Doe")),
+                audience: Some(SingleOrMultiple::Single(From::from(
+                    "htts://acme-customer.com",
+                ))),
                 not_before: Some(1234.into()),
                 ..Default::default()
             },
@@ -1446,19 +1385,19 @@ mod tests {
     #[test]
     fn validate_issuer_catch_mismatch() {
         let registered_claims = RegisteredClaims {
-            issuer: Some("issuer".to_string()),
+            issuer: Some(From::from("issuer")),
             ..Default::default()
         };
 
         assert_eq!(
             Err(ValidationError::InvalidIssuer("issuer".to_string())),
-            registered_claims.validate_iss(Validation::Validate("http://issuer".to_string()))
+            registered_claims.validate_iss(Validation::Validate(From::from("http://issuer")))
         );
     }
 
     #[test]
     fn validate_audience_when_single() {
-        let aud = SingleOrMultiple::Single("audience".to_string());
+        let aud = SingleOrMultiple::Single(From::from("audience"));
 
         let registered_claims = RegisteredClaims {
             audience: Some(aud.clone()),
@@ -1466,28 +1405,32 @@ mod tests {
         };
 
         assert_eq!(
-            Err(ValidationError::InvalidAudience(aud.clone())),
-            registered_claims.validate_aud(Validation::Validate("http://audience".to_string()))
+            Err(ValidationError::InvalidAudience(aud.to_string())),
+            registered_claims.validate_aud(Validation::Validate(From::from("http://audience")))
         );
 
         assert_eq!(
-            Err(ValidationError::InvalidAudience(aud)),
-            registered_claims.validate_aud(Validation::Validate("audience2".to_string()))
+            Err(ValidationError::InvalidAudience(aud.to_string())),
+            registered_claims.validate_aud(Validation::Validate(From::from("audience2")))
         );
 
         assert_eq!(
             Ok(()),
-            registered_claims.validate_aud(Validation::Validate("audience".to_string()))
+            registered_claims.validate_aud(Validation::Validate(From::from("audience")))
         );
     }
 
     #[test]
     fn validate_audience_when_multiple() {
-        let aud =
-            SingleOrMultiple::Multiple(vec!["audience".to_string(), "http://audience".to_string()]);
+        let aud = SingleOrMultiple::Multiple(
+            vec!["audience", "http://audience"]
+                .into_iter()
+                .map(From::from)
+                .collect(),
+        );
 
         let registered_claims = RegisteredClaims {
-            audience: Some(aud.clone()),
+            audience: Some(aud),
             ..Default::default()
         };
 
