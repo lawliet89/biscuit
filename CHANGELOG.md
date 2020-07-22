@@ -26,16 +26,30 @@
   Existing usage of JWK with the `alg` specified can simply add a `None` as the second parameter.
   ([#130](https://github.com/lawliet89/biscuit/pull/130))
 
+
+- Remove `StringOrUri` because it was hard to get the `Uri` type working properly. Replace all usage
+  of `StringOrUri` with `String`s instead. ([#131](https://github.com/lawliet89/biscuit/pull/131))
+
 ### Enhancements
 
 - Add new `jwk::AlgorithmParameters::OctetKeyPair` variant to support (de)serializing `OKP`
   key types. ([#125](https://github.com/lawliet89/biscuit/pull/125))
+- Add support for JWK thumbprints (RFC 7638) ([#156](https://github.com/lawliet89/biscuit/pull/156))
+
+### Bug Fixes
+
+- Fix computing Aad per the RFC by doing base64 encoding
+  ([#147](https://github.com/lawliet89/biscuit/pull/147))
 
 ## 0.4.2 (2020-01-07)
 
 ### Enhancements
 
-- Add `jws::Compact::decode_with_jwks` method to decode a JWT with JWKs ([#124](https://github.com/lawliet89/biscuit/pull/124))
+- Add `jws::Compact::decode_with_jwks` method to decode a JWT with JWKs
+  ([#124](https://github.com/lawliet89/biscuit/pull/124))
+
+- Allow verifying tokens with a `keypair` as `Secret`
+  ([#132](https://github.com/lawliet89/biscuit/pull/132))
 
 ### Internal Changes
 
