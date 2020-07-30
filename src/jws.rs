@@ -355,6 +355,7 @@ impl<T: CompactPart, H: Serialize + DeserializeOwned> CompactPart for Compact<T,
 }
 
 /// The secrets used to sign and/or encrypt tokens
+#[derive(Clone)]
 pub enum Secret {
     /// Used with the `None` algorithm variant.
     None,
