@@ -1,0 +1,75 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `biscuit` crate."><meta name="keywords" content="rust, rustlang, rust-lang, biscuit"><title>biscuit - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../biscuit/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate biscuit</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all biscuit's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'biscuit', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/biscuit/lib.rs.html#1-1601' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>biscuit</a></span></h1><div class='docblock'><p><a href="https://travis-ci.org/lawliet89/biscuit"><img src="https://travis-ci.org/lawliet89/biscuit.svg" alt="Build Status" /></a>
+<a href="https://crates.io/crates/biscuit"><img src="https://img.shields.io/crates/v/biscuit.svg" alt="Crates.io" /></a>
+<a href="https://github.com/lawliet89/biscuit"><img src="https://img.shields.io/github/tag/lawliet89/biscuit.svg" alt="Repository" /></a>
+<a href="https://docs.rs/biscuit"><img src="https://docs.rs/biscuit/badge.svg" alt="Documentation" /></a>
+<a href="https://deps.rs/repo/github/lawliet89/biscuit"><img src="https://deps.rs/repo/github/lawliet89/biscuit/status.svg" alt="dependency status" /></a></p>
+<ul>
+<li>Documentation:  <a href="https://docs.rs/biscuit/">stable</a> | <a href="https://lawliet89.github.io/biscuit">master branch</a></li>
+<li>Changelog: <a href="https://github.com/lawliet89/biscuit/blob/master/CHANGELOG.md">Link</a></li>
+</ul>
+<p>A library to work with Javascript Object Signing and Encryption(JOSE),
+including JSON Web Tokens (JWT), JSON Web Signature (JWS) and JSON Web Encryption (JWE)</p>
+<p>This was based off <a href="https://github.com/Keats/rust-jwt"><code>Keats/rust-jwt</code></a>.</p>
+<h2 id="installation" class="section-header"><a href="#installation">Installation</a></h2>
+<p>Add the following to Cargo.toml:</p>
+<pre><code class="language-toml">biscuit = &quot;0.5.0&quot;
+</code></pre>
+<p>To use the latest <code>master</code> branch, for example:</p>
+<pre><code class="language-toml">biscuit = { git = &quot;https://github.com/lawliet89/biscuit&quot;, branch = &quot;master&quot; }
+</code></pre>
+<p>See [<code>JWT</code>] for common usage examples.</p>
+<h2 id="supported-features" class="section-header"><a href="#supported-features">Supported Features</a></h2>
+<p>The crate does not support all, and probably will never support all of
+the features described in the various RFCs, including some algorithms and verification.</p>
+<p>See the <a href="https://github.com/lawliet89/biscuit/blob/master/doc/supported.md">documentation</a> for more information.</p>
+<h2 id="references" class="section-header"><a href="#references">References</a></h2>
+<ul>
+<li><a href="https://auth0.com/e-books/jwt-handbook">JWT Handbook</a> — great introduction to JWT</li>
+<li><a href="https://www.iana.org/assignments/jose/jose.xhtml">IANA JOSE Registry</a></li>
+</ul>
+<h3 id="rfcs" class="section-header"><a href="#rfcs">RFCs</a></h3>
+<ul>
+<li><a href="https://tools.ietf.org/html/rfc7519">JSON Web Tokens RFC</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7515">JSON Web Signature RFC</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7518">JSON Web Algorithms RFC</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7516">JSON Web Encryption RFC</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7797">JSON Web Signature (JWS) Unencoded Payload Option</a></li>
+<li><a href="https://tools.ietf.org/html/rfc8037">CFRG Elliptic Curve Diffie-Hellman (ECDH) and Signatures in JOSE</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7797">JWS Unencoded Payload Option</a></li>
+<li><a href="https://tools.ietf.org/html/rfc7638">JWK Thumbprint</a></li>
+</ul>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="digest/index.html" title='biscuit::digest mod'>digest</a></td><td class='docblock-short'><p>Secure cryptographic digests</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="errors/index.html" title='biscuit::errors mod'>errors</a></td><td class='docblock-short'><p>Errors returned will be converted to one of the structs in this module.</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="jwa/index.html" title='biscuit::jwa mod'>jwa</a></td><td class='docblock-short'><p>JSON Web Algorithms</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="jwe/index.html" title='biscuit::jwe mod'>jwe</a></td><td class='docblock-short'><p><a href="https://tools.ietf.org/html/rfc7516">JSON Web Encryption</a></p>
+</td></tr><tr class='module-item'><td><a class="mod" href="jwk/index.html" title='biscuit::jwk mod'>jwk</a></td><td class='docblock-short'><p>JSON Web Key</p>
+</td></tr><tr class='module-item'><td><a class="mod" href="jws/index.html" title='biscuit::jws mod'>jws</a></td><td class='docblock-short'><p>JSON Web Signatures, including JWT signing and headers</p>
+</td></tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table><tr class='module-item'><td><a class="struct" href="struct.Base64Url.html" title='biscuit::Base64Url struct'>Base64Url</a></td><td class='docblock-short'><p>A newtype wrapper around a string to indicate it's base64 URL encoded</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ClaimPresenceOptions.html" title='biscuit::ClaimPresenceOptions struct'>ClaimPresenceOptions</a></td><td class='docblock-short'><p>Options for claims presence validation</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ClaimsSet.html" title='biscuit::ClaimsSet struct'>ClaimsSet</a></td><td class='docblock-short'><p>A collection of claims, both <a href="https://tools.ietf.org/html/rfc7519#section-4.1">registered</a> and your custom
+private claims.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Compact.html" title='biscuit::Compact struct'>Compact</a></td><td class='docblock-short'><p>A collection of <code>CompactPart</code>s that have been converted to <code>Base64Url</code></p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Empty.html" title='biscuit::Empty struct'>Empty</a></td><td class='docblock-short'><p>An empty struct that derives Serialize and Deserialize. Can be used, for example, in places where a type
+for custom values (such as private claims in a <code>ClaimsSet</code>) is required but you have nothing to implement.</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.RegisteredClaims.html" title='biscuit::RegisteredClaims struct'>RegisteredClaims</a></td><td class='docblock-short'><p>Registered claims defined by <a href="https://tools.ietf.org/html/rfc7519#section-4.1">RFC7519#4.1</a></p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.TemporalOptions.html" title='biscuit::TemporalOptions struct'>TemporalOptions</a></td><td class='docblock-short'><p>Options for validating temporal claims</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.Timestamp.html" title='biscuit::Timestamp struct'>Timestamp</a></td><td class='docblock-short'><p>Wrapper around <code>DateTime&lt;Utc&gt;</code> to allow us to do custom de(serialization)</p>
+</td></tr><tr class='module-item'><td><a class="struct" href="struct.ValidationOptions.html" title='biscuit::ValidationOptions struct'>ValidationOptions</a></td><td class='docblock-short'><p>Options for claims validation</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table><tr class='module-item'><td><a class="enum" href="enum.Presence.html" title='biscuit::Presence enum'>Presence</a></td><td class='docblock-short'><p>Defines whether a claim is required or not</p>
+</td></tr><tr class='module-item'><td><a class="enum" href="enum.SingleOrMultiple.html" title='biscuit::SingleOrMultiple enum'>SingleOrMultiple</a></td><td class='docblock-short'><p>Represents a choice between a single value or multiple values.
+This value is serialized by serde <a href="https://serde.rs/enum-representations.html">untagged</a>.</p>
+</td></tr><tr class='module-item'><td><a class="enum" href="enum.Validation.html" title='biscuit::Validation enum'>Validation</a></td><td class='docblock-short'><p>Defines whether a claim is validated or not</p>
+</td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table><tr class='module-item'><td><a class="trait" href="trait.CompactJson.html" title='biscuit::CompactJson trait'>CompactJson</a></td><td class='docblock-short'><p>A marker trait that indicates that the object is to be serialized to JSON and deserialized from JSON.
+This is primarily used in conjunction with the <code>CompactPart</code> trait which will serialize structs to JSON before
+base64 encoding, and vice-versa.</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.CompactPart.html" title='biscuit::CompactPart trait'>CompactPart</a></td><td class='docblock-short'><p>A &quot;part&quot; of the compact representation of JWT/JWS/JWE. Parts are first serialized to some form and then
+base64 encoded and separated by periods.</p>
+</td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table><tr class='module-item'><td><a class="type" href="type.JWE.html" title='biscuit::JWE type'>JWE</a></td><td class='docblock-short'><p>A convenience type alias of a &quot;JWE&quot; which is a compact JWE that contains a signed/unsigned compact JWS.</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.JWT.html" title='biscuit::JWT type'>JWT</a></td><td class='docblock-short'><p>A convenience type alias of the common &quot;JWT&quot; which is a secured/unsecured compact JWS.
+Type <code>T</code> is the type of the private claims, and type <code>H</code> is the type of private header fields</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "biscuit";</script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DecodeError","Errors from decoding tokens"],["Error","All the errors we can encounter while signing/verifying tokens and a couple of custom one for when the token we are trying to verify is invalid"],["ValidationError","Errors from validating tokens"]]});
