@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (2020-NN-NN)
+## 0.5.0 (2020-11-17)
 
 ### Breaking Changes
 
