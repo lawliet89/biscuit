@@ -1339,8 +1339,10 @@ mod tests {
 
     #[test]
     fn header_serialization_round_trip_with_optional() {
-        let mut expected = RegisteredHeader::default();
-        expected.key_id = Some("kid".to_string());
+        let expected = RegisteredHeader {
+            key_id: Some("kid".to_string()),
+            ..Default::default()
+        };
 
         let expected_json = r#"{"alg":"HS256","typ":"JWT","kid":"kid"}"#;
 

@@ -4,6 +4,9 @@
 
 ### Breaking Changes
 
+- MSRV is now Rust 1.41 due to changes in `Cargo.lock` format.
+  See [announcement](https://blog.rust-lang.org/2020/01/30/Rust-1.41.0.html#less-conflict-prone-cargolock-format).
+
 - The `jwk::AlgorithmParameters::OctetKey` enum variant is now a newtype variant which takes a
   `jwk::OctetKeyParameters` struct for its parameters. To migrate your existing code, you can do
   the following
