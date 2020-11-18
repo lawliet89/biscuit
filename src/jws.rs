@@ -434,6 +434,55 @@ pub enum Secret {
     ///             -out public_key.der
     /// ```
     ///
+    /// Note that the underlying crate (ring) does not support the format used
+    /// by OpenSSL. You can check the format using
+    ///
+    /// ```sh
+    /// openssl asn1parse -inform DER -in public_key.der
+    /// ```
+    ///
+    /// It should output something like
+    ///
+    /// ```sh
+    ///     0:d=0  hl=4 l= 290 cons: SEQUENCE
+    ///     4:d=1  hl=2 l=  13 cons: SEQUENCE
+    ///     6:d=2  hl=2 l=   9 prim: OBJECT            :rsaEncryption
+    ///    17:d=2  hl=2 l=   0 prim: NULL
+    ///    19:d=1  hl=4 l= 271 prim: BIT STRING
+    /// ```
+    ///
+    /// So there's a header here that indicates the content of the file
+    /// (a public key for `rsaEncryption`). The actual key is contained
+    /// within the BIT STRING at the end. You can extract the bare public key
+    /// like this
+    ///
+    /// ```sh
+    /// openssl asn1parse -inform DER \
+    ///                   -in public_key.der \
+    ///                   -offset 24 \
+    ///                   -out public_key_extracted.der
+    /// ```
+    ///
+    /// To verify that you've got the right format, you can run the command
+    /// given above on the extracted key
+    ///
+    /// ```sh
+    /// openssl asn1parse -inform DER -in public_key_extracted.der
+    /// ```
+    ///
+    /// The right format looks like this (the `<>` elements show the actual
+    /// numbers)
+    ///
+    /// ```sh
+    ///     0:d=0  hl=4 l= 266 cons: SEQUENCE
+    ///     4:d=1  hl=4 l= 257 prim: INTEGER           :<public key modulus>
+    ///   265:d=1  hl=2 l=   3 prim: INTEGER           :<public key exponent>
+    /// ```
+    ///
+    /// Every other format will be rejected by ring with an unspecified error.
+    /// Note that OpenSSL is no longer able to interpret this file as a public key,
+    /// since it no longer contains the expected header.
+    ///
     /// # Examples
     /// ```
     /// use biscuit::jws::Secret;
