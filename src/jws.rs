@@ -451,10 +451,10 @@ pub enum Secret {
     ///    19:d=1  hl=4 l= 271 prim: BIT STRING
     /// ```
     ///
-    /// So there's a header here that indicates the content of the file
+    /// There is a header here that indicates the content of the file
     /// (a public key for `rsaEncryption`). The actual key is contained
-    /// within the BIT STRING at the end. You can extract the bare public key
-    /// like this
+    /// within the BIT STRING at the end. The bare public key can be
+    /// extracted with
     ///
     /// ```sh
     /// openssl asn1parse -inform DER \
@@ -463,8 +463,7 @@ pub enum Secret {
     ///                   -out public_key_extracted.der
     /// ```
     ///
-    /// To verify that you've got the right format, you can run the command
-    /// given above on the extracted key
+    /// Run the following to verify that the key is in the right format
     ///
     /// ```sh
     /// openssl asn1parse -inform DER -in public_key_extracted.der
