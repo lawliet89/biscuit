@@ -51,8 +51,7 @@
 #![allow(
     missing_copy_implementations,
     missing_debug_implementations,
-    unknown_lints,
-    clippy::unknown_clippy_lints
+    unknown_lints
 )]
 #![allow(clippy::try_err, clippy::needless_doctest_main)]
 #![deny(
