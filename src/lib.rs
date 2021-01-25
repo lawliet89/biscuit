@@ -51,8 +51,7 @@
 #![allow(
     missing_copy_implementations,
     missing_debug_implementations,
-    unknown_lints,
-    clippy::unknown_clippy_lints
+    unknown_lints
 )]
 #![allow(clippy::try_err, clippy::needless_doctest_main)]
 #![deny(
@@ -685,9 +684,9 @@ impl From<DateTime<Utc>> for Timestamp {
     }
 }
 
-impl Into<DateTime<Utc>> for Timestamp {
-    fn into(self) -> DateTime<Utc> {
-        self.0
+impl From<Timestamp> for DateTime<Utc> {
+    fn from(ts: Timestamp) -> Self {
+        ts.0
     }
 }
 
