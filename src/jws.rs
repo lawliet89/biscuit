@@ -624,11 +624,11 @@ pub struct RegisteredHeader {
     #[serde(rename = "jku", skip_serializing_if = "Option::is_none")]
     pub web_key_url: Option<String>,
 
-    /// The JSON Web Key. This is currently not implemented (correctly).
+    /// The JSON Web Key.
     /// Serialized to `jwk`.
     /// Defined in [RFC7515#4.1.3](https://tools.ietf.org/html/rfc7515#section-4.1.3).
     #[serde(rename = "jwk", skip_serializing_if = "Option::is_none")]
-    pub web_key: Option<String>,
+    pub web_key: Option<jwk::JWK<Empty>>,
 
     /// The Key ID. This is currently not implemented (correctly).
     /// Serialized to `kid`.
