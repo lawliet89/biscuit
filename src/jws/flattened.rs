@@ -2,6 +2,7 @@
 //! Flattened signatures are JSON (unlike compact signatures),
 //! and support a single signature protecting a set of headers and a
 //! payload.
+//!
 //! The RFC specifies unprotected headers as well, but this implementation
 //! doesn't support them.
 
@@ -32,6 +33,29 @@ fn signing_input(protected_header: &[u8], payload: &[u8]) -> Vec<u8> {
 }
 
 /// Data that can be turned into a JWS
+///
+/// This struct ensures that the serialized data is stable;
+/// [`Signable::protected_header_serialized`] and [`Signable::payload`]
+/// will always return the same bytes; [`Signable::protected_header_registered`]
+/// will always return a reference to the same [`RegisteredHeader`]
+/// struct.
+///
+/// This allows [`SignedData`] to retain the data as it was signed,
+/// carrying a signature that remains verifiable.
+///
+/// # Examples
+/// ```
+/// use biscuit::jws::{Header, RegisteredHeader, Signable};
+/// use biscuit::jwa::SignatureAlgorithm;
+/// use biscuit::Empty;
+/// let header = Header::<Empty>::from(RegisteredHeader {
+///     algorithm: SignatureAlgorithm::ES256,
+///     ..Default::default()
+/// });
+/// let payload = b"These bytes cannot be altered";
+/// let data = Signable::new(header, payload.to_vec())?;
+/// # Ok::<(), serde_json::Error>(())
+/// ```
 #[derive(Debug, Clone)]
 pub struct Signable {
     // We need both fields for the protected header
@@ -51,7 +75,10 @@ impl Signable {
     /// Errors are returned if headers can't be serialized;
     /// this would only happen if the `H` type carrying extension headers
     /// can not be serialized.
-    pub fn new<H: Serialize>(header: Header<H>, payload: Vec<u8>) -> Result<Self, serde_json::Error> {
+    pub fn new<H: Serialize>(
+        header: Header<H>,
+        payload: Vec<u8>,
+    ) -> Result<Self, serde_json::Error> {
         let protected_header_serialized = serialize_header(&header)?;
         let protected_header_registered = header.registered;
         Ok(Self {
@@ -84,6 +111,7 @@ impl Signable {
     }
 
     /// Deserialize protected headers
+    ///
     /// This allows access to protected headers beyond those
     /// that are recognized with RegisteredHeader
     pub fn deserialize_protected_header<H: DeserializeOwned>(
@@ -98,7 +126,9 @@ impl Signable {
     }
 
     /// Deserialize a JSON payload
-    /// NOTE: JWS does not put any requirement on payload bytes, which
+    ///
+    /// # Note
+    /// JWS does not put any requirement on payload bytes, which
     /// need not be JSON
     pub fn deserialize_json_payload<T: DeserializeOwned>(&self) -> serde_json::Result<T> {
         serde_json::from_slice(&self.payload)
@@ -122,6 +152,30 @@ pub struct SignedData {
 
 impl SignedData {
     /// Sign using a secret
+    ///
+    /// # Example
+    /// ```
+    /// use biscuit::jwa::SignatureAlgorithm;
+    /// use biscuit::jws::{Header, RegisteredHeader, Secret, Signable, SignedData};
+    /// use biscuit::Empty;
+    /// use ring::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair};
+    /// use std::sync::Arc;
+    ///
+    /// let header = Header::<Empty>::from(RegisteredHeader {
+    ///     algorithm: SignatureAlgorithm::ES256,
+    ///     ..Default::default()
+    /// });
+    /// let payload = b"These bytes cannot be altered";
+    /// let data = Signable::new(header, payload.to_vec())?;
+    /// let pkcs8 = EcdsaKeyPair::generate_pkcs8(
+    ///     &ECDSA_P256_SHA256_FIXED_SIGNING,
+    ///     &ring::rand::SystemRandom::new())?;
+    /// let keypair = EcdsaKeyPair::from_pkcs8(
+    ///     &ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref())?;
+    /// let secret = Secret::EcdsaKeyPair(Arc::new(keypair));
+    /// let signed = SignedData::sign(data, secret)?;
+    /// # Ok::<(), biscuit::errors::Error>(())
+    /// ```
     pub fn sign(data: Signable, secret: Secret) -> Result<Self, Error> {
         let signature = data
             .protected_header_registered
@@ -135,7 +189,8 @@ impl SignedData {
     }
 
     /// Serialize using Flattened JWS JSON Serialization
-    /// See RFC 7515 section 7.2.2
+    ///
+    /// See [RFC 7515 section 7.2.2](https://tools.ietf.org/html/rfc7515#section-7.2.2)
     pub fn serialize_flattened(&self) -> String {
         let payload = self.data.payload.clone();
         let protected_header = self.data.protected_header_serialized.clone();
@@ -153,6 +208,27 @@ impl SignedData {
     }
 
     /// Verify a Flattened JWS JSON Serialization carries a valid signature
+    ///
+    /// # Example
+    /// ```
+    /// use biscuit::jwa::SignatureAlgorithm;
+    /// use biscuit::jws::{Secret, SignedData};
+    /// use data_encoding::HEXUPPER;
+    /// let public_key =
+    ///     "043727F96AAD416887DD75CC2E333C3D8E06DCDF968B6024579449A2B802EFC891F638C75\
+    ///     1CF687E6FF9A280E11B7036585E60CA32BB469C3E57998A289E0860A6";
+    /// let jwt = "{\
+    ///     \"payload\":\"eyJ0b2tlbl90eXBlIjoic2VydmljZSIsImlhdCI6MTQ5MjkzODU4OH0\",\
+    ///     \"protected\":\"eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9\",\
+    ///     \"signature\":\"do_XppIOFthPWlTXL95CIBfgRdyAxbcIsUfM0YxMjCjqvp4ehHFA3I-JasABKzC8CAy4ndhCHsZdpAtKkqZMEA\"}";
+    /// let secret = Secret::PublicKey(HEXUPPER.decode(public_key.as_bytes()).unwrap());
+    /// let signed = SignedData::verify_flattened(
+    ///     jwt.as_bytes(),
+    ///     secret,
+    ///     SignatureAlgorithm::ES256
+    /// )?;
+    /// # Ok::<(), biscuit::errors::Error>(())
+    /// ```
     pub fn verify_flattened(
         data: &[u8],
         secret: Secret,
@@ -474,7 +550,10 @@ mod tests {
         };
 
         let expected_jwt = not_err!(SignedData::sign(
-            not_err!(Signable::new(header.clone(), expected_claims.to_bytes().unwrap())),
+            not_err!(Signable::new(
+                header.clone(),
+                expected_claims.to_bytes().unwrap()
+            )),
             Secret::Bytes("secret".to_string().into_bytes())
         ));
         let token = expected_jwt.serialize_flattened();
