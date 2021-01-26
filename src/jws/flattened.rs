@@ -13,8 +13,10 @@ use data_encoding::BASE64URL_NOPAD;
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 
 // Not using CompactPart::to_bytes here, bounds are overly restrictive
-fn serialize_header<H: Serialize>(header: &Header<H>) -> Vec<u8> {
-    serde_json::to_vec(header).unwrap()
+fn serialize_header<H: Serialize>(header: &Header<H>) -> Result<Vec<u8>, serde_json::Error> {
+    // I don't think RegisteredHeader can fail to serialize,
+    // but the private header fields are user controlled and might
+    serde_json::to_vec(header)
 }
 
 /// Warning: pay attention to parameter order
@@ -41,16 +43,22 @@ pub struct Signable {
 
 impl Signable {
     /// Build a Signable from a header and a payload
+    ///
     /// Header and payload will both be protected by the signature,
     /// we do not make use of unprotected headers
-    pub fn new<H: Serialize>(header: Header<H>, payload: Vec<u8>) -> Self {
-        let protected_header_serialized = serialize_header(&header);
+    ///
+    /// # Errors
+    /// Errors are returned if headers can't be serialized;
+    /// this would only happen if the `H` type carrying extension headers
+    /// can not be serialized.
+    pub fn new<H: Serialize>(header: Header<H>, payload: Vec<u8>) -> Result<Self, serde_json::Error> {
+        let protected_header_serialized = serialize_header(&header)?;
         let protected_header_registered = header.registered;
-        Self {
+        Ok(Self {
             protected_header_registered,
             protected_header_serialized,
             payload,
-        }
+        })
     }
 
     /// JWS Signing Input
@@ -133,6 +141,8 @@ impl SignedData {
             signatures: (),
             unprotected_header: (),
         };
+        // This shouldn't fail, because FlattenedRaw strucs are
+        // always representable in JSON
         serde_json::to_string(&s).unwrap()
     }
 
@@ -269,13 +279,13 @@ mod tests {
         };
 
         let expected_jwt = not_err!(SignedData::sign(
-            Signable::new::<Empty>(
+            not_err!(Signable::new::<Empty>(
                 From::from(RegisteredHeader {
                     algorithm: SignatureAlgorithm::None,
                     ..Default::default()
                 }),
                 expected_claims.to_bytes().unwrap(),
-            ),
+            )),
             Secret::None,
         ));
         let token = expected_jwt.serialize_flattened();
@@ -310,13 +320,13 @@ mod tests {
         };
 
         let expected_jwt = not_err!(SignedData::sign(
-            Signable::new(
+            not_err!(Signable::new(
                 From::from(RegisteredHeader {
                     algorithm: SignatureAlgorithm::HS256,
                     ..Default::default()
                 }),
                 expected_claims.to_bytes().unwrap(),
-            ),
+            )),
             Secret::Bytes("secret".to_string().into_bytes())
         ));
         let token = expected_jwt.serialize_flattened();
@@ -372,13 +382,13 @@ mod tests {
             Secret::rsa_keypair_from_file("test/fixtures/rsa_private_key.der").unwrap();
 
         let expected_jwt = not_err!(SignedData::sign(
-            Signable::new(
+            not_err!(Signable::new(
                 From::from(RegisteredHeader {
                     algorithm: SignatureAlgorithm::RS256,
                     ..Default::default()
                 }),
                 expected_claims.to_bytes().unwrap(),
-            ),
+            )),
             private_key,
         ));
         let token = expected_jwt.serialize_flattened();
@@ -458,7 +468,7 @@ mod tests {
         };
 
         let expected_jwt = not_err!(SignedData::sign(
-            Signable::new(header.clone(), expected_claims.to_bytes().unwrap()),
+            not_err!(Signable::new(header.clone(), expected_claims.to_bytes().unwrap())),
             Secret::Bytes("secret".to_string().into_bytes())
         ));
         let token = expected_jwt.serialize_flattened();
