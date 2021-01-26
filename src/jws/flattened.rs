@@ -61,6 +61,12 @@ impl Signable {
         })
     }
 
+    /// Convenience function to build a SignedData from this Signable
+    /// See [`SignedData::sign`]
+    pub fn sign(self, secret: Secret) -> Result<SignedData, Error> {
+        SignedData::sign(self, secret)
+    }
+
     /// JWS Signing Input
     fn signing_input(&self) -> Vec<u8> {
         signing_input(&self.protected_header_serialized, &self.payload)
