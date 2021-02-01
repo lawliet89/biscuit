@@ -20,7 +20,7 @@ fn serialize_header<H: Serialize>(header: &Header<H>) -> Result<Vec<u8>, serde_j
     serde_json::to_vec(header)
 }
 
-/// Warning: pay attention to parameter order
+// Warning: pay attention to parameter order
 // Note: this is valid UTF-8, but gets used as bytes later
 fn signing_input(protected_header: &[u8], payload: &[u8]) -> Vec<u8> {
     let hlen = BASE64URL_NOPAD.encode_len(protected_header.len());
@@ -204,7 +204,7 @@ impl SignedData {
         };
         // This shouldn't fail, because FlattenedRaw strucs are
         // always representable in JSON
-        serde_json::to_string(&s).unwrap()
+        serde_json::to_string(&s).expect("Failed to serialize FlattenedRaw to JSON")
     }
 
     /// Verify a Flattened JWS JSON Serialization carries a valid signature
