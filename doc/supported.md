@@ -209,11 +209,11 @@ A list can be found
 
 ### JWS Serialization
 
-| Format         | Support | Remarks |
-|----------------|---------|---------|
-| Compact        |    ✔    |         |
-| General JSON   |    ✘    |         |
-| Flattened JSON |    ✘    |         |
+| Format         | Support | Remarks            |
+|----------------|---------|--------------------|
+| Compact        |    ✔    |                    |
+| General JSON   |    ✘    |                    |
+| Flattened JSON |    ✔    | As of v0.6.0-beta1 |
 
 ## JSON Web Encryption (JWE)
 

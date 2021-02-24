@@ -4,7 +4,7 @@
 //! [![Documentation](https://docs.rs/biscuit/badge.svg)](https://docs.rs/biscuit)
 //! [![dependency status](https://deps.rs/repo/github/lawliet89/biscuit/status.svg)](https://deps.rs/repo/github/lawliet89/biscuit)
 //!
-//! - Documentation:  [stable](https://docs.rs/biscuit/) | [master branch](https://lawliet89.github.io/biscuit)
+//! - Documentation:  [stable](https://docs.rs/biscuit/)
 //! - Changelog: [Link](https://github.com/lawliet89/biscuit/blob/master/CHANGELOG.md)
 //!
 //! A library to work with Javascript Object Signing and Encryption(JOSE),
@@ -17,7 +17,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.5.0"
+//! biscuit = "0.6.0-beta1"
 //! ```
 //!
 //! To use the latest `master` branch, for example:

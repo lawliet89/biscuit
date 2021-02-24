@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0-beta1 (2021-02-24)
+
+### Breaking Changes
+
+- [`jws::RegisteredHeader` field `web_key`](https://lawliet89.github.io/biscuit/biscuit/jws/struct.RegisteredHeader.html#structfield.web_key)
+  is now  of type `Option<jwk::JWK<Empty>>` instead of `Option<String>`. If you were not using JWKs,
+  continue setting the value to `None` will not breaking. If you were previously serializing your
+  JWK as JSON strings, you will now have to deserialize them into `jwk::JWK<Empty>`. Please raise
+  issues if you encounter any bugs. [[#189]](https://github.com/lawliet89/biscuit/pull/189)
+
+### Enhancements
+
+- Add support for Flattened JWS [[#190]](https://github.com/lawliet89/biscuit/pull/190)
+- Added more documentation for using OpenSSL to manipulate keys [[#179]](https://github.com/lawliet89/biscuit/pull/179)
+
 ## 0.5.0 (2020-11-17)
 
 ### Breaking Changes
