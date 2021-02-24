@@ -45,7 +45,14 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && matrix.rust != "nightly"
+
+      - uses: actions-rs/cargo@v1
+        name: Clippy Lint
+        with:
+          command: clippy
+          args: --all-targets --all-features -- -D warnings -A "clippy::upper_case_acronyms"
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == "nightly"
 
       - uses: actions-rs/cargo@v1
         name: Build
