@@ -52,7 +52,7 @@ jobs:
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings -A "clippy::upper_case_acronyms"
-        if: matrix.os == 'ubuntu-latest' && matrix.rust != 'stable'
+        if: matrix.os == 'ubuntu-latest' && (matrix.rust == 'beta' || matrix.rust == 'nightly')
 
       - uses: actions-rs/cargo@v1
         name: Build
