@@ -41,18 +41,18 @@ jobs:
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
 
       - uses: actions-rs/cargo@v1
-        name: Clippy Lint
+        name: Clippy Lint (Stable)
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
-        if: matrix.os == 'ubuntu-latest' && matrix.rust != 'nightly'
+        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
 
       - uses: actions-rs/cargo@v1
         name: Clippy Lint (Nightly)
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings -A "clippy::upper_case_acronyms"
-        if: matrix.os == 'ubuntu-latest' && matrix.rust == 'nightly'
+        if: matrix.os == 'ubuntu-latest' && matrix.rust != 'stable'
 
       - uses: actions-rs/cargo@v1
         name: Build
