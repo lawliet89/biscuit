@@ -663,7 +663,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
 }
 
 /// A JSON object that represents a set of JWKs.
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct JWKSet<T> {
     /// Containted JWKs
     pub keys: Vec<JWK<T>>,
