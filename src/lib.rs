@@ -56,7 +56,7 @@
 #![allow(
     clippy::try_err,
     clippy::needless_doctest_main,
-    clippy::upper_case_acronyms,
+    clippy::upper_case_acronyms
 )]
 #![deny(
     arithmetic_overflow,
