@@ -53,7 +53,11 @@
     missing_debug_implementations,
     unknown_lints
 )]
-#![allow(clippy::try_err, clippy::needless_doctest_main)]
+#![allow(
+    clippy::try_err,
+    clippy::needless_doctest_main,
+    clippy::upper_case_acronyms
+)]
 #![deny(
     arithmetic_overflow,
     bad_style,
