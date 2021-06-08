@@ -269,7 +269,7 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// // We need to create an `EncryptionOptions` with a nonce for AES GCM encryption.
 /// // You must take care NOT to reuse the nonce. You can simply treat the nonce as a 96 bit
 /// // counter that is incremented after every use
-/// let mut nonce_counter = num::BigUint::from_bytes_le(&vec![0; 96 / 8]);
+/// let mut nonce_counter = num_bigint::BigUint::from_bytes_le(&vec![0; 96 / 8]);
 /// // Make sure it's no more than 96 bits!
 /// assert!(nonce_counter.bits() <= 96);
 /// let mut nonce_bytes = nonce_counter.to_bytes_le();

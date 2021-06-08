@@ -13,7 +13,7 @@ use crate::jwa::SignatureAlgorithm;
 use crate::jwk;
 use crate::{CompactJson, Empty};
 
-use num::BigUint;
+use num_bigint::BigUint;
 use ring::signature;
 use serde::{self, de::DeserializeOwned, Deserialize, Serialize};
 use std::sync::Arc;

@@ -4,7 +4,7 @@
 use std::fmt;
 
 use data_encoding::BASE64URL_NOPAD;
-use num::BigUint;
+use num_bigint::BigUint;
 use serde::de;
 use serde::{Deserializer, Serializer};
 
@@ -67,8 +67,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use num::cast::FromPrimitive;
-    use num::BigUint;
+    use num_bigint::BigUint;
+    use num_traits::cast::FromPrimitive;
     use serde::{Deserialize, Serialize};
 
     use serde_test::{assert_tokens, Token};
