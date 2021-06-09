@@ -693,7 +693,7 @@ mod tests {
             &Test {
                 test: CompressionAlgorithm::Deflate,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "xxx"}"#;
@@ -701,7 +701,7 @@ mod tests {
             &Test {
                 test: CompressionAlgorithm::Other("xxx".to_string()),
             },
-            Some(&test_json),
+            Some(test_json),
         );
     }
 
@@ -745,7 +745,7 @@ mod tests {
             ..Default::default()
         });
         let test_json = r#"{"alg":"RSA-OAEP","enc":"A256GCM"}"#;
-        assert_serde_json(&test_value, Some(&test_json));
+        assert_serde_json(&test_value, Some(test_json));
 
         let test_value: Header<Empty> = From::from(RegisteredHeader {
             cek_algorithm: KeyManagementAlgorithm::RSA1_5,
@@ -753,7 +753,7 @@ mod tests {
             ..Default::default()
         });
         let test_json = r#"{"alg":"RSA1_5","enc":"A128CBC-HS256"}"#;
-        assert_serde_json(&test_value, Some(&test_json));
+        assert_serde_json(&test_value, Some(test_json));
 
         let test_value: Header<Empty> = From::from(RegisteredHeader {
             cek_algorithm: KeyManagementAlgorithm::A128KW,
@@ -761,7 +761,7 @@ mod tests {
             ..Default::default()
         });
         let test_json = r#"{"alg":"A128KW","enc":"A128CBC-HS256"}"#;
-        assert_serde_json(&test_value, Some(&test_json));
+        assert_serde_json(&test_value, Some(test_json));
     }
 
     #[test]
@@ -783,7 +783,7 @@ mod tests {
             },
         };
         let test_json = r#"{"alg":"RSA-OAEP","enc":"A256GCM","something":"foobar"}"#;
-        assert_serde_json(&test_value, Some(&test_json));
+        assert_serde_json(&test_value, Some(test_json));
     }
 
     #[test]

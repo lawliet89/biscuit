@@ -685,7 +685,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -712,7 +712,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -742,7 +742,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -771,7 +771,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -800,7 +800,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -829,7 +829,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -858,7 +858,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "RSA",
@@ -885,7 +885,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -912,7 +912,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -939,7 +939,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -966,7 +966,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -993,7 +993,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                         {
                             "kty": "oct",
@@ -1020,7 +1020,7 @@ mod tests {
         );
 
         let jwks: JWKSet<Empty> = serde_json::from_str(
-            &r#"{
+            r#"{
             "keys": [
                 {
                     "kty": "EC",
@@ -1080,7 +1080,7 @@ mod tests {
     #[test]
     fn signature_is_returned_correctly() {
         let encoded_token: Compact<ClaimsSet<PrivateClaims>, Empty> =
-            Compact::new_encoded(&HS256_PAYLOAD);
+            Compact::new_encoded(HS256_PAYLOAD);
         let expected_signature = data_encoding::BASE64URL_NOPAD
             .decode(b"VFCl2un1Kc17odzOe2Ehf4DVrWddu3U4Ux3GFpOZHtc")
             .expect("to not error");
