@@ -5,7 +5,7 @@
 use std::fmt;
 
 use data_encoding::BASE64URL_NOPAD;
-use num::BigUint;
+use num_bigint::BigUint;
 use serde::de::{self, DeserializeOwned};
 use serde::{self, Deserialize, Deserializer, Serialize, Serializer};
 

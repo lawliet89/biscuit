@@ -881,7 +881,7 @@ mod tests {
 
     #[test]
     fn sign_and_verify_rs256_key_params() {
-        use num::BigUint;
+        use num_bigint::BigUint;
         // There is no way in Ring right now to get these values from the key
         let params = Secret::RSAModulusExponent {
             n: BigUint::parse_bytes(
