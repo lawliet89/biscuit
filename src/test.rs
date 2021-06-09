@@ -23,7 +23,7 @@ where
     let deserialized: T = not_err!(serde_json::from_str(&serialized));
     assert_eq!(value, &deserialized);
 
-    if let Some(ref expected_json) = expected_json {
+    if let Some(expected_json) = expected_json {
         let deserialized: T = not_err!(serde_json::from_str(expected_json));
         assert_eq!(value, &deserialized);
     }

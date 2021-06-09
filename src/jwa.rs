@@ -407,7 +407,7 @@ impl SignatureAlgorithm {
                     verification_algorithm,
                     public_key.as_slice(),
                 );
-                public_key.verify(&data, &expected_signature)?;
+                public_key.verify(data, expected_signature)?;
                 Ok(())
             }
             Secret::RsaKeyPair(ref keypair) => {
@@ -424,7 +424,7 @@ impl SignatureAlgorithm {
 
                 let public_key =
                     signature::UnparsedPublicKey::new(verification_algorithm, keypair.public_key());
-                public_key.verify(&data, &expected_signature)?;
+                public_key.verify(data, expected_signature)?;
                 Ok(())
             }
             Secret::RSAModulusExponent { ref n, ref e } => {
@@ -444,7 +444,7 @@ impl SignatureAlgorithm {
                     n: n_big_endian,
                     e: e_big_endian,
                 };
-                public_key.verify(params, &data, &expected_signature)?;
+                public_key.verify(params, data, expected_signature)?;
                 Ok(())
             }
             Secret::EcdsaKeyPair(ref keypair) => {
@@ -458,7 +458,7 @@ impl SignatureAlgorithm {
 
                 let public_key =
                     signature::UnparsedPublicKey::new(verification_algorithm, keypair.public_key());
-                public_key.verify(&data, &expected_signature)?;
+                public_key.verify(data, expected_signature)?;
                 Ok(())
             }
             _ => unreachable!("This is a private method and should not be called erroneously."),

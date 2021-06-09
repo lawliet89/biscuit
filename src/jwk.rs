@@ -757,7 +757,7 @@ mod tests {
             &Test {
                 test: PublicKeyUse::Encryption,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "sig"}"#;
@@ -765,7 +765,7 @@ mod tests {
             &Test {
                 test: PublicKeyUse::Signature,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "xxx"}"#;
@@ -773,7 +773,7 @@ mod tests {
             &Test {
                 test: PublicKeyUse::Other("xxx".to_string()),
             },
-            Some(&test_json),
+            Some(test_json),
         );
     }
 
@@ -941,7 +941,7 @@ mod tests {
             &Test {
                 test: KeyOperations::Sign,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "verify"}"#;
@@ -949,7 +949,7 @@ mod tests {
             &Test {
                 test: KeyOperations::Verify,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "encrypt"}"#;
@@ -957,7 +957,7 @@ mod tests {
             &Test {
                 test: KeyOperations::Encrypt,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "decrypt"}"#;
@@ -965,7 +965,7 @@ mod tests {
             &Test {
                 test: KeyOperations::Decrypt,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "wrapKey"}"#;
@@ -973,7 +973,7 @@ mod tests {
             &Test {
                 test: KeyOperations::WrapKey,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "unwrapKey"}"#;
@@ -981,7 +981,7 @@ mod tests {
             &Test {
                 test: KeyOperations::UnwrapKey,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "deriveKey"}"#;
@@ -989,7 +989,7 @@ mod tests {
             &Test {
                 test: KeyOperations::DeriveKey,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "deriveBits"}"#;
@@ -997,7 +997,7 @@ mod tests {
             &Test {
                 test: KeyOperations::DeriveBits,
             },
-            Some(&test_json),
+            Some(test_json),
         );
 
         let test_json = r#"{"test": "xxx"}"#;
@@ -1005,7 +1005,7 @@ mod tests {
             &Test {
                 test: KeyOperations::Other("xxx".to_string()),
             },
-            Some(&test_json),
+            Some(test_json),
         );
     }
 
@@ -1040,7 +1040,7 @@ mod tests {
   "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0"
 }"#;
 
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     /// rfc8037#appendix-A.1
@@ -1071,7 +1071,7 @@ mod tests {
   "d": "nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A"
 }"#;
 
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     /// rfc8037#appendix-A.2
@@ -1097,7 +1097,7 @@ mod tests {
   "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"
 }"#;
 
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     #[test]
@@ -1152,7 +1152,7 @@ mod tests {
        ]
      }"#;
 
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     /// Example public key set
@@ -1214,7 +1214,7 @@ mod tests {
         };
 
         let expected_json = include_str!("../test/fixtures/jwk_public_key.json");
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     /// Example private key set
@@ -1330,7 +1330,7 @@ mod tests {
         };
 
         let expected_json = include_str!("../test/fixtures/jwk_private_key.json");
-        assert_serde_json(&test_value, Some(&expected_json));
+        assert_serde_json(&test_value, Some(expected_json));
     }
 
     fn find_key_set() -> JWKSet<Empty> {
