@@ -4,4 +4,3 @@ target: fuzz_targets
 cmds:
   - cmd: /fuzz_decryption
   - cmd: /fuzz_signature_validation
-  
