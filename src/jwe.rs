@@ -299,6 +299,7 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum Compact<T, H> {
     /// Decrypted form of the JWE.
     /// This variant cannot be serialized or deserialized and will return an error.
@@ -733,7 +734,7 @@ mod tests {
         ));
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
-        let decrypted_str = not_err!(std::str::from_utf8(&*decrypted_payload));
+        let decrypted_str = not_err!(std::str::from_utf8(decrypted_payload));
         assert_eq!(decrypted_str, "Encrypted");
     }
 
@@ -836,7 +837,7 @@ mod tests {
         assert_eq!(jwe, decrypted_jwe);
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
-        let decrypted_str = not_err!(str::from_utf8(&*decrypted_payload));
+        let decrypted_str = not_err!(str::from_utf8(decrypted_payload));
         assert_eq!(decrypted_str, payload);
     }
 

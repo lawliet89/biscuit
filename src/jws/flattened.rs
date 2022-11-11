@@ -146,7 +146,6 @@ impl Signable {
 #[derive(Clone)]
 pub struct SignedData {
     data: Signable,
-    secret: Secret,
     signature: Vec<u8>,
 }
 
@@ -181,11 +180,7 @@ impl SignedData {
             .protected_header_registered
             .algorithm
             .sign(&data.signing_input(), &secret)?;
-        Ok(Self {
-            data,
-            secret,
-            signature,
-        })
+        Ok(Self { data, signature })
     }
 
     /// Serialize using Flattened JWS JSON Serialization
@@ -250,7 +245,6 @@ impl SignedData {
         };
         Ok(Self {
             data,
-            secret,
             signature: raw.signature,
         })
     }

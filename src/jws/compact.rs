@@ -22,6 +22,7 @@ use super::{Header, Secret};
 /// See an example in the [`biscuit::JWT`](../type.JWT.html) type alias.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum Compact<T, H> {
     /// Decoded form of the JWS.
     /// This variant cannot be serialized or deserialized and will return an error.
