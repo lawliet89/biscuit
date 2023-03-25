@@ -530,32 +530,25 @@ pub struct OctetKeyPairParameters {
 
 /// Key type value for an Elliptic Curve Key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum EllipticCurveKeyType {
     /// Key type value for an Elliptic Curve Key.
     #[default]
     EC,
 }
 
-
-
 /// Key type value for an RSA Key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum RSAKeyType {
     /// Key type value for an RSA Key.
     #[default]
     RSA,
 }
 
-
-
 /// Key type value for an Octet symmetric key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum OctetKeyType {
     /// Key type value for an Octet symmetric key.
     #[serde(rename = "oct")]
@@ -563,12 +556,9 @@ pub enum OctetKeyType {
     Octet,
 }
 
-
-
 /// Key type value for an Octet Key Pair.
 /// This single value enum is a workaround for Rust not supporting associated constants.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum OctetKeyPairType {
     /// Key type value for an Octet Key Pair.
     #[serde(rename = "OKP")]
@@ -576,12 +566,9 @@ pub enum OctetKeyPairType {
     OctetKeyPair,
 }
 
-
-
 /// Type of cryptographic curve used by a key. This is defined in
 /// [RFC 7518 #7.6](https://tools.ietf.org/html/rfc7518#section-7.6)
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub enum EllipticCurve {
     /// P-256 curve
     #[serde(rename = "P-256")]
@@ -600,8 +587,6 @@ pub enum EllipticCurve {
     #[serde(rename = "Ed448")]
     Curve448,
 }
-
-
 
 /// A JSON object that represents a cryptographic key.
 /// The members of the object represent properties of the key, including its value.

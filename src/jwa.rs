@@ -220,14 +220,6 @@ pub struct EncryptionResult {
     pub additional_data: Vec<u8>,
 }
 
-
-
-
-
-
-
-
-
 impl EncryptionOptions {
     /// Description of the type of key
     pub fn description(&self) -> &'static str {

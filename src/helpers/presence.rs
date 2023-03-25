@@ -8,5 +8,3 @@ pub enum Presence {
     /// Claim is required
     Required,
 }
-
-

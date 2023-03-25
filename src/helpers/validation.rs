@@ -15,8 +15,6 @@ pub enum Validation<T> {
     Validate(T),
 }
 
-
-
 impl<T> Validation<T> {
     /// Map the value to another validation requirement, similar to how .map works on iter()
     pub fn map<U, F>(self, f: F) -> Validation<U>
