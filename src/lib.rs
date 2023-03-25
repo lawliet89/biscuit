@@ -61,7 +61,6 @@
 #![deny(
     arithmetic_overflow,
     bad_style,
-    const_err,
     dead_code,
     improper_ctypes,
     missing_docs,
@@ -102,6 +101,10 @@
 #![cfg_attr(feature = "strict", deny(warnings))]
 // See regression in nightly: https://github.com/rust-lang/rust/issues/70814
 #![cfg_attr(feature = "strict", allow(unused_braces))]
+// FIXME
+#![cfg_attr(feature = "strict", allow(deprecated))]
+// FIXME
+#![cfg_attr(feature = "strict", allow(clippy::large_enum_variant))]
 
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};

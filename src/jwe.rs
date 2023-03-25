@@ -733,7 +733,7 @@ mod tests {
         ));
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
-        let decrypted_str = not_err!(std::str::from_utf8(&*decrypted_payload));
+        let decrypted_str = not_err!(std::str::from_utf8(decrypted_payload));
         assert_eq!(decrypted_str, "Encrypted");
     }
 
@@ -836,7 +836,7 @@ mod tests {
         assert_eq!(jwe, decrypted_jwe);
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
-        let decrypted_str = not_err!(str::from_utf8(&*decrypted_payload));
+        let decrypted_str = not_err!(str::from_utf8(decrypted_payload));
         assert_eq!(decrypted_str, payload);
     }
 
