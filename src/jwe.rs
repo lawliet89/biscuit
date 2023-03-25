@@ -299,7 +299,6 @@ impl From<RegisteredHeader> for Header<Empty> {
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
-#[allow(clippy::large_enum_variant)]
 pub enum Compact<T, H> {
     /// Decrypted form of the JWE.
     /// This variant cannot be serialized or deserialized and will return an error.
