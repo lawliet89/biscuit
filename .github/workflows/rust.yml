@@ -22,7 +22,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v3
         name: Checkout
 
       - uses: actions-rs/toolchain@v1
@@ -32,6 +32,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        name: Rust Cache
 
       - uses: actions-rs/cargo@v1
         name: Format Check
