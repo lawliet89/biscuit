@@ -37,8 +37,10 @@ pub(crate) const NONE_ENCRYPTION_OPTIONS: &EncryptionOptions = &EncryptionOption
 /// Options to be passed in while performing an encryption operation, if required by the algorithm.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum EncryptionOptions {
     /// No options are required. Most algorithms do not require additional parameters
+    #[default]
     None,
     /// Options for AES GCM encryption.
     AES_GCM {
@@ -72,12 +74,14 @@ pub enum Algorithm {
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 /// The algorithms supported for digital signature and MACs, defined by
 /// [RFC7518#3](https://tools.ietf.org/html/rfc7518#section-3).
+#[derive(Default)]
 pub enum SignatureAlgorithm {
     /// No encryption/signature is included for the JWT.
     /// During verification, the signature _MUST BE_ empty or verification  will fail.
     #[serde(rename = "none")]
     None,
     /// HMAC using SHA-256
+    #[default]
     HS256,
     /// HMAC using SHA-384
     HS384,
@@ -110,6 +114,7 @@ pub enum SignatureAlgorithm {
 /// Algorithms for key management as defined in [RFC7518#4](https://tools.ietf.org/html/rfc7518#section-4)
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum KeyManagementAlgorithm {
     /// RSAES-PKCS1-v1_5
     RSA1_5,
@@ -128,6 +133,7 @@ pub enum KeyManagementAlgorithm {
     A256KW,
     /// Direct use of a shared symmetric key
     #[serde(rename = "dir")]
+    #[default]
     DirectSymmetricKey,
     /// ECDH-ES using Concat KDF
     #[serde(rename = "ECDH-ES")]
@@ -179,6 +185,7 @@ pub enum KeyManagementAlgorithmType {
 /// See [RFC7518#5](https://tools.ietf.org/html/rfc7518#section-5)
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
+#[derive(Default)]
 pub enum ContentEncryptionAlgorithm {
     /// AES_128_CBC_HMAC_SHA_256 authenticated encryption algorithm enc
     #[serde(rename = "A128CBC-HS256")]
@@ -190,6 +197,7 @@ pub enum ContentEncryptionAlgorithm {
     #[serde(rename = "A256CBC-HS512")]
     A256CBC_HS512,
     /// AES GCM using 128-bit key
+    #[default]
     A128GCM,
     /// AES GCM using 192-bit key
     /// This is [not supported](https://github.com/briansmith/ring/issues/112) by `ring`.
@@ -210,30 +218,6 @@ pub struct EncryptionResult {
     pub tag: Vec<u8>,
     /// Additional authenticated data that is integrity protected but not encrypted
     pub additional_data: Vec<u8>,
-}
-
-impl Default for EncryptionOptions {
-    fn default() -> Self {
-        EncryptionOptions::None
-    }
-}
-
-impl Default for SignatureAlgorithm {
-    fn default() -> Self {
-        SignatureAlgorithm::HS256
-    }
-}
-
-impl Default for KeyManagementAlgorithm {
-    fn default() -> Self {
-        KeyManagementAlgorithm::DirectSymmetricKey
-    }
-}
-
-impl Default for ContentEncryptionAlgorithm {
-    fn default() -> Self {
-        ContentEncryptionAlgorithm::A128GCM
-    }
 }
 
 impl EncryptionOptions {

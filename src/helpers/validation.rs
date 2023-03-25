@@ -4,19 +4,15 @@
 /// The generic type T is used as the "options" for validating claims and is
 /// specific to each claim being validated. Refer to [`crate::ValidationOptions`]
 /// for the specifics of each claim.
+#[derive(Default)]
 pub enum Validation<T> {
     /// This claim is not validated
+    #[default]
     Ignored,
 
     /// Validate this claim with type T.
     /// Refer to [`crate::ValidationOptions`] for the specifics of each claim.
     Validate(T),
-}
-
-impl<T> Default for Validation<T> {
-    fn default() -> Self {
-        Validation::Ignored
-    }
 }
 
 impl<T> Validation<T> {

@@ -146,6 +146,8 @@ impl Signable {
 #[derive(Clone)]
 pub struct SignedData {
     data: Signable,
+    #[allow(dead_code)]
+    secret: Secret,
     signature: Vec<u8>,
 }
 
