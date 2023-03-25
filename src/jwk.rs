@@ -531,67 +531,61 @@ pub struct OctetKeyPairParameters {
 /// Key type value for an Elliptic Curve Key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum EllipticCurveKeyType {
     /// Key type value for an Elliptic Curve Key.
+    #[default]
     EC,
 }
 
-impl Default for EllipticCurveKeyType {
-    fn default() -> Self {
-        EllipticCurveKeyType::EC
-    }
-}
+
 
 /// Key type value for an RSA Key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum RSAKeyType {
     /// Key type value for an RSA Key.
+    #[default]
     RSA,
 }
 
-impl Default for RSAKeyType {
-    fn default() -> Self {
-        RSAKeyType::RSA
-    }
-}
+
 
 /// Key type value for an Octet symmetric key.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum OctetKeyType {
     /// Key type value for an Octet symmetric key.
     #[serde(rename = "oct")]
+    #[default]
     Octet,
 }
 
-impl Default for OctetKeyType {
-    fn default() -> Self {
-        OctetKeyType::Octet
-    }
-}
+
 
 /// Key type value for an Octet Key Pair.
 /// This single value enum is a workaround for Rust not supporting associated constants.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum OctetKeyPairType {
     /// Key type value for an Octet Key Pair.
     #[serde(rename = "OKP")]
+    #[default]
     OctetKeyPair,
 }
 
-impl Default for OctetKeyPairType {
-    fn default() -> Self {
-        OctetKeyPairType::OctetKeyPair
-    }
-}
+
 
 /// Type of cryptographic curve used by a key. This is defined in
 /// [RFC 7518 #7.6](https://tools.ietf.org/html/rfc7518#section-7.6)
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum EllipticCurve {
     /// P-256 curve
     #[serde(rename = "P-256")]
+    #[default]
     P256,
     /// P-384 curve
     #[serde(rename = "P-384")]
@@ -607,11 +601,7 @@ pub enum EllipticCurve {
     Curve448,
 }
 
-impl Default for EllipticCurve {
-    fn default() -> Self {
-        EllipticCurve::P256
-    }
-}
+
 
 /// A JSON object that represents a cryptographic key.
 /// The members of the object represent properties of the key, including its value.
