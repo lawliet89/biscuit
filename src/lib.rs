@@ -104,7 +104,7 @@
 // FIXME
 #![cfg_attr(feature = "strict", allow(deprecated))]
 // FIXME
-#![cfg_attr(feature = "strict", allow(large_enum_variant))]
+#![cfg_attr(feature = "strict", allow(clippy::large_enum_variant))]
 
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
