@@ -59,7 +59,6 @@ dependencies = [
  "iana-time-zone",
  "num-integer",
  "num-traits",
- "wasm-bindgen",
  "winapi",
 ]
 

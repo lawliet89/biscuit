@@ -182,7 +182,11 @@ impl SignedData {
             .protected_header_registered
             .algorithm
             .sign(&data.signing_input(), &secret)?;
-        Ok(Self { data, signature })
+        Ok(Self {
+            data,
+            secret,
+            signature,
+        })
     }
 
     /// Serialize using Flattened JWS JSON Serialization
@@ -247,6 +251,7 @@ impl SignedData {
         };
         Ok(Self {
             data,
+            secret,
             signature: raw.signature,
         })
     }
