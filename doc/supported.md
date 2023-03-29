@@ -213,7 +213,7 @@ A list can be found
 |----------------|---------|--------------------|
 | Compact        |    ✔    |                    |
 | General JSON   |    ✘    |                    |
-| Flattened JSON |    ✔    | As of v0.6.0-beta1 |
+| Flattened JSON |    ✔    | As of v0.6.0 |
 
 ## JSON Web Encryption (JWE)
 

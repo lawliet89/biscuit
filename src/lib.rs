@@ -17,7 +17,7 @@
 //! Add the following to Cargo.toml:
 //!
 //! ```toml
-//! biscuit = "0.6.0-beta1"
+//! biscuit = "0.6.0"
 //! ```
 //!
 //! To use the latest `master` branch, for example:
