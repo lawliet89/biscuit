@@ -272,16 +272,13 @@ where
                     Err(ValidationError::UnsupportedKeyAlgorithm)?
                 }
 
-                if !secrets
-                    .iter()
-                    .any(|secret| {
-                        header
-                            .registered
-                            .algorithm
-                            .verify(signature.as_ref(), payload.as_ref(), secret)
-                            .is_ok()
-                    })
-                {
+                if !secrets.iter().any(|secret| {
+                    header
+                        .registered
+                        .algorithm
+                        .verify(signature.as_ref(), payload.as_ref(), secret)
+                        .is_ok()
+                }) {
                     Err(ValidationError::InvalidSignature)?
                 }
 
