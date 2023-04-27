@@ -368,6 +368,18 @@ pub struct EllipticCurveKeyParameters {
     pub d: Option<Vec<u8>>,
 }
 
+impl EllipticCurveKeyParameters {
+    /// Construct a `jws::Secret` EC public key for signature verification
+    pub fn jws_public_key_secret(&self) -> jws::Secret {
+        let mut vec = Vec::with_capacity(self.x.len() + self.y.len() + 1);
+        // to sec1 uncompressed
+        vec.push(0x04);
+        vec.extend(self.x.iter().copied());
+        vec.extend(self.y.iter().copied());
+        jws::Secret::PublicKey(vec)
+    }
+}
+
 /// Parameters for a RSA Key
 #[derive(Clone, Eq, PartialEq, Serialize, Deserialize, Default)]
 pub struct RSAKeyParameters {
