@@ -222,10 +222,7 @@ where
     /// both will be checked for equality. If they do not match, an error will be returned.
     ///
     /// If the token or its signature is invalid, it will return an error
-    pub fn decode_with_jwks_ignore_kid<J>(
-        &self,
-        jwks: &JWKSet<J>,
-    ) -> Result<Self, Error> {
+    pub fn decode_with_jwks_ignore_kid<J>(&self, jwks: &JWKSet<J>) -> Result<Self, Error> {
         match *self {
             Compact::Decoded { .. } => Err(Error::UnsupportedOperation),
             Compact::Encoded(ref encoded) => {
@@ -241,25 +238,51 @@ where
 
                 let header: Header<H> = encoded.part(0)?;
 
-                let secrets = jwks.keys.iter().filter_map(|jwk| {
-                    let jwk_alg = jwk.common.algorithm.and_then(|it| if let Algorithm::Signature(alg) = it { Some(alg) } else { None });
-                    // if no algorithm is set it will try the key anyway. if it is it will only accept the right one
-                    if jwk.common.algorithm.is_some() && Some(header.registered.algorithm) != jwk_alg {
-                        return None
-                    }
-                    match &jwk.algorithm {
-                        AlgorithmParameters::EllipticCurve(ec) => Some(ec.jws_public_key_secret()),
-                        AlgorithmParameters::RSA(rsa) => Some(rsa.jws_public_key_secret()),
-                        AlgorithmParameters::OctetKey(oct) => Some(Secret::Bytes(oct.value.clone())),
-                        _ => None,
-                    }
-                }).collect::<Vec<_>>();
+                let secrets = jwks
+                    .keys
+                    .iter()
+                    .filter_map(|jwk| {
+                        let jwk_alg = jwk.common.algorithm.and_then(|it| {
+                            if let Algorithm::Signature(alg) = it {
+                                Some(alg)
+                            } else {
+                                None
+                            }
+                        });
+                        // if no algorithm is set it will try the key anyway. if it is it will only accept the right one
+                        if jwk.common.algorithm.is_some()
+                            && Some(header.registered.algorithm) != jwk_alg
+                        {
+                            return None;
+                        }
+                        match &jwk.algorithm {
+                            AlgorithmParameters::EllipticCurve(ec) => {
+                                Some(ec.jws_public_key_secret())
+                            }
+                            AlgorithmParameters::RSA(rsa) => Some(rsa.jws_public_key_secret()),
+                            AlgorithmParameters::OctetKey(oct) => {
+                                Some(Secret::Bytes(oct.value.clone()))
+                            }
+                            _ => None,
+                        }
+                    })
+                    .collect::<Vec<_>>();
 
                 if secrets.is_empty() {
                     Err(ValidationError::UnsupportedKeyAlgorithm)?
                 }
 
-                if secrets.iter().find(|secret| header.registered.algorithm.verify(signature.as_ref(), payload.as_ref(), secret).is_ok()).is_none() {
+                if secrets
+                    .iter()
+                    .find(|secret| {
+                        header
+                            .registered
+                            .algorithm
+                            .verify(signature.as_ref(), payload.as_ref(), secret)
+                            .is_ok()
+                    })
+                    .is_none()
+                {
                     Err(ValidationError::InvalidSignature)?
                 }
 
@@ -621,7 +644,8 @@ mod tests {
                             }
                 ]
             }"#,
-            ).unwrap();
+        )
+        .unwrap();
         let jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.\
                    eyJ0b2tlbl90eXBlIjoic2VydmljZSIsImlhdCI6MTQ5MjkzODU4OH0.\
                    do_XppIOFthPWlTXL95CIBfgRdyAxbcIsUfM0YxMjCjqvp4ehHFA3I-JasABKzC8CAy4ndhCHsZdpAtK\
