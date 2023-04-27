@@ -272,16 +272,15 @@ where
                     Err(ValidationError::UnsupportedKeyAlgorithm)?
                 }
 
-                if secrets
+                if !secrets
                     .iter()
-                    .find(|secret| {
+                    .any(|secret| {
                         header
                             .registered
                             .algorithm
                             .verify(signature.as_ref(), payload.as_ref(), secret)
                             .is_ok()
                     })
-                    .is_none()
                 {
                     Err(ValidationError::InvalidSignature)?
                 }
@@ -1116,8 +1115,8 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "UnsupportedKeyAlgorithm")]
-    fn compact_jws_decode_with_jwks_key_type_not_supported() {
+    #[should_panic(expected = "InvalidSignature")]
+    fn compact_jws_decode_with_p256_invalid_signature() {
         let token = Compact::<PrivateClaims, Empty>::new_encoded(
             "eyJhbGciOiAiRVMyNTYiLCJ0eXAiOiAiSldUIiwia2lkIjogImtleTAifQ.\
              eyJjb21wYW55IjoiQUNNRSIsImRlcGFydG1lbnQiOiJUb2lsZXQgQ2xlYW5pbmcifQ.\
