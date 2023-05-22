@@ -630,7 +630,7 @@ impl ContentEncryptionAlgorithm {
         Ok(key)
     }
 
-    /// Encrypt some payload with the provided algorith
+    /// Encrypt some payload with the provided algorithm
     pub fn encrypt<T: Serialize + DeserializeOwned>(
         self,
         payload: &[u8],
@@ -646,7 +646,7 @@ impl ContentEncryptionAlgorithm {
         }
     }
 
-    /// Decrypt some payload with the provided algorith,
+    /// Decrypt some payload with the provided algorithm
     pub fn decrypt<T: Serialize + DeserializeOwned>(
         self,
         encrypted: &EncryptionResult,
@@ -714,7 +714,7 @@ impl ContentEncryptionAlgorithm {
     }
 }
 
-/// Return a psuedo random number generator
+/// Return a pseudo random number generator
 pub(crate) fn rng() -> &'static SystemRandom {
     use std::ops::Deref;
 

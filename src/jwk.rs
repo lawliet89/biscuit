@@ -106,7 +106,7 @@ impl<'de> Deserialize<'de> for PublicKeyUse {
 /// Operations that the key is intended to be used for. This enum is serialized `untagged`
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum KeyOperations {
-    /// Computer digitial signature or MAC
+    /// Compute digital signature or MAC
     Sign,
     /// Verify digital signature or MAC
     Verify,
@@ -652,7 +652,7 @@ impl<T: Serialize + DeserializeOwned> JWK<T> {
 /// A JSON object that represents a set of JWKs.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct JWKSet<T> {
-    /// Containted JWKs
+    /// Contained JWKs
     pub keys: Vec<JWK<T>>,
 }
 
