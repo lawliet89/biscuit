@@ -25,52 +25,32 @@ jobs:
       - uses: actions/checkout@v3
         name: Checkout
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         name: Verify Rust Toolchain
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
         name: Rust Cache
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo fmt --all -- --check
         name: Format Check
-        with:
-          command: fmt
-          args: --all -- --check
         if: matrix.rust == 'stable' && matrix.os == 'ubuntu-latest'
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo clippy --all-targets --all-features -- -D warnings
         name: Clippy Lint (Stable)
-        with:
-          command: clippy
-          args: --all-targets --all-features -- -D warnings
         if: matrix.os == 'ubuntu-latest' && matrix.rust == 'stable'
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A "clippy::upper_case_acronyms"
         name: Clippy Lint (Non-stable)
-        with:
-          command: clippy
-          args: --all-targets --all-features -- -D warnings -A "clippy::upper_case_acronyms"
         if: matrix.os == 'ubuntu-latest' && (matrix.rust == 'beta' || matrix.rust == 'nightly')
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo build --verbose --all-features
         name: Build
-        with:
-          command: build
-          args: --verbose --all-features
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo test --all-features
         name: Unit Tests
-        with:
-          command: test
-          args: --all-features
 
-      - uses: actions-rs/cargo@v1
+      - run: cargo doc --no-deps --all-features
         name: Build Documentation
-        with:
-          command: doc
-          args: --no-deps --all-features
