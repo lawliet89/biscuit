@@ -71,7 +71,7 @@ pub enum ValidationError {
     /// A field required is missing from the token
     /// The parameter shows the name of the missing claim
     MissingRequiredClaims(Vec<String>),
-    /// The token's expiry has passed (exp check failled, RFC7523 3.4)
+    /// The token's expiry has passed (exp check failed, RFC7523 3.4)
     /// The parameter show how long the token has expired
     Expired(Duration),
     /// The token is not yet valid (nbf check failed, RFC7523 3.5)
