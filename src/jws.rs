@@ -201,7 +201,11 @@ impl Secret {
             SignatureAlgorithm::ES384 => &signature::ECDSA_P384_SHA384_FIXED_SIGNING,
             _ => return Err(Error::UnsupportedOperation),
         };
-        let key_pair = signature::EcdsaKeyPair::from_pkcs8(ring_algorithm, der.as_slice())?;
+        let key_pair = signature::EcdsaKeyPair::from_pkcs8(
+            ring_algorithm,
+            der.as_slice(),
+            &ring::rand::SystemRandom::new(),
+        )?;
         Ok(Secret::EcdsaKeyPair(Arc::new(key_pair)))
     }
 
