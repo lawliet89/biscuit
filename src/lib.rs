@@ -72,7 +72,6 @@
     overflowing_literals,
     path_statements,
     patterns_in_fns_without_body,
-    private_in_public,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
