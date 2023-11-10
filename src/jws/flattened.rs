@@ -172,7 +172,8 @@ impl SignedData {
     ///     &ECDSA_P256_SHA256_FIXED_SIGNING,
     ///     &ring::rand::SystemRandom::new())?;
     /// let keypair = EcdsaKeyPair::from_pkcs8(
-    ///     &ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref())?;
+    ///     &ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(),
+    ///     &ring::rand::SystemRandom::new())?;
     /// let secret = Secret::EcdsaKeyPair(Arc::new(keypair));
     /// let signed = SignedData::sign(data, secret)?;
     /// # Ok::<(), biscuit::errors::Error>(())

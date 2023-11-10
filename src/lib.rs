@@ -72,7 +72,6 @@
     overflowing_literals,
     path_statements,
     patterns_in_fns_without_body,
-    private_in_public,
     stable_features,
     trivial_casts,
     trivial_numeric_casts,
@@ -699,7 +698,11 @@ impl From<Timestamp> for DateTime<Utc> {
 
 impl From<i64> for Timestamp {
     fn from(timestamp: i64) -> Self {
-        DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(timestamp, 0), Utc).into()
+        DateTime::<Utc>::from_utc(
+            NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
+            Utc,
+        )
+        .into()
     }
 }
 
@@ -719,7 +722,7 @@ impl<'de> Deserialize<'de> for Timestamp {
     {
         let timestamp = i64::deserialize(deserializer)?;
         Ok(Timestamp(DateTime::<Utc>::from_utc(
-            NaiveDateTime::from_timestamp(timestamp, 0),
+            NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
             Utc,
         )))
     }
@@ -1337,7 +1340,7 @@ mod tests {
     #[test]
     fn validate_times_catch_future_token() {
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(0, 0)),
+            now: Some(Utc.timestamp_opt(0, 0).unwrap()),
             ..Default::default()
         };
 
@@ -1358,7 +1361,7 @@ mod tests {
     #[test]
     fn validate_times_catch_too_old_token() {
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(40, 0)),
+            now: Some(Utc.timestamp_opt(40, 0).unwrap()),
             ..Default::default()
         };
 
@@ -1379,7 +1382,7 @@ mod tests {
     #[test]
     fn validate_times_catch_expired_token() {
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(2, 0)),
+            now: Some(Utc.timestamp_opt(2, 0).unwrap()),
             ..Default::default()
         };
 
@@ -1397,7 +1400,7 @@ mod tests {
     #[test]
     fn validate_times_catch_early_token() {
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(0, 0)),
+            now: Some(Utc.timestamp_opt(0, 0).unwrap()),
             ..Default::default()
         };
 
@@ -1520,7 +1523,7 @@ mod tests {
         };
 
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(100, 0)),
+            now: Some(Utc.timestamp_opt(100, 0).unwrap()),
             ..Default::default()
         };
 
@@ -1548,7 +1551,7 @@ mod tests {
         };
 
         let temporal_options = TemporalOptions {
-            now: Some(Utc.timestamp(100, 0)),
+            now: Some(Utc.timestamp_opt(100, 0).unwrap()),
             epsilon: Duration::seconds(10),
         };
 

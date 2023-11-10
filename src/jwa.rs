@@ -307,7 +307,7 @@ impl SignatureAlgorithm {
         };
 
         let rng = rand::SystemRandom::new();
-        let mut signature = vec![0; key_pair.public_modulus_len()];
+        let mut signature = vec![0; key_pair.public().modulus_len()];
         let padding_algorithm: &dyn signature::RsaEncoding = match algorithm {
             SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_SHA256,
             SignatureAlgorithm::RS384 => &signature::RSA_PKCS1_SHA384,
