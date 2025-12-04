@@ -105,6 +105,12 @@
 // FIXME
 #![cfg_attr(feature = "strict", allow(clippy::large_enum_variant))]
 
+#[cfg(all(feature = "ring", feature = "aws-lc-rs"))]
+compile_error!("feature \"ring\" and feature \"aws-lc-rs\" cannot be enabled at the same time");
+
+#[cfg(not(any(feature = "ring", feature = "aws-lc-rs")))]
+compile_error!("either feature \"ring\" or feature \"aws-lc-rs\" must be enabled");
+
 use std::borrow::Borrow;
 use std::fmt::{self, Debug, Display};
 use std::iter;
@@ -115,6 +121,11 @@ use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use data_encoding::BASE64URL_NOPAD;
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[cfg(feature = "aws-lc-rs")]
+use aws_lc_rs as crypto_provider;
+#[cfg(feature = "ring")]
+use ring as crypto_provider;
 
 mod helpers;
 pub use crate::helpers::*;

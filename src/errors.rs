@@ -23,7 +23,7 @@ pub enum Error {
     /// Errors related to IO
     IOError(io::Error),
     /// Key was rejected by Ring
-    KeyRejected(ring::error::KeyRejected),
+    KeyRejected(crate::crypto_provider::error::KeyRejected),
 
     /// Wrong key type was provided for the cryptographic operation
     WrongKeyType {
@@ -114,10 +114,13 @@ impl_from_error!(str::Utf8Error, Error::Utf8);
 impl_from_error!(ValidationError, Error::ValidationError);
 impl_from_error!(DecodeError, Error::DecodeError);
 impl_from_error!(io::Error, Error::IOError);
-impl_from_error!(ring::error::KeyRejected, Error::KeyRejected);
+impl_from_error!(
+    crate::crypto_provider::error::KeyRejected,
+    Error::KeyRejected
+);
 
-impl From<ring::error::Unspecified> for Error {
-    fn from(_: ring::error::Unspecified) -> Self {
+impl From<crate::crypto_provider::error::Unspecified> for Error {
+    fn from(_: crate::crypto_provider::error::Unspecified) -> Self {
         Error::UnspecifiedCryptographicError
     }
 }

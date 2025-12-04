@@ -618,7 +618,7 @@ where
 mod tests {
     use std::str::FromStr;
 
-    use ring::rand::SecureRandom;
+    use crate::crypto_provider::rand::SecureRandom;
     use serde_test::{assert_tokens, Token};
 
     use super::*;
@@ -728,8 +728,8 @@ mod tests {
 
         let decrypted_jwe = not_err!(token.decrypt(
             &key,
-            jwa::KeyManagementAlgorithm::DirectSymmetricKey,
-            jwa::ContentEncryptionAlgorithm::A256GCM,
+            KeyManagementAlgorithm::DirectSymmetricKey,
+            ContentEncryptionAlgorithm::A256GCM,
         ));
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());
