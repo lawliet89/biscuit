@@ -12,14 +12,3 @@ Before making changes or verifying the codebase, you MUST read the project's CI 
 3.  **Verification Steps**: Follow the commands defined in the `steps` section of the workflow (e.g., `cargo fmt`, `cargo clippy`, `cargo build`, `cargo test`, `cargo doc`). Ensure you use the correct flags as specified in the workflow.
 
 By following the workflow file directly, you ensure that your verification process stays aligned with the project's latest CI/CD configuration.
-
-## Changelog Updates
-
-When you make functional changes (enhancements, bug fixes, or breaking changes), you MUST update the `[Unreleased]` section in [CHANGELOG.md](CHANGELOG.md).
-
-1.  **Locate the section**: Find `## [Unreleased]` at the top of the file.
-2.  **Add your entry**: Use the following subsections as appropriate:
-    - `### Breaking Changes`
-    - `### Enhancements`
-    - `### Bug Fixes`
-3.  **Format**: Use a bullet point describing the change, followed by credit (your agent handle) and a link to the PR if available.

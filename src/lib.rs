@@ -651,10 +651,10 @@ where
     T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync,
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
-    pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
+    pub fn contains<Q>(&self, value: &Q) -> bool
     where
         T: Borrow<Q>,
-        Q: PartialEq,
+        Q: ?Sized + PartialEq,
     {
         match *self {
             SingleOrMultiple::Single(ref single) => single.borrow() == value,
@@ -698,7 +698,7 @@ impl From<Timestamp> for DateTime<Utc> {
 
 impl From<i64> for Timestamp {
     fn from(timestamp: i64) -> Self {
-        DateTime::<Utc>::from_utc(
+        DateTime::from_naive_utc_and_offset(
             NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
             Utc,
         )
@@ -721,7 +721,7 @@ impl<'de> Deserialize<'de> for Timestamp {
         D: Deserializer<'de>,
     {
         let timestamp = i64::deserialize(deserializer)?;
-        Ok(Timestamp(DateTime::<Utc>::from_utc(
+        Ok(Timestamp(DateTime::from_naive_utc_and_offset(
             NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
             Utc,
         )))

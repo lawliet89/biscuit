@@ -1,12 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## Unreleased
 
 ### Breaking Changes
 
-### Enhancements
-
-### Bug Fixes
+- MSRV is now Rust 1.63 due to transitive dependencies (`hashbrown` 0.14 / `indexmap` 2.x) requiring it.
 
 ## 0.6.0
 

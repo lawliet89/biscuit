@@ -10,7 +10,7 @@ use once_cell::sync::Lazy;
 use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
 use ring::signature::KeyPair;
-use ring::{aead, hmac, rand, signature};
+use ring::{aead, hmac, signature};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -306,7 +306,7 @@ impl SignatureAlgorithm {
             _ => Err("Invalid secret type. A RsaKeyPair is required".to_string())?,
         };
 
-        let rng = rand::SystemRandom::new();
+        let rng = SystemRandom::new();
         let mut signature = vec![0; key_pair.public().modulus_len()];
         let padding_algorithm: &dyn signature::RsaEncoding = match algorithm {
             SignatureAlgorithm::RS256 => &signature::RSA_PKCS1_SHA256,
@@ -335,7 +335,7 @@ impl SignatureAlgorithm {
             // See https://github.com/briansmith/ring/issues/268
             Err(Error::UnsupportedOperation)
         } else {
-            let rng = rand::SystemRandom::new();
+            let rng = SystemRandom::new();
             let sig = key_pair.as_ref().sign(&rng, data)?;
             Ok(sig.as_ref().to_vec())
         }
@@ -792,7 +792,6 @@ mod tests {
     use ring::constant_time::verify_slices_are_equal;
 
     use super::*;
-    use crate::jwa;
     use crate::CompactPart;
 
     #[test]
@@ -1264,7 +1263,7 @@ mod tests {
         };
 
         let cek_alg = KeyManagementAlgorithm::DirectSymmetricKey;
-        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+        let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
 
         assert!(
             verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_ok()
@@ -1287,13 +1286,13 @@ mod tests {
         };
 
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
-        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
+        let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
         assert!(
             verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
 
-        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+        let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
         assert!(
             verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
@@ -1316,13 +1315,13 @@ mod tests {
         };
 
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
-        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A128GCM, &key));
+        let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
         assert!(
             verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
         );
 
-        let cek = not_err!(cek_alg.cek(jwa::ContentEncryptionAlgorithm::A256GCM, &key));
+        let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
         assert!(
             verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
@@ -1348,7 +1347,7 @@ mod tests {
         };
 
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
+        let enc_alg = ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
@@ -1380,7 +1379,7 @@ mod tests {
         };
 
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM; // determines the CEK
+        let enc_alg = ContentEncryptionAlgorithm::A128GCM; // determines the CEK
         let cek = not_err!(cek_alg.cek(enc_alg, &key));
 
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
@@ -1396,7 +1395,7 @@ mod tests {
     /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
     #[test]
     fn aes128gcm_key_length() {
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
+        let enc_alg = ContentEncryptionAlgorithm::A128GCM;
         let cek = not_err!(enc_alg.generate_key());
         assert_eq!(cek.len(), 128 / 8);
     }
@@ -1404,7 +1403,7 @@ mod tests {
     /// `ContentEncryptionAlgorithm::A256GCM` generates CEK of the right length
     #[test]
     fn aes256gcm_key_length() {
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
+        let enc_alg = ContentEncryptionAlgorithm::A256GCM;
         let cek = not_err!(enc_alg.generate_key());
         assert_eq!(cek.len(), 256 / 8);
     }
@@ -1429,7 +1428,7 @@ mod tests {
 
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A128GCM;
+        let enc_alg = ContentEncryptionAlgorithm::A128GCM;
         let encrypted_payload =
             not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
@@ -1457,7 +1456,7 @@ mod tests {
 
         let payload = "狼よ、我が敵を食らえ！";
         let aad = "My servants never die!";
-        let enc_alg = jwa::ContentEncryptionAlgorithm::A256GCM;
+        let enc_alg = ContentEncryptionAlgorithm::A256GCM;
         let encrypted_payload =
             not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
