@@ -7,7 +7,6 @@
 use std::fmt;
 
 use once_cell::sync::Lazy;
-use ring::constant_time::verify_slices_are_equal;
 use ring::rand::SystemRandom;
 use ring::signature::KeyPair;
 use ring::{aead, hmac, signature};
@@ -360,8 +359,20 @@ impl SignatureAlgorithm {
         secret: &Secret,
         algorithm: SignatureAlgorithm,
     ) -> Result<(), Error> {
-        let actual_signature = Self::sign_hmac(data, secret, algorithm)?;
-        verify_slices_are_equal(expected_signature, actual_signature.as_ref())?;
+        let secret = match *secret {
+            Secret::Bytes(ref secret) => secret,
+            _ => Err("Invalid secret type. A byte array is required".to_string())?,
+        };
+
+        let algorithm = match algorithm {
+            SignatureAlgorithm::HS256 => &hmac::HMAC_SHA256,
+            SignatureAlgorithm::HS384 => &hmac::HMAC_SHA384,
+            SignatureAlgorithm::HS512 => &hmac::HMAC_SHA512,
+            _ => unreachable!("Should not happen"),
+        };
+        let key = hmac::Key::new(*algorithm, secret);
+
+        hmac::verify(&key, data, expected_signature)?;
         Ok(())
     }
 
@@ -789,8 +800,6 @@ pub(crate) fn random_aes_gcm_nonce() -> Result<Vec<u8>, Error> {
 
 #[cfg(test)]
 mod tests {
-    use ring::constant_time::verify_slices_are_equal;
-
     use super::*;
     use crate::CompactPart;
 
@@ -1265,9 +1274,7 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::DirectSymmetricKey;
         let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
 
-        assert!(
-            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_ok()
-        );
+        assert_eq!(cek.octet_key().unwrap(), key.octet_key().unwrap());
     }
 
     /// `KeyManagementAlgorithm::A128GCMKW` returns a random key with the right length when CEK is requested
@@ -1288,15 +1295,11 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::A128GCMKW;
         let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
-        assert!(
-            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
-        );
+        assert_ne!(cek.octet_key().unwrap(), key.octet_key().unwrap());
 
         let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
-        assert!(
-            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
-        );
+        assert_ne!(cek.octet_key().unwrap(), key.octet_key().unwrap());
     }
 
     /// `KeyManagementAlgorithm::A256GCMKW` returns a random key with the right length when CEK is requested
@@ -1317,15 +1320,11 @@ mod tests {
         let cek_alg = KeyManagementAlgorithm::A256GCMKW;
         let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A128GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 128 / 8);
-        assert!(
-            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
-        );
+        assert_ne!(cek.octet_key().unwrap(), key.octet_key().unwrap());
 
         let cek = not_err!(cek_alg.cek(ContentEncryptionAlgorithm::A256GCM, &key));
         assert_eq!(cek.octet_key().unwrap().len(), 256 / 8);
-        assert!(
-            verify_slices_are_equal(cek.octet_key().unwrap(), key.octet_key().unwrap()).is_err()
-        );
+        assert_ne!(cek.octet_key().unwrap(), key.octet_key().unwrap());
     }
 
     #[test]
@@ -1353,11 +1352,7 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(
-            cek.octet_key().unwrap(),
-            decrypted_cek.octet_key().unwrap(),
-        )
-        .is_ok());
+        assert_eq!(cek.octet_key().unwrap(), decrypted_cek.octet_key().unwrap());
     }
 
     #[test]
@@ -1385,11 +1380,7 @@ mod tests {
         let encrypted_cek = not_err!(cek_alg.wrap_key(cek.octet_key().unwrap(), &key, &options));
         let decrypted_cek = not_err!(cek_alg.unwrap_key(&encrypted_cek, enc_alg, &key));
 
-        assert!(verify_slices_are_equal(
-            cek.octet_key().unwrap(),
-            decrypted_cek.octet_key().unwrap(),
-        )
-        .is_ok());
+        assert_eq!(cek.octet_key().unwrap(), decrypted_cek.octet_key().unwrap());
     }
 
     /// `ContentEncryptionAlgorithm::A128GCM` generates CEK of the right length
@@ -1433,7 +1424,7 @@ mod tests {
             not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
-        assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
+        assert_eq!(payload.as_bytes(), &decrypted_payload);
     }
 
     #[test]
@@ -1461,6 +1452,6 @@ mod tests {
             not_err!(enc_alg.encrypt(payload.as_bytes(), aad.as_bytes(), &key, &options,));
 
         let decrypted_payload = not_err!(enc_alg.decrypt(&encrypted_payload, &key));
-        assert!(verify_slices_are_equal(payload.as_bytes(), &decrypted_payload).is_ok());
+        assert_eq!(payload.as_bytes(), &decrypted_payload);
     }
 }
