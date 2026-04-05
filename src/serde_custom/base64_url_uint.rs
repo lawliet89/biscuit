@@ -48,7 +48,7 @@ where
 
 pub struct Wrapper<'a>(&'a BigUint);
 
-pub fn wrap(data: &BigUint) -> Wrapper {
+pub fn wrap(data: &BigUint) -> Wrapper<'_> {
     Wrapper(data)
 }
 

@@ -728,8 +728,8 @@ mod tests {
 
         let decrypted_jwe = not_err!(token.decrypt(
             &key,
-            jwa::KeyManagementAlgorithm::DirectSymmetricKey,
-            jwa::ContentEncryptionAlgorithm::A256GCM,
+            KeyManagementAlgorithm::DirectSymmetricKey,
+            ContentEncryptionAlgorithm::A256GCM,
         ));
 
         let decrypted_payload: &Vec<u8> = not_err!(decrypted_jwe.payload());

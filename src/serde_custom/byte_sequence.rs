@@ -44,7 +44,7 @@ where
 
 pub struct Wrapper<'a>(&'a [u8]);
 
-pub fn wrap(data: &[u8]) -> Wrapper {
+pub fn wrap(data: &[u8]) -> Wrapper<'_> {
     Wrapper(data)
 }
 
