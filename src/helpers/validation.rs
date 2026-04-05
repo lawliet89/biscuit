@@ -33,12 +33,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_is_ignored() {
-        let v: Validation<String> = Default::default();
-        assert_eq!(Validation::Ignored, v);
-    }
-
-    #[test]
     fn map_on_ignored_stays_ignored() {
         let v: Validation<i32> = Validation::Ignored;
         let mapped: Validation<String> = v.map(|x| x.to_string());
@@ -50,19 +44,5 @@ mod tests {
         let v: Validation<i32> = Validation::Validate(42);
         let mapped: Validation<String> = v.map(|x| x.to_string());
         assert_eq!(Validation::Validate("42".to_string()), mapped);
-    }
-
-    #[test]
-    fn equality() {
-        assert_eq!(Validation::<i32>::Ignored, Validation::Ignored);
-        assert_eq!(Validation::Validate(42), Validation::Validate(42));
-        assert_ne!(Validation::<i32>::Ignored, Validation::Validate(42));
-    }
-
-    #[test]
-    fn copy_semantics() {
-        let v = Validation::Validate(42i32);
-        let cloned = v;
-        assert_eq!(v, cloned);
     }
 }

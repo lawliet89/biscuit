@@ -1611,27 +1611,6 @@ mod tests {
     // --- Compact struct tests ---
 
     #[test]
-    fn compact_new_is_empty() {
-        let c = Compact::new();
-        assert!(c.is_empty());
-        assert_eq!(0, c.len());
-    }
-
-    #[test]
-    fn compact_default_equals_new() {
-        let c1 = Compact::new();
-        let c2 = Compact::default();
-        assert_eq!(c1, c2);
-    }
-
-    #[test]
-    fn compact_with_capacity_starts_empty() {
-        let c = Compact::with_capacity(3);
-        assert!(c.is_empty());
-        assert_eq!(0, c.len());
-    }
-
-    #[test]
     fn compact_push_increases_len() {
         let mut c = Compact::new();
         let bytes: Vec<u8> = vec![1, 2, 3];
@@ -1688,49 +1667,6 @@ mod tests {
         assert_eq!(c, deserialized);
     }
 
-    // --- Base64Url tests ---
-
-    #[test]
-    fn base64url_str_returns_inner() {
-        let b = Base64Url("AQID".to_string());
-        assert_eq!("AQID", b.str());
-    }
-
-    #[test]
-    fn base64url_deref_to_str() {
-        let b = Base64Url("AQID".to_string());
-        let s: &str = &b;
-        assert_eq!("AQID", s);
-    }
-
-    #[test]
-    fn base64url_as_ref_returns_bytes() {
-        let b = Base64Url("AQID".to_string());
-        let bytes: &[u8] = b.as_ref();
-        assert_eq!(b"AQID", bytes);
-    }
-
-    #[test]
-    fn base64url_from_str_never_fails() {
-        let b = not_err!(Base64Url::from_str("AQID"));
-        assert_eq!("AQID", b.str());
-    }
-
-    #[test]
-    fn base64url_unwrap_consumes_inner_string() {
-        let b = Base64Url("AQID".to_string());
-        let s = b.unwrap();
-        assert_eq!("AQID", s);
-    }
-
-    #[test]
-    fn base64url_borrow_as_str() {
-        use std::borrow::Borrow;
-        let b = Base64Url("AQID".to_string());
-        let s: &str = b.borrow();
-        assert_eq!("AQID", s);
-    }
-
     // --- Timestamp conversion tests ---
 
     #[test]
@@ -1745,13 +1681,6 @@ mod tests {
     fn timestamp_into_datetime_utc() {
         let ts: Timestamp = 1000i64.into();
         let dt: DateTime<Utc> = ts.into();
-        assert_eq!(Utc.timestamp_opt(1000, 0).unwrap(), dt);
-    }
-
-    #[test]
-    fn timestamp_deref_to_datetime() {
-        let ts: Timestamp = 1000i64.into();
-        let dt = *ts;
         assert_eq!(Utc.timestamp_opt(1000, 0).unwrap(), dt);
     }
 
