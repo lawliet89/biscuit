@@ -93,4 +93,36 @@ mod tests {
             ],
         );
     }
+
+    #[test]
+    fn round_trip_for_additional_value() {
+        // 256 = [0x01, 0x00] in big-endian; base64url of [0x01, 0x00] = "AQA"
+        let test_value = TestStruct {
+            bytes: BigUint::from(256u32),
+        };
+        let expected_json = r#"{"bytes":"AQA"}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test_value));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: TestStruct = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(test_value, deserialized);
+    }
+
+    #[test]
+    fn large_value_round_trip() {
+        let test_value = TestStruct {
+            bytes: BigUint::from(u64::MAX),
+        };
+        let serialized = not_err!(serde_json::to_string(&test_value));
+        let deserialized: TestStruct = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(test_value, deserialized);
+    }
+
+    #[test]
+    fn invalid_base64_deserialization_fails() {
+        let invalid_json = r#"{"bytes":"!@#$%^"}"#;
+        let result: Result<TestStruct, _> = serde_json::from_str(invalid_json);
+        assert!(result.is_err());
+    }
 }

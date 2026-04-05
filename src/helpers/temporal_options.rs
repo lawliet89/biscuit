@@ -22,3 +22,44 @@ impl Default for TemporalOptions {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Duration, TimeZone, Utc};
+
+    #[test]
+    fn default_has_zero_epsilon_and_no_now() {
+        let opts = TemporalOptions::default();
+        assert_eq!(Duration::seconds(0), opts.epsilon);
+        assert!(opts.now.is_none());
+    }
+
+    #[test]
+    fn equality() {
+        let opts1 = TemporalOptions::default();
+        let opts2 = TemporalOptions::default();
+        assert_eq!(opts1, opts2);
+    }
+
+    #[test]
+    fn copy_semantics() {
+        let opts = TemporalOptions {
+            epsilon: Duration::seconds(5),
+            now: Some(Utc.timestamp_opt(1000, 0).unwrap()),
+        };
+        let cloned = opts;
+        assert_eq!(opts, cloned);
+    }
+
+    #[test]
+    fn custom_epsilon_and_now() {
+        let now = Utc.timestamp_opt(42, 0).unwrap();
+        let opts = TemporalOptions {
+            epsilon: Duration::seconds(30),
+            now: Some(now),
+        };
+        assert_eq!(Duration::seconds(30), opts.epsilon);
+        assert_eq!(Some(now), opts.now);
+    }
+}

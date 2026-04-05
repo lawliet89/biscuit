@@ -244,3 +244,322 @@ impl error::Error for ValidationError {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::SingleOrMultiple;
+    use chrono::Duration;
+    use std::error::Error as StdError;
+
+    // --- Display tests for Error variants ---
+
+    #[test]
+    fn display_generic_error() {
+        let error = Error::GenericError("test error message".to_string());
+        assert_eq!("test error message", error.to_string());
+    }
+
+    #[test]
+    fn display_wrong_key_type() {
+        let error = Error::WrongKeyType {
+            expected: "RSA".to_string(),
+            actual: "EC".to_string(),
+        };
+        assert_eq!(
+            "RSA was expected for this cryptographic operation but EC was provided",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn display_wrong_encryption_options() {
+        let error = Error::WrongEncryptionOptions {
+            expected: "AES_GCM".to_string(),
+            actual: "AES_CBC".to_string(),
+        };
+        assert_eq!(
+            "AES_GCM was expected for this cryptographic operation but AES_CBC was provided",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn display_unspecified_cryptographic_error() {
+        let error = Error::UnspecifiedCryptographicError;
+        assert_eq!("An unspecified cryptographic error", error.to_string());
+    }
+
+    #[test]
+    fn display_unsupported_operation() {
+        let error = Error::UnsupportedOperation;
+        assert_eq!("This operation is not supported", error.to_string());
+    }
+
+    // --- Display tests for DecodeError ---
+
+    #[test]
+    fn display_decode_error_invalid_token() {
+        let error = DecodeError::InvalidToken;
+        assert_eq!("Invalid token", error.to_string());
+    }
+
+    #[test]
+    fn display_decode_error_parts_length_error() {
+        let error = DecodeError::PartsLengthError {
+            expected: 3,
+            actual: 2,
+        };
+        assert_eq!(
+            "Expected 3 parts in Compact JSON representation but got 2",
+            error.to_string()
+        );
+    }
+
+    // --- Display tests for ValidationError ---
+
+    #[test]
+    fn display_validation_error_invalid_signature() {
+        let error = ValidationError::InvalidSignature;
+        assert_eq!("Invalid signature", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_wrong_algorithm_header() {
+        let error = ValidationError::WrongAlgorithmHeader;
+        assert_eq!(
+            "Token provided was signed or encrypted with an unexpected algorithm",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn display_validation_error_missing_required_claims() {
+        let error = ValidationError::MissingRequiredClaims(vec![
+            "exp".to_string(),
+            "iat".to_string(),
+        ]);
+        let msg = error.to_string();
+        assert!(msg.contains("exp"));
+        assert!(msg.contains("iat"));
+    }
+
+    #[test]
+    fn display_validation_error_expired() {
+        let error = ValidationError::Expired(Duration::seconds(30));
+        assert_eq!("Token expired 30 seconds ago", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_not_yet_valid() {
+        let error = ValidationError::NotYetValid(Duration::seconds(60));
+        assert_eq!("Token will be valid in 60 seconds", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_too_old() {
+        let error = ValidationError::TooOld(Duration::seconds(15));
+        assert_eq!(
+            "Token has been considered too old for 15 seconds",
+            error.to_string()
+        );
+    }
+
+    #[test]
+    fn display_validation_error_invalid_issuer() {
+        let error = ValidationError::InvalidIssuer("bad_issuer".to_string());
+        assert!(error.to_string().contains("bad_issuer"));
+    }
+
+    #[test]
+    fn display_validation_error_invalid_audience() {
+        let error =
+            ValidationError::InvalidAudience(SingleOrMultiple::Single("aud".to_string()));
+        assert!(error.to_string().contains("aud"));
+    }
+
+    #[test]
+    fn display_validation_error_kid_missing() {
+        let error = ValidationError::KidMissing;
+        assert_eq!("Header is missing kid", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_key_not_found() {
+        let error = ValidationError::KeyNotFound;
+        assert_eq!("Key not found in JWKS", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_unsupported_key_algorithm() {
+        let error = ValidationError::UnsupportedKeyAlgorithm;
+        assert_eq!("Algorithm of JWK not supported", error.to_string());
+    }
+
+    #[test]
+    fn display_validation_error_missing_algorithm() {
+        let error = ValidationError::MissingAlgorithm;
+        assert_eq!(
+            "An algorithm is needed for verification but was not provided",
+            error.to_string()
+        );
+    }
+
+    // --- Error wrapping delegates Display to inner type ---
+
+    #[test]
+    fn error_wraps_decode_error_for_display() {
+        let error: Error = DecodeError::InvalidToken.into();
+        assert_eq!("Invalid token", error.to_string());
+    }
+
+    #[test]
+    fn error_wraps_validation_error_for_display() {
+        let error: Error = ValidationError::InvalidSignature.into();
+        assert_eq!("Invalid signature", error.to_string());
+    }
+
+    // --- From conversion tests ---
+
+    #[test]
+    fn from_string_to_error() {
+        let error: Error = "test message".to_string().into();
+        assert!(matches!(error, Error::GenericError(ref msg) if msg == "test message"));
+    }
+
+    #[test]
+    fn from_validation_error_to_error() {
+        let error: Error = ValidationError::InvalidSignature.into();
+        assert!(matches!(
+            error,
+            Error::ValidationError(ValidationError::InvalidSignature)
+        ));
+    }
+
+    #[test]
+    fn from_decode_error_to_error() {
+        let error: Error = DecodeError::InvalidToken.into();
+        assert!(matches!(error, Error::DecodeError(DecodeError::InvalidToken)));
+    }
+
+    #[test]
+    fn from_io_error_to_error() {
+        let io_error = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let error: Error = io_error.into();
+        assert!(matches!(error, Error::IOError(_)));
+    }
+
+    #[test]
+    fn from_unspecified_cryptographic_error() {
+        let error: Error = ring::error::Unspecified.into();
+        assert!(matches!(error, Error::UnspecifiedCryptographicError));
+    }
+
+    #[test]
+    fn from_utf8_error() {
+        let invalid_utf8 = vec![0xFF, 0xFE];
+        let utf8_error = str::from_utf8(&invalid_utf8).unwrap_err();
+        let error: Error = utf8_error.into();
+        assert!(matches!(error, Error::Utf8(_)));
+    }
+
+    #[test]
+    fn from_string_from_utf8_error() {
+        let invalid_utf8 = vec![0xFF, 0xFE];
+        let utf8_error = String::from_utf8(invalid_utf8).unwrap_err();
+        let error: Error = utf8_error.into();
+        assert!(matches!(error, Error::Utf8(_)));
+    }
+
+    #[test]
+    fn from_json_error_to_error() {
+        let json_error =
+            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let error: Error = json_error.into();
+        assert!(matches!(error, Error::JsonError(_)));
+    }
+
+    #[test]
+    fn from_base64_decode_error_to_error() {
+        let base64_error = data_encoding::BASE64URL_NOPAD.decode(b"!@#$%^").unwrap_err();
+        let error: Error = base64_error.into();
+        assert!(matches!(error, Error::DecodeBase64(_)));
+    }
+
+    // --- std::error::Error::source() tests ---
+
+    #[test]
+    fn error_source_for_json_error_is_some() {
+        let json_error =
+            serde_json::from_str::<serde_json::Value>("invalid").unwrap_err();
+        let error: Error = json_error.into();
+        assert!(error.source().is_some());
+    }
+
+    #[test]
+    fn error_source_for_io_error_is_some() {
+        let io_error = io::Error::new(io::ErrorKind::NotFound, "not found");
+        let error: Error = io_error.into();
+        assert!(error.source().is_some());
+    }
+
+    #[test]
+    fn error_source_for_decode_error_is_some() {
+        let error: Error = DecodeError::InvalidToken.into();
+        assert!(error.source().is_some());
+    }
+
+    #[test]
+    fn error_source_for_validation_error_is_some() {
+        let error: Error = ValidationError::InvalidSignature.into();
+        assert!(error.source().is_some());
+    }
+
+    #[test]
+    fn error_source_for_generic_error_is_none() {
+        let error = Error::GenericError("test".to_string());
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn error_source_for_wrong_key_type_is_none() {
+        let error = Error::WrongKeyType {
+            expected: "RSA".to_string(),
+            actual: "EC".to_string(),
+        };
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn error_source_for_unspecified_is_none() {
+        let error = Error::UnspecifiedCryptographicError;
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn decode_error_source_is_none() {
+        let error = DecodeError::InvalidToken;
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn validation_error_source_is_none() {
+        let error = ValidationError::InvalidSignature;
+        assert!(error.source().is_none());
+    }
+
+    // --- ValidationError derived trait tests ---
+
+    #[test]
+    fn validation_error_equality() {
+        assert_eq!(ValidationError::InvalidSignature, ValidationError::InvalidSignature);
+        assert_ne!(ValidationError::InvalidSignature, ValidationError::WrongAlgorithmHeader);
+    }
+
+    #[test]
+    fn validation_error_clone() {
+        let error = ValidationError::MissingRequiredClaims(vec!["exp".to_string()]);
+        let cloned = error.clone();
+        assert_eq!(error, cloned);
+    }
+}

@@ -1607,4 +1607,302 @@ mod tests {
         let actual_value = not_err!(Base64Url::from_base64(&base64));
         assert_eq!(actual_value, test_value);
     }
+
+    // --- Compact struct tests ---
+
+    #[test]
+    fn compact_new_is_empty() {
+        let c = Compact::new();
+        assert!(c.is_empty());
+        assert_eq!(0, c.len());
+    }
+
+    #[test]
+    fn compact_default_equals_new() {
+        let c1 = Compact::new();
+        let c2 = Compact::default();
+        assert_eq!(c1, c2);
+    }
+
+    #[test]
+    fn compact_with_capacity_starts_empty() {
+        let c = Compact::with_capacity(3);
+        assert!(c.is_empty());
+        assert_eq!(0, c.len());
+    }
+
+    #[test]
+    fn compact_push_increases_len() {
+        let mut c = Compact::new();
+        let bytes: Vec<u8> = vec![1, 2, 3];
+        not_err!(c.push(&bytes));
+        assert_eq!(1, c.len());
+        assert!(!c.is_empty());
+        not_err!(c.push(&bytes));
+        assert_eq!(2, c.len());
+    }
+
+    #[test]
+    fn compact_encode_decode_round_trip() {
+        let mut c = Compact::new();
+        let part1: Vec<u8> = vec![1, 2, 3];
+        let part2: Vec<u8> = vec![4, 5, 6];
+        not_err!(c.push(&part1));
+        not_err!(c.push(&part2));
+
+        let encoded = c.encode();
+        assert!(encoded.contains('.'));
+
+        let decoded = Compact::decode(&encoded);
+        assert_eq!(c, decoded);
+
+        let r1: Vec<u8> = not_err!(decoded.part(0));
+        let r2: Vec<u8> = not_err!(decoded.part(1));
+        assert_eq!(part1, r1);
+        assert_eq!(part2, r2);
+    }
+
+    #[test]
+    fn compact_part_out_of_bounds_returns_error() {
+        let c = Compact::new();
+        let result: Result<Vec<u8>, _> = c.part(0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn compact_display_matches_encode() {
+        let mut c = Compact::new();
+        let bytes: Vec<u8> = vec![1, 2, 3];
+        not_err!(c.push(&bytes));
+        let display = format!("{}", c);
+        assert_eq!(c.encode(), display);
+    }
+
+    #[test]
+    fn compact_serialize_deserialize_round_trip() {
+        let mut c = Compact::new();
+        let bytes: Vec<u8> = vec![1, 2, 3];
+        not_err!(c.push(&bytes));
+        let serialized = not_err!(serde_json::to_string(&c));
+        let deserialized: Compact = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(c, deserialized);
+    }
+
+    // --- Base64Url tests ---
+
+    #[test]
+    fn base64url_str_returns_inner() {
+        let b = Base64Url("AQID".to_string());
+        assert_eq!("AQID", b.str());
+    }
+
+    #[test]
+    fn base64url_deref_to_str() {
+        let b = Base64Url("AQID".to_string());
+        let s: &str = &b;
+        assert_eq!("AQID", s);
+    }
+
+    #[test]
+    fn base64url_as_ref_returns_bytes() {
+        let b = Base64Url("AQID".to_string());
+        let bytes: &[u8] = b.as_ref();
+        assert_eq!(b"AQID", bytes);
+    }
+
+    #[test]
+    fn base64url_from_str_never_fails() {
+        let b = not_err!(Base64Url::from_str("AQID"));
+        assert_eq!("AQID", b.str());
+    }
+
+    #[test]
+    fn base64url_unwrap_consumes_inner_string() {
+        let b = Base64Url("AQID".to_string());
+        let s = b.unwrap();
+        assert_eq!("AQID", s);
+    }
+
+    #[test]
+    fn base64url_borrow_as_str() {
+        use std::borrow::Borrow;
+        let b = Base64Url("AQID".to_string());
+        let s: &str = b.borrow();
+        assert_eq!("AQID", s);
+    }
+
+    // --- Timestamp conversion tests ---
+
+    #[test]
+    fn timestamp_from_datetime_utc() {
+        let dt = Utc.timestamp_opt(1000, 0).unwrap();
+        let ts: Timestamp = dt.into();
+        let expected: Timestamp = 1000i64.into();
+        assert_eq!(expected, ts);
+    }
+
+    #[test]
+    fn timestamp_into_datetime_utc() {
+        let ts: Timestamp = 1000i64.into();
+        let dt: DateTime<Utc> = ts.into();
+        assert_eq!(Utc.timestamp_opt(1000, 0).unwrap(), dt);
+    }
+
+    #[test]
+    fn timestamp_deref_to_datetime() {
+        let ts: Timestamp = 1000i64.into();
+        let dt = *ts;
+        assert_eq!(Utc.timestamp_opt(1000, 0).unwrap(), dt);
+    }
+
+    // --- SingleOrMultiple::iter tests ---
+
+    #[test]
+    fn single_or_multiple_iter_single() {
+        let s: SingleOrMultiple<String> = SingleOrMultiple::Single("foo".to_string());
+        let items: Vec<&String> = s.iter().collect();
+        assert_eq!(1, items.len());
+        assert_eq!("foo", items[0]);
+    }
+
+    #[test]
+    fn single_or_multiple_iter_multiple() {
+        let m: SingleOrMultiple<String> = SingleOrMultiple::Multiple(vec![
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+        ]);
+        let items: Vec<&String> = m.iter().collect();
+        assert_eq!(3, items.len());
+        assert_eq!("a", items[0]);
+        assert_eq!("b", items[1]);
+        assert_eq!("c", items[2]);
+    }
+
+    // --- Validation::Ignored path tests ---
+
+    #[test]
+    fn validate_exp_ignored_skips_validation() {
+        let registered_claims = RegisteredClaims {
+            expiry: Some(1.into()), // past timestamp — would fail if validated
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_exp(Validation::Ignored)
+        );
+    }
+
+    #[test]
+    fn validate_nbf_ignored_skips_validation() {
+        let registered_claims = RegisteredClaims {
+            not_before: Some(9_999_999_999i64.into()), // far future
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_nbf(Validation::Ignored)
+        );
+    }
+
+    #[test]
+    fn validate_iat_ignored_skips_validation() {
+        let registered_claims = RegisteredClaims {
+            issued_at: Some(9_999_999_999i64.into()), // far future
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_iat(Validation::Ignored)
+        );
+    }
+
+    #[test]
+    fn validate_iss_ignored_passes_always() {
+        let registered_claims = RegisteredClaims {
+            issuer: Some("any_issuer".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(Ok(()), registered_claims.validate_iss(Validation::Ignored));
+    }
+
+    #[test]
+    fn validate_aud_ignored_passes_always() {
+        let registered_claims = RegisteredClaims {
+            audience: Some(SingleOrMultiple::Single("any_aud".to_string())),
+            ..Default::default()
+        };
+        assert_eq!(Ok(()), registered_claims.validate_aud(Validation::Ignored));
+    }
+
+    // --- Passing validation paths ---
+
+    #[test]
+    fn validate_iss_matching_issuer_passes() {
+        let registered_claims = RegisteredClaims {
+            issuer: Some("https://issuer.example.com".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims.validate_iss(Validation::Validate(
+                "https://issuer.example.com".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn validate_iss_missing_issuer_with_validate_passes() {
+        // A token without an issuer claim passes issuer validation (not required by default)
+        let registered_claims = RegisteredClaims {
+            issuer: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims
+                .validate_iss(Validation::Validate("expected_issuer".to_string()))
+        );
+    }
+
+    #[test]
+    fn validate_aud_missing_audience_with_validate_passes() {
+        // A token without an audience claim passes audience validation (not required by default)
+        let registered_claims = RegisteredClaims {
+            audience: None,
+            ..Default::default()
+        };
+        assert_eq!(
+            Ok(()),
+            registered_claims
+                .validate_aud(Validation::Validate("expected_audience".to_string()))
+        );
+    }
+
+    // --- Missing jti claim validation ---
+
+    #[test]
+    #[should_panic(expected = "MissingRequiredClaims([\"jti\"])")]
+    fn validate_times_missing_jti() {
+        let registered_claims: RegisteredClaims = Default::default();
+        let options = ClaimPresenceOptions {
+            id: Presence::Required,
+            ..Default::default()
+        };
+        registered_claims.validate_claim_presence(options).unwrap();
+    }
+
+    // --- ClaimPresenceOptions::strict tests ---
+
+    #[test]
+    fn claim_presence_options_strict_marks_all_as_required() {
+        let options = ClaimPresenceOptions::strict();
+        assert_eq!(Presence::Required, options.issued_at);
+        assert_eq!(Presence::Required, options.not_before);
+        assert_eq!(Presence::Required, options.expiry);
+        assert_eq!(Presence::Required, options.issuer);
+        assert_eq!(Presence::Required, options.audience);
+        assert_eq!(Presence::Required, options.subject);
+        assert_eq!(Presence::Required, options.id);
+    }
 }
