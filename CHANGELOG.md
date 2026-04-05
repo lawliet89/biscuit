@@ -2,7 +2,24 @@
 
 ## Unreleased
 
+## 0.8.0
+
 ### Breaking Changes
+
+- Bump Minimum Supported Rust Version (MSRV) to `1.66.0` ([#323](https://github.com/lawliet89/biscuit/pull/323))
+
+### Enhancements & Fixes
+
+- Fix build errors for current stable Rust ([#320](https://github.com/lawliet89/biscuit/pull/320))
+- Bump `ring` dependency to `~0.17.13` ([#317](https://github.com/lawliet89/biscuit/pull/317))
+
+## 0.7.0
+
+### Enhancements & Fixes
+
+- Add Support for P-256 ([#310](https://github.com/lawliet89/biscuit/pull/310))
+- Update `ring` version to `0.17.5` ([#313](https://github.com/lawliet89/biscuit/pull/313))
+- Fix a few typos ([#311](https://github.com/lawliet89/biscuit/pull/311))
 
 ## 0.6.0
 
