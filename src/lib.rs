@@ -1696,11 +1696,8 @@ mod tests {
 
     #[test]
     fn single_or_multiple_iter_multiple() {
-        let m: SingleOrMultiple<String> = SingleOrMultiple::Multiple(vec![
-            "a".to_string(),
-            "b".to_string(),
-            "c".to_string(),
-        ]);
+        let m: SingleOrMultiple<String> =
+            SingleOrMultiple::Multiple(vec!["a".to_string(), "b".to_string(), "c".to_string()]);
         let items: Vec<&String> = m.iter().collect();
         assert_eq!(3, items.len());
         assert_eq!("a", items[0]);
@@ -1716,10 +1713,7 @@ mod tests {
             expiry: Some(1.into()), // past timestamp — would fail if validated
             ..Default::default()
         };
-        assert_eq!(
-            Ok(()),
-            registered_claims.validate_exp(Validation::Ignored)
-        );
+        assert_eq!(Ok(()), registered_claims.validate_exp(Validation::Ignored));
     }
 
     #[test]
@@ -1728,10 +1722,7 @@ mod tests {
             not_before: Some(9_999_999_999i64.into()), // far future
             ..Default::default()
         };
-        assert_eq!(
-            Ok(()),
-            registered_claims.validate_nbf(Validation::Ignored)
-        );
+        assert_eq!(Ok(()), registered_claims.validate_nbf(Validation::Ignored));
     }
 
     #[test]
@@ -1740,10 +1731,7 @@ mod tests {
             issued_at: Some(9_999_999_999i64.into()), // far future
             ..Default::default()
         };
-        assert_eq!(
-            Ok(()),
-            registered_claims.validate_iat(Validation::Ignored)
-        );
+        assert_eq!(Ok(()), registered_claims.validate_iat(Validation::Ignored));
     }
 
     #[test]
@@ -1789,8 +1777,7 @@ mod tests {
         };
         assert_eq!(
             Ok(()),
-            registered_claims
-                .validate_iss(Validation::Validate("expected_issuer".to_string()))
+            registered_claims.validate_iss(Validation::Validate("expected_issuer".to_string()))
         );
     }
 
@@ -1803,8 +1790,7 @@ mod tests {
         };
         assert_eq!(
             Ok(()),
-            registered_claims
-                .validate_aud(Validation::Validate("expected_audience".to_string()))
+            registered_claims.validate_aud(Validation::Validate("expected_audience".to_string()))
         );
     }
 

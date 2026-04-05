@@ -281,15 +281,16 @@ mod tests {
 
     #[test]
     fn from_json_error_to_error() {
-        let json_error =
-            serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
         let error: Error = json_error.into();
         assert!(matches!(error, Error::JsonError(_)));
     }
 
     #[test]
     fn from_base64_decode_error_to_error() {
-        let base64_error = data_encoding::BASE64URL_NOPAD.decode(b"!@#$%^").unwrap_err();
+        let base64_error = data_encoding::BASE64URL_NOPAD
+            .decode(b"!@#$%^")
+            .unwrap_err();
         let error: Error = base64_error.into();
         assert!(matches!(error, Error::DecodeBase64(_)));
     }
