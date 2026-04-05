@@ -8,13 +8,15 @@ name: Continuous integration
 
 jobs:
   ci:
+    env:
+      MSRV: "1.66.0"
     strategy:
       matrix:
         rust:
           - stable
           - beta
           - nightly
-          - 1.66.0  # MSRV
+          - msrv
         os:
           - ubuntu-latest
           - windows-latest
@@ -28,7 +30,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         name: Verify Rust Toolchain
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: ${{ matrix.rust == 'msrv' && env.MSRV || matrix.rust }}
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
