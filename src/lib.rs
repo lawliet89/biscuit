@@ -651,10 +651,10 @@ where
     T: Clone + Debug + Eq + PartialEq + Serialize + DeserializeOwned + Send + Sync,
 {
     /// Checks whether this enum, regardless of single or multiple value contains `value`.
-    pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
+    pub fn contains<Q>(&self, value: &Q) -> bool
     where
         T: Borrow<Q>,
-        Q: PartialEq,
+        Q: ?Sized + PartialEq,
     {
         match *self {
             SingleOrMultiple::Single(ref single) => single.borrow() == value,
