@@ -2,7 +2,7 @@
 name = "biscuit"
 version = "0.7.0"
 edition = "2021"
-rust-version = "1.63"
+rust-version = "1.66"
 authors = ["Yong Wen Chua <me@yongwen.xyz>", "Vincent Prouillet <vincent@wearewizards.io>"]
 license = "MIT"
 readme = "README.md"
