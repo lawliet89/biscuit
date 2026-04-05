@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Breaking Changes
+
+### Enhancements
+
+### Bug Fixes
+
 ## 0.6.0
 
 ### Breaking Changes
