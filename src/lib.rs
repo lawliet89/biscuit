@@ -698,7 +698,7 @@ impl From<Timestamp> for DateTime<Utc> {
 
 impl From<i64> for Timestamp {
     fn from(timestamp: i64) -> Self {
-        DateTime::<Utc>::from_utc(
+        DateTime::from_naive_utc_and_offset(
             NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
             Utc,
         )
@@ -721,7 +721,7 @@ impl<'de> Deserialize<'de> for Timestamp {
         D: Deserializer<'de>,
     {
         let timestamp = i64::deserialize(deserializer)?;
-        Ok(Timestamp(DateTime::<Utc>::from_utc(
+        Ok(Timestamp(DateTime::from_naive_utc_and_offset(
             NaiveDateTime::from_timestamp_opt(timestamp, 0).unwrap(),
             Utc,
         )))
