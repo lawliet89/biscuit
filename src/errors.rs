@@ -244,3 +244,56 @@ impl error::Error for ValidationError {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io;
+
+    #[test]
+    fn from_io_error_to_error() {
+        let io_error = io::Error::new(io::ErrorKind::NotFound, "file not found");
+        let error: Error = io_error.into();
+        assert!(matches!(error, Error::IOError(_)));
+    }
+
+    #[test]
+    fn from_unspecified_cryptographic_error() {
+        let error: Error = ring::error::Unspecified.into();
+        assert!(matches!(error, Error::UnspecifiedCryptographicError));
+    }
+
+    #[test]
+    fn from_utf8_error() {
+        let invalid_utf8 = vec![0xFF, 0xFE];
+        let utf8_error = str::from_utf8(&invalid_utf8).unwrap_err();
+        let error: Error = utf8_error.into();
+        assert!(matches!(error, Error::Utf8(_)));
+    }
+
+    #[test]
+    fn from_string_from_utf8_error() {
+        // Covers the From<FromUtf8Error> impl (owned string path), which extracts the
+        // inner Utf8Error so both conversion paths map to Error::Utf8.
+        let invalid_utf8 = vec![0xFF, 0xFE];
+        let utf8_error = String::from_utf8(invalid_utf8).unwrap_err();
+        let error: Error = utf8_error.into();
+        assert!(matches!(error, Error::Utf8(_)));
+    }
+
+    #[test]
+    fn from_json_error_to_error() {
+        let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
+        let error: Error = json_error.into();
+        assert!(matches!(error, Error::JsonError(_)));
+    }
+
+    #[test]
+    fn from_base64_decode_error_to_error() {
+        let base64_error = data_encoding::BASE64URL_NOPAD
+            .decode(b"!@#$%^")
+            .unwrap_err();
+        let error: Error = base64_error.into();
+        assert!(matches!(error, Error::DecodeBase64(_)));
+    }
+}

@@ -87,4 +87,33 @@ mod tests {
             ],
         );
     }
+
+    #[test]
+    fn empty_bytes_serialization_round_trip() {
+        let test_value = TestStruct { bytes: vec![] };
+        let expected_json = r#"{"bytes":""}"#;
+
+        let serialized = not_err!(serde_json::to_string(&test_value));
+        assert_eq!(expected_json, serialized);
+
+        let deserialized: TestStruct = not_err!(serde_json::from_str(&serialized));
+        assert_eq!(test_value, deserialized);
+    }
+
+    #[test]
+    fn wrap_serializes_to_base64url() {
+        // Tests the standalone `wrap()` / `Wrapper` newtype, used when serializing
+        // byte slices outside of a struct with #[serde(with)].
+        let bytes = b"hello world";
+        let wrapped = super::wrap(bytes);
+        let json = not_err!(serde_json::to_string(&wrapped));
+        assert_eq!(r#""aGVsbG8gd29ybGQ""#, json);
+    }
+
+    #[test]
+    fn invalid_base64_deserialization_fails() {
+        let invalid_json = r#"{"bytes":"!@#$%^"}"#;
+        let result: Result<TestStruct, _> = serde_json::from_str(invalid_json);
+        assert!(result.is_err());
+    }
 }

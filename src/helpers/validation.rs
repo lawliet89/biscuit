@@ -27,3 +27,22 @@ impl<T> Validation<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn map_on_ignored_stays_ignored() {
+        let v: Validation<i32> = Validation::Ignored;
+        let mapped: Validation<String> = v.map(|x| x.to_string());
+        assert_eq!(Validation::Ignored, mapped);
+    }
+
+    #[test]
+    fn map_on_validate_transforms_value() {
+        let v: Validation<i32> = Validation::Validate(42);
+        let mapped: Validation<String> = v.map(|x| x.to_string());
+        assert_eq!(Validation::Validate("42".to_string()), mapped);
+    }
+}
