@@ -273,6 +273,8 @@ mod tests {
 
     #[test]
     fn from_string_from_utf8_error() {
+        // Covers the From<FromUtf8Error> impl (owned string path), which extracts the
+        // inner Utf8Error so both conversion paths map to Error::Utf8.
         let invalid_utf8 = vec![0xFF, 0xFE];
         let utf8_error = String::from_utf8(invalid_utf8).unwrap_err();
         let error: Error = utf8_error.into();

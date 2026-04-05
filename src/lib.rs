@@ -1608,7 +1608,7 @@ mod tests {
         assert_eq!(actual_value, test_value);
     }
 
-    // --- Compact struct tests ---
+    // --- Compact struct tests (encode/decode + serde for the dot-separated representation) ---
 
     #[test]
     fn compact_push_increases_len() {
@@ -1706,6 +1706,8 @@ mod tests {
     }
 
     // --- Validation::Ignored path tests ---
+    // Each test uses a claim value that would fail real validation, confirming
+    // that Ignored truly bypasses the check.
 
     #[test]
     fn validate_exp_ignored_skips_validation() {
@@ -1770,7 +1772,8 @@ mod tests {
 
     #[test]
     fn validate_iss_missing_issuer_with_validate_passes() {
-        // A token without an issuer claim passes issuer validation (not required by default)
+        // When the claim is absent, validation passes — presence must be enforced separately
+        // via ClaimPresenceOptions.
         let registered_claims = RegisteredClaims {
             issuer: None,
             ..Default::default()
@@ -1783,7 +1786,7 @@ mod tests {
 
     #[test]
     fn validate_aud_missing_audience_with_validate_passes() {
-        // A token without an audience claim passes audience validation (not required by default)
+        // Same as above: absent claim is not an error; use ClaimPresenceOptions to require it.
         let registered_claims = RegisteredClaims {
             audience: None,
             ..Default::default()

@@ -102,6 +102,8 @@ mod tests {
 
     #[test]
     fn wrap_serializes_to_base64url() {
+        // Tests the standalone `wrap()` / `Wrapper` newtype, used when serializing
+        // byte slices outside of a struct with #[serde(with)].
         let bytes = b"hello world";
         let wrapped = super::wrap(bytes);
         let json = not_err!(serde_json::to_string(&wrapped));

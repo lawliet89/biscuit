@@ -111,6 +111,8 @@ mod tests {
 
     #[test]
     fn large_value_round_trip() {
+        // Exercises multi-byte big-endian encoding at the u64 boundary to catch
+        // truncation or padding issues.
         let test_value = TestStruct {
             bytes: BigUint::from(u64::MAX),
         };
